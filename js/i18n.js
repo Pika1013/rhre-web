@@ -45,7 +45,9 @@ const EN = {
   // キャンバス
   '音楽開始': 'Music start', '再生開始': 'Playback start',
   '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play', 'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
-  '名前を「{n}」にしました': 'Renamed to "{n}".', '押すと .rhref の名前を変えられます': 'Tap to rename the .rhref',
+  '名前を「{n}」にしました': 'Renamed to "{n}".', '全画面に戻る': 'Back to full screen',
+  '追加しました。ホーム画面（アプリ一覧）の RHRE Web から開くと、いつも全画面です。': 'Installed. Open RHRE Web from your home screen or app list for full screen.',
+'押すと .rhref の名前を変えられます': 'Tap to rename the .rhref',
   // 拍子・テンポ・音量の画面
   'テンポの印をつかみました。左右に動かしてください': 'Tempo marker grabbed. Drag it left or right.',
   '音量の印をつかみました。左右に動かしてください': 'Volume marker grabbed. Drag it left or right.',
@@ -102,7 +104,9 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play',
-  '💾 保存': '💾 Save', '名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
+  '💾 保存': '💾 Save', 'ホーム画面に追加して使ってください': 'Add to your Home Screen to use it', '全画面で使う': 'Use in full screen',
+  '全画面で始める': 'Start in full screen', '📲 アプリとして追加': '📲 Install as an app', '作業中のリミックスを .rhref で保存': 'Save the current remix as .rhref',
+'名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
   '📄 新規作成': '📄 New', '📂 開く（.rhref）': '📂 Open (.rhref)', '🎵 サンプルを開く': '🎵 Open sample', '💾 保存（.rhref）': '💾 Save (.rhref)',
   '⬇️ WAVに書き出す': '⬇️ Export WAV', '🎼 音楽を選ぶ': '🎼 Choose music', '⏱ 音楽の開始位置': '⏱ Music start position', '✖️ 音楽を外す': '✖️ Remove music',
   '☰ トラックの数': '☰ Number of tracks', '🖥 プレゼンテーションモード': '🖥 Presentation mode', '❔ 使い方': '❔ Help',

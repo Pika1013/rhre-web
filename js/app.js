@@ -1,17 +1,18 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=10';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=11';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=5';
+import { t, setLang, applyStatic } from './i18n.js?v=6';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '2.0';
+const VERSION = '2.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const isTouch = window.matchMedia('(pointer: coarse)').matches;
+const isAndroid = /Android/.test(navigator.userAgent);
 
 const engine = new AudioEngine();
 const player = new Player(engine);
@@ -932,7 +933,7 @@ function save() {
     $('saveMsg').textContent = `${name}（${size}）。下のボタンで保存します。RHRE fresh でそのまま開けます。`;
     $('saveModal').hidden = false;
   };
-  if (!isTouch) {
+  if (!isTouch || isAndroid) {
     if (saveUrl) URL.revokeObjectURL(saveUrl);
     saveUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1385,11 +1386,77 @@ $('panelToggle').addEventListener('click', () => {
 window.addEventListener('resize', applyPanel);
 applyPanel();
 
-// 全画面（iPad・Android・PC など対応している環境だけボタンを出す。iPhone はホーム画面に追加で全画面になる）
+// 全画面（iPad・PC など対応している環境だけボタンを出す。iPhone はホーム画面に追加、Android は案内画面から全画面に）
 const root = document.documentElement;
 const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
-const inStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-$('fsBtn').hidden = !fsSupported || inStandalone;
+const inStandalone = window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+const androidGate = root.classList.contains('gate-android');
+$('fsBtn').hidden = !fsSupported || inStandalone || androidGate;
+
+// ---- ブラウザで開いたスマホ向けの案内画面
+// iPhone：ホーム画面に追加するまで使えない（作業中のものだけは保存できる）
+$('gateSave').addEventListener('click', () => openSave());
+// Android：全画面にして使う。全画面が解けたら、もう一度案内を出す
+let gateFsFailed = false;
+function enterFullscreen() {
+  // 全画面にできなくても（断られた・対応していない）、案内は閉じてそのまま使えるようにする
+  root.classList.remove('gate-android');
+  try {
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    const p = req ? req.call(root, { navigationUI: 'hide' }) : null;
+    if (!req) gateFsFailed = true;
+    if (p && p.catch) p.catch(() => { gateFsFailed = true; });
+  } catch (_) { gateFsFailed = true; }
+  applyPanel();
+}
+$('gateFs').addEventListener('click', enterFullscreen);
+const onFsChange = () => {
+  if (!androidGate || gateFsFailed) return;
+  if (!(document.fullscreenElement || document.webkitFullscreenElement)) {
+    $('gateTitleA').textContent = t('全画面に戻る');
+    $('gateFs').textContent = t('全画面に戻る');
+    root.classList.add('gate-android');
+  }
+};
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+// Chrome などがアプリとして入れられると言ってきたら、ボタンを出す
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEvt = e;
+  $('gateInstall').hidden = false;
+});
+const installedNote = () => { $('gateInstall').hidden = true; $('gateAndroidNote').textContent = t('追加しました。ホーム画面（アプリ一覧）の RHRE Web から開くと、いつも全画面です。'); };
+$('gateInstall').addEventListener('click', async () => {
+  if (!installEvt) return;
+  const ev = installEvt;
+  installEvt = null;
+  try {
+    ev.prompt();
+    const r = await ev.userChoice;
+    if (r?.outcome === 'accepted') installedNote();
+    else $('gateInstall').hidden = true;
+  } catch (_) { $('gateInstall').hidden = true; }
+});
+window.addEventListener('appinstalled', installedNote);
+// インストールのためのサービスワーカー（Android だけ。何も保存しない）
+if (isAndroid && 'serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// Android の「戻る」：開いている画面やメニューを閉じる（何も開いていなければ普通に戻る）
+if (isAndroid) {
+  try { history.pushState({ rhre: 1 }, ''); } catch (_) { /* 無視 */ }
+  window.addEventListener('popstate', () => {
+    const open = [...document.querySelectorAll('.modal:not([hidden]), .popover:not([hidden])')];
+    if (!open.length) return;
+    open[open.length - 1].hidden = true;
+    try { history.pushState({ rhre: 1 }, ''); } catch (_) { /* 無視 */ }
+  });
+}
+// 長押しで出るブラウザのメニュー（画像を保存など）を出さない。文字の入力欄だけは残す
+document.addEventListener('contextmenu', (e) => { if (!e.target.closest?.('input, textarea')) e.preventDefault(); });
 $('fsBtn').addEventListener('click', async () => {
   try {
     if (document.fullscreenElement || document.webkitFullscreenElement) {

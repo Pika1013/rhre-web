@@ -53,8 +53,10 @@ export class AudioEngine {
     this.usedWasm = false;
     this.stale = false;
     this.keepAlive = null;
-    // iOS 17 以降は navigator.audioSession で消音スイッチを無視できるので、無音の <audio> は要らない
-    this.useKeepAlive = !navigator.audioSession;
+    // 無音の <audio> は古い iPhone・iPad だけ（消音スイッチ対策）。iOS 17 以降は navigator.audioSession で足りる。
+    // Android や PC では要らない（流すと通知に再生バーが出る）
+    const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    this.useKeepAlive = appleMobile && !navigator.audioSession;
   }
 
   // 実際に鳴らす AudioContext。iPhone ではタップの中（unlock）で作るのが確実

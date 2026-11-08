@@ -9,6 +9,16 @@
 <meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
 <link rel="manifest" href="manifest.webmanifest">
+<script>
+  // ブラウザで開いたスマホには案内を出す：iPhone はホーム画面に追加するまで使えない、Android は全画面にしてから
+  (function () {
+    var ua = navigator.userAgent, h = document.documentElement;
+    var app = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+    if (app || /[?&]nogate\b/.test(location.search)) return;
+    if (/iPhone|iPod/.test(ua)) h.classList.add('gate-ios');
+    else if (/Android/.test(ua)) h.classList.add('gate-android');
+  })();
+</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -231,6 +241,26 @@
     border-radius: 5px; border: 0; background: var(--btn); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text);
   }
   .btn.primary { background: #1f8f1f; }
+  /* ブラウザで開いたスマホ向けの案内（ホーム画面に追加・全画面） */
+  #gate { display: none; }
+  .gate-ios #gate, .gate-android #gate {
+    position: fixed; inset: 0; z-index: 19; display: flex; flex-direction: column; align-items: center; justify-content: safe center;
+    gap: 12px; overflow-y: auto; box-sizing: border-box; text-align: center; background: #1b1b1b; color: var(--text);
+    padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+  }
+  #gate .g-icon { width: 76px; height: 76px; border-radius: 18px; flex: none; }
+  #gate h1 { margin: 0; font-size: 21px; line-height: 1.35; }
+  #gate p { margin: 0; font-size: 14px; line-height: 1.6; color: #cfcfcf; max-width: 420px; }
+  #gate ol { margin: 0; padding: 0; list-style: none; counter-reset: g; width: min(420px, 100%); text-align: left; display: grid; gap: 8px; }
+  #gate li { counter-increment: g; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; background: #262626; border-radius: 10px; padding: 10px 12px; font-size: 15px; line-height: 1.5; }
+  #gate li::before { content: counter(g); width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #111; font-weight: 800; display: grid; place-items: center; }
+  #gate li small { display: block; color: #9a9a9a; font-size: 12px; }
+  #gate .g-share { width: 18px; height: 18px; vertical-align: -3px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #gate .g-big { min-width: 240px; min-height: 52px; font-size: 18px; }
+  #gate .g-note { font-size: 12px; color: #9a9a9a; }
+  #gate .g-small { min-height: 36px; font-size: 13px; background: none; border: 1px solid #555; }
+  #gate .g-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .gate-ios #gate .g-android, .gate-android #gate .g-ios { display: none; }
   .btn.danger { background: var(--danger); }
   .card ul { margin: 0 0 8px; padding-left: 18px; font-size: 14px; line-height: 1.6; color: #ddd; }
   .menu-list { display: grid; gap: 6px; }
@@ -369,6 +399,27 @@
 </style>
 </head>
 <body>
+<div id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <img class="g-icon" src="icons/icon-180.png" alt="">
+  <div class="g-col g-ios">
+    <h1 id="gateTitle">ホーム画面に追加して使ってください</h1>
+    <p>iPhone では、ホーム画面に追加すると全画面で開き、音も安定して鳴ります。</p>
+    <ol>
+      <li><span>画面下の <b>共有ボタン</b>（<svg class="g-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>）を押す<small>見当たらないときは「…」→「共有」</small></span></li>
+      <li><span><b>「ホーム画面に追加」</b>を選ぶ<small>出てこないときは、下にスクロールするか「さらに表示」</small></span></li>
+      <li><span>右上の <b>「追加」</b> を押す</span></li>
+      <li><span>ホーム画面の <b>RHRE Web</b> から開く</span></li>
+    </ol>
+    <p class="g-note">LINE などのアプリの中で開いているときは、Safari で開き直してから追加してください。</p>
+    <button class="btn g-small" id="gateSave">作業中のリミックスを .rhref で保存</button>
+  </div>
+  <div class="g-col g-android">
+    <h1 id="gateTitleA">全画面で使う</h1>
+    <button class="btn primary g-big" id="gateFs">全画面で始める</button>
+    <button class="btn g-big" id="gateInstall" hidden>📲 アプリとして追加</button>
+    <p class="g-note" id="gateAndroidNote">Chrome のメニュー（⋮）→「ホーム画面に追加」または「アプリをインストール」でアプリにすると、次からはアイコンから全画面で開けます。</p>
+  </div>
+</div>
 <div id="app">
   <div id="topbar">
   <header id="toolbar">
@@ -466,7 +517,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.1</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -676,6 +727,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=23"></script>
+<script type="module" src="js/app.js?v=24"></script>
 </body>
 </html>
