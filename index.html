@@ -106,6 +106,13 @@
     font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center; pointer-events: none;
   }
   #toast.info { background: #1d3f5a; border-color: #4a9ac9; }
+  #updateBar {
+    position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 12px; border-radius: 8px; background: #1f5a23; border: 2px solid #3fbf47; font-weight: 700; font-size: 14px;
+    white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  }
+  #updateBar button { height: 32px; padding: 0 12px; border-radius: 5px; border: 0; font-weight: 800; font-size: 14px; background: #3fbf47; color: #0b2a0d; }
+  #updateBar #updateLater { background: #2d4a2f; color: #dfe; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72); }
   .card {
     width: min(380px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
@@ -345,6 +352,7 @@
     <canvas id="view" aria-label="トラック"></canvas>
     <div id="subtitle" hidden></div>
     <div id="toast" role="status" hidden></div>
+    <div id="updateBar" role="status" hidden><span id="updateText">新しい版があります</span><button id="updateBtn">更新する</button><button id="updateLater" aria-label="あとで">あとで</button></div>
     <button id="panelToggle" title="ゲーム一覧を隠す／出す" aria-label="ゲーム一覧を隠す／出す" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span>ゲームを選ぶ</span></button>
     <div id="loading">
       <div class="card">
@@ -368,7 +376,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.8</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.9</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -508,6 +516,6 @@
 
 <input type="file" id="fileInput" hidden>
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
-<script type="module" src="js/app.js?v=11"></script>
+<script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>

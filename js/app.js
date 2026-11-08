@@ -3,7 +3,7 @@ import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.
 import { EditorView, fmtTime } from './view.js?v=7';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.8';
+const VERSION = '0.9';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1152,6 +1152,30 @@ document.addEventListener('visibilitychange', () => {
   else if (mode !== 'playing') engine.stale = true; // 戻ってきたら、次の ▶ で音の部品を作り直す
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) engine.stale = true; });
+
+// ---------------------------------------------------------------- 新しい版の確認
+// GitHub Pages はページを10分ほどキャッシュするので、起動時と画面に戻ったときに version.json を見て、
+// 新しい版があれば「更新する」ボタンを出す（押すと URL を変えて読み直すので、古いページが残らない）
+let updateShown = false;
+async function checkUpdate() {
+  if (updateShown || location.protocol === 'file:') return;
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const { version } = await res.json();
+    if (!version || version === VERSION) return;
+    updateShown = true;
+    $('updateText').textContent = `新しい版（試作 ${version}）があります`;
+    $('updateBar').hidden = false;
+    $('updateBtn').onclick = () => {
+      if (mode === 'playing') stopPlayback();
+      location.replace(`${location.pathname}?u=${encodeURIComponent(version)}`);
+    };
+  } catch (_) { /* オフラインなど */ }
+}
+$('updateLater').addEventListener('click', () => { $('updateBar').hidden = true; });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+setTimeout(checkUpdate, 1500);
 
 // ---------------------------------------------------------------- 起動
 
