@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=10';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=4';
+import { t, setLang, applyStatic } from './i18n.js?v=5';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.9';
+const VERSION = '2.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -932,9 +932,21 @@ function save() {
     $('saveMsg').textContent = `${name}（${size}）。下のボタンで保存します。RHRE fresh でそのまま開けます。`;
     $('saveModal').hidden = false;
   };
+  if (!isTouch) {
+    if (saveUrl) URL.revokeObjectURL(saveUrl);
+    saveUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = saveUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast(`保存しました：${name}`, 2500, 'info');
+    return;
+  }
   try {
     const file = new File([blob], name, { type: 'application/octet-stream' });
-    if (isTouch && navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: name })
         .then(() => toast(`保存しました：${name}`, 2500, 'info'))
         .catch((err) => { if (err?.name !== 'AbortError') showLink(); });
@@ -1280,7 +1292,7 @@ function doAction(act) {
     case 'sample':
       confirmBox('サンプルを開く', '今のリミックスを閉じて、サンプルを開きますか？保存していない変更は消えます。', '開く', () => openSample());
       break;
-    case 'save': save(); break;
+    case 'save': openSave(); break;
     case 'export': exportWav(); break;
     case 'music': $('musicInput').click(); break;
     case 'musicStart': openMusicStart(); break;
@@ -1292,7 +1304,6 @@ function doAction(act) {
       break;
     case 'help': openHelp(); break;
     case 'tracks': openTracks(); break;
-    case 'rename': openRename(); break;
     case 'present': startPresentation(); break;
   }
 }
@@ -1451,7 +1462,7 @@ window.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); }
   else if (mod && e.key.toLowerCase() === 'c') { if (view.selection.size) { e.preventDefault(); copySelection(); } }
   else if (mod && e.key.toLowerCase() === 'v') { if (clipboard) { e.preventDefault(); startPaste(); } }
-  else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); openSave(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { if (view.selection.size) { e.preventDefault(); deleteSelection(); } }
   else if (e.key === 'Escape') { if (presenting) stopPresentation(); else if (pasteArmed) { pasteArmed = false; view.armed = null; updateCtxbar(); setStatus(summaryText()); } else if (armed) setArmed(null); else { multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); } }
 });
@@ -1600,34 +1611,29 @@ $('customInput').addEventListener('change', async (e) => {
 
 // ---------------------------------------------------------------- トラックの数
 
-// .rhref の名前を変える（メニュー、または下のファイル名をタップ）
-function openRename() {
-  if (!remix) return;
-  const inp = $('renameInput');
+// 保存ボタン → 名前を決める画面 → 「💾 保存」で保存（押した瞬間に保存するので iPhone の共有シートも出せる）
+function openSave() {
+  if (!remix || loading) return;
+  const inp = $('saveNameInput');
   inp.value = (fileName || 'remix.rhref').replace(/\.rhref$/i, '');
-  $('renameModal').hidden = false;
+  $('saveNameModal').hidden = false;
   inp.focus();
   try { inp.select(); } catch (_) { /* 選べない環境 */ }
 }
-function commitRename() {
+function commitSave() {
   // ファイル名に使えない文字は _ に。空なら remix
-  const base = $('renameInput').value.trim().replace(/\.rhref$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120).trim() || 'remix';
+  const base = $('saveNameInput').value.trim().replace(/\.rhref$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120).trim() || 'remix';
   const next = `${base}.rhref`;
-  $('renameModal').hidden = true;
-  if (next === fileName) return;
-  fileName = next;
-  setStatus(t('名前を「{n}」にしました', { n: next }));
-  scheduleAutosave();
+  $('saveNameModal').hidden = true;
+  if (next !== fileName) { fileName = next; scheduleAutosave(); setStatus(summaryText()); }
+  save();
 }
-$('renameOk').addEventListener('click', commitRename);
-$('renameCancel').addEventListener('click', () => { $('renameModal').hidden = true; });
-$('renameInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); commitRename(); }
-  else if (e.key === 'Escape') { e.preventDefault(); $('renameModal').hidden = true; }
+$('saveNameOk').addEventListener('click', commitSave);
+$('saveNameCancel').addEventListener('click', () => { $('saveNameModal').hidden = true; });
+$('saveNameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); commitSave(); }
+  else if (e.key === 'Escape') { e.preventDefault(); $('saveNameModal').hidden = true; }
 });
-// 下のステータスバーの文字をタップしても名前を変えられる
-$('statusText').addEventListener('click', () => { if (remix && !loading) openRename(); });
-$('statusText').title = '押すと .rhref の名前を変えられます';
 
 function openTracks() {
   if (!remix) return;

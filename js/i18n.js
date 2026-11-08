@@ -102,7 +102,7 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play',
-  '✏️ 名前を変える': '✏️ Rename', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
+  '💾 保存': '💾 Save', '名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
   '📄 新規作成': '📄 New', '📂 開く（.rhref）': '📂 Open (.rhref)', '🎵 サンプルを開く': '🎵 Open sample', '💾 保存（.rhref）': '💾 Save (.rhref)',
   '⬇️ WAVに書き出す': '⬇️ Export WAV', '🎼 音楽を選ぶ': '🎼 Choose music', '⏱ 音楽の開始位置': '⏱ Music start position', '✖️ 音楽を外す': '✖️ Remove music',
   '☰ トラックの数': '☰ Number of tracks', '🖥 プレゼンテーションモード': '🖥 Presentation mode', '❔ 使い方': '❔ Help',

@@ -220,7 +220,7 @@
     padding: 3px max(8px, env(safe-area-inset-left, 0px)) calc(2px + env(safe-area-inset-bottom, 0px) * 0.3);
     background: #0e0e0e; font-size: 13px; font-weight: 500; min-height: 18px;
   }
-  #statusText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  #statusText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #version { color: var(--muted); white-space: nowrap; }
 
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
@@ -466,7 +466,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.9</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -491,7 +491,6 @@
       <button class="btn" data-act="open">📂 開く（.rhref）</button>
       <button class="btn" data-act="sample">🎵 サンプルを開く</button>
       <button class="btn primary" data-act="save">💾 保存（.rhref）</button>
-      <button class="btn" data-act="rename">✏️ 名前を変える</button>
       <button class="btn" data-act="export">⬇️ WAVに書き出す</button>
       <hr>
       <button class="btn" data-act="music">🎼 音楽を選ぶ</button>
@@ -545,12 +544,12 @@
   </div>
 </div>
 
-<div class="modal" id="renameModal" hidden>
+<div class="modal" id="saveNameModal" hidden>
   <div class="card">
-    <h2>名前を変える</h2>
-    <p>保存するときの .rhref の名前です。</p>
-    <div class="field"><input id="renameInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="ファイル名"><span>.rhref</span></div>
-    <div class="row"><button class="btn primary" id="renameOk">決定</button><button class="btn" id="renameCancel">やめる</button></div>
+    <h2>保存</h2>
+    <p>名前を決めて保存します。RHRE fresh でそのまま開けます。</p>
+    <div class="field"><input id="saveNameInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="ファイル名"><span>.rhref</span></div>
+    <div class="row"><button class="btn primary" id="saveNameOk">💾 保存</button><button class="btn" id="saveNameCancel">やめる</button></div>
   </div>
 </div>
 
@@ -677,6 +676,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=22"></script>
+<script type="module" src="js/app.js?v=23"></script>
 </body>
 </html>
