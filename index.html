@@ -393,6 +393,47 @@
     font: 700 14px var(--font); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
   .presenting #presentExit svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  /* プレイアロング（プレゼンテーションモードで遊ぶ） */
+  #playUI { position: fixed; inset: 0; z-index: 25; pointer-events: none; }
+  #touchPad { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
+  #playHud {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 16px; background: rgba(0, 0, 0, 0.55);
+    color: #fff; font: 800 16px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  #playScore::before { content: 'SCORE '; font-size: 11px; color: #bbb; }
+  #playPerfect { color: #ffe14d; font-size: 12px; letter-spacing: 0.06em; }
+  #playHint { font-size: 11px; color: #bbb; font-weight: 700; }
+  #playHint:empty { display: none; }
+  #playJudge {
+    position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%); font: 900 clamp(28px, 7vw, 54px) var(--font);
+    text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; letter-spacing: 0.04em;
+  }
+  #playJudge.show { animation: judgePop 0.55s ease-out forwards; }
+  @keyframes judgePop { 0% { opacity: 1; transform: translate(-50%, -40%) scale(1.25); } 25% { transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -62%) scale(1); } }
+  .pad { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); pointer-events: auto; }
+  #padDpad { left: calc(env(safe-area-inset-left, 0px) + 14px); width: 150px; height: 150px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
+  #padDpad[hidden], #padAB[hidden] { display: none; }
+  #padAB { right: calc(env(safe-area-inset-right, 0px) + 14px); width: 170px; height: 140px; }
+  .pkey {
+    border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(40, 44, 50, 0.72); color: #fff; touch-action: none; padding: 0;
+    display: grid; place-items: center; font: 900 26px var(--font); -webkit-user-select: none; user-select: none;
+  }
+  .pkey svg { width: 60%; height: 60%; fill: #fff; }
+  #padDpad .pkey { border-radius: 8px; }
+  #padDpad .up { grid-area: 1 / 2; } #padDpad .left { grid-area: 2 / 1; } #padDpad .right { grid-area: 2 / 3; } #padDpad .down { grid-area: 3 / 2; }
+  #padAB .pkey { position: absolute; border-radius: 50%; }
+  #padAB .akey { width: 84px; height: 84px; right: 0; top: 0; background: rgba(214, 70, 64, 0.85); }
+  #padAB .bkey { width: 64px; height: 64px; left: 0; bottom: 0; background: rgba(226, 178, 40, 0.85); color: #2a2200; }
+  .pkey.down-now { filter: brightness(1.45); transform: scale(0.94); }
+  #playResult { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); pointer-events: auto; }
+  #playResult[hidden] { display: none; }
+  .pr-card { min-width: min(320px, 86vw); padding: 18px 22px; border-radius: 14px; background: #262a30; border: 2px solid #4a5260; color: #fff; text-align: center; }
+  #prRank { font: 900 30px var(--font); }
+  #prScore { font: 800 22px var(--font); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  #prPerfect { color: #ffe14d; font: 900 18px var(--font); margin-top: 4px; }
+  #prCounts { margin-top: 10px; font-size: 14px; line-height: 1.7; color: #d8d8d8; }
+  .pr-btns { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
   /* テーマ（ライト・ブラック） */
   :root[data-theme="black"] { --chrome: #141414; --chrome-edge: #000; --btn: #262626; --btn-hi: #333; --panel: #050505; --panel-line: #2a2a2a; }
   :root[data-theme="black"] body, :root[data-theme="black"] #editor { background: #000; }
@@ -567,12 +608,36 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.5</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.6</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
 <div class="popover list" id="moreMenu" hidden role="menu"></div>
 
+<div id="playUI" hidden>
+  <div id="touchPad" aria-label="タッチする所"></div>
+  <div id="playHud"><span id="playScore">0.0</span><span id="playPerfect" hidden>PERFECT</span><span id="playHint"></span></div>
+  <div id="playJudge" aria-live="polite"></div>
+  <div id="padDpad" class="pad" hidden>
+    <button class="pkey up" data-key="UP" aria-label="十字の上"><svg viewBox="0 0 24 24"><path d="M12 6l6 9H6z"/></svg></button>
+    <button class="pkey left" data-key="LEFT" aria-label="十字の左"><svg viewBox="0 0 24 24"><path d="M6 12l9-6v12z"/></svg></button>
+    <button class="pkey right" data-key="RIGHT" aria-label="十字の右"><svg viewBox="0 0 24 24"><path d="M18 12l-9 6V6z"/></svg></button>
+    <button class="pkey down" data-key="DOWN" aria-label="十字の下"><svg viewBox="0 0 24 24"><path d="M12 18l-6-9h12z"/></svg></button>
+  </div>
+  <div id="padAB" class="pad" hidden>
+    <button class="pkey bkey" data-key="B" aria-label="B">B</button>
+    <button class="pkey akey" data-key="A" aria-label="A">A</button>
+  </div>
+  <div id="playResult" hidden>
+    <div class="pr-card">
+      <div id="prRank"></div>
+      <div id="prScore"></div>
+      <div id="prPerfect" hidden>PERFECT!</div>
+      <div id="prCounts"></div>
+      <div class="pr-btns"><button class="btn primary" id="prRetry">もう一度</button><button class="btn" id="prExit">終わる</button></div>
+    </div>
+  </div>
+</div>
 <button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>終わる</span></button>
 
 <div class="modal" id="menuModal" hidden>
@@ -732,6 +797,9 @@
     </div>
     <div class="field"><label for="bgAlpha">濃さ</label><input type="range" id="bgAlpha" min="10" max="100" step="5" value="60"><span id="bgAlphaVal" class="range-val">60%</span></div>
     <input type="file" id="bgInput" accept="image/*" hidden>
+    <div class="sb-title">プレイアロング</div>
+    <div class="field"><label for="paOffset">タイミング調整</label><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
+    <p class="note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
     <div class="field"><label for="uiLangSelect">画面の言語</label>
       <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
     </div>
@@ -779,6 +847,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=28"></script>
+<script type="module" src="js/app.js?v=29"></script>
 </body>
 </html>

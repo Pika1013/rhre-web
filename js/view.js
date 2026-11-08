@@ -24,6 +24,7 @@ export const C = {
     multiCue: '#f4a8d8',
     pitchDependent: '#a3dcff',
     special: '#9b9b9b',
+    playalongEntity: '#86dcb6',
     missing: '#ff4d4d',
   },
 };
@@ -923,7 +924,12 @@ export class EditorView {
     g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
     const iconSize = Math.min(L.rowH - 8, 30);
     let tx = x + 4;
-    const icon = e.game ? getIcon(e.game.icon, () => { this.dirty = true; }) : null;
+    // プレイアロング：ゲームのアイコンの代わりに、押すボタンの記号
+    if (e.type === 'playalongEntity' && w > iconSize + 2) {
+      const gw = drawInputGlyph(g, e.o.input, x + 3, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize);
+      tx += gw + 3;
+    }
+    const icon = e.game && e.type !== 'playalongEntity' ? getIcon(e.game.icon, () => { this.dirty = true; }) : null;
     if (icon && w > iconSize + 6) {
       g.imageSmoothingEnabled = false;
       g.drawImage(icon, x + 4, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize, iconSize);
@@ -935,10 +941,23 @@ export class EditorView {
     g.textAlign = 'left';
     g.textBaseline = 'top';
     const maxW = x + w - 4 - tx;
-    if (maxW > 8) {
+    // プレイアロングは記号だけで分かるので、狭いときは名前を出さない
+    if (maxW > (e.type === 'playalongEntity' ? 36 : 8)) {
       const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}` : e.name;
       const lines = wrap(g, label, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
       lines.forEach((ln, i) => g.fillText(ln, tx, y + 3 + i * (fs + 2)));
+    }
+    // プレイアロングの判定の印（右上）
+    if (e.judge) {
+      const J = { ACE: ['◎', '#2fd16a'], GOOD: ['○', '#8fdc4a'], BARELY: ['△', '#f2c230'], MISS: ['×', '#ff4d4d'] }[e.judge] || ['?', '#999'];
+      const s = Math.min(18, h - 4);
+      g.fillStyle = J[1];
+      g.beginPath(); g.arc(x + w - s / 2 - 3, y + s / 2 + 2, s / 2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#111';
+      g.font = `800 ${Math.round(s * 0.72)}px ${FONT}`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(J[0], x + w - s / 2 - 3, y + s / 2 + 2.5);
     }
     if (e.semitone || e.volume !== 100) {
       const tag = [e.semitone ? (e.semitone > 0 ? `+${e.semitone}` : `${e.semitone}`) : '', e.volume !== 100 ? `${e.volume}%` : ''].filter(Boolean).join(' ');
@@ -950,6 +969,54 @@ export class EditorView {
     }
     g.restore();
   }
+}
+
+// プレイアロングの記号（A＝赤い丸、B＝黄色い丸、十字＝灰色の十字と矢印、タッチ＝指の丸）。描いた幅を返す
+const ARROW = { BUTTON_DPAD_UP: -Math.PI / 2, BUTTON_DPAD_DOWN: Math.PI / 2, BUTTON_DPAD_LEFT: Math.PI, BUTTON_DPAD_RIGHT: 0 };
+export function drawInputGlyph(g, input, x, y, s) {
+  const circle = (cx, cy, r, fill, letter, ink) => {
+    g.fillStyle = fill; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 1.2; g.stroke();
+    g.fillStyle = ink; g.font = `800 ${Math.round(r * 1.25)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(letter, cx, cy + r * 0.06);
+  };
+  const cross = (cx, cy, size, dir) => {
+    const a = size * 0.34, b = size / 2;
+    g.fillStyle = '#5a5f66';
+    g.fillRect(cx - a / 2, cy - b, a, size); g.fillRect(cx - b, cy - a / 2, size, a);
+    if (dir != null) {
+      g.save(); g.translate(cx, cy); g.rotate(dir);
+      g.fillStyle = '#fff';
+      g.beginPath(); g.moveTo(b * 0.95, 0); g.lineTo(b * 0.45, -a * 0.42); g.lineTo(b * 0.45, a * 0.42); g.closePath(); g.fill();
+      g.restore();
+    }
+  };
+  g.save();
+  const r = s / 2;
+  let wDrawn = s;
+  if (input === 'BUTTON_A') circle(x + r, y + r, r * 0.92, '#e8504a', 'A', '#fff');
+  else if (input === 'BUTTON_B') circle(x + r, y + r, r * 0.92, '#f2c230', 'B', '#2a2200');
+  else if (input === 'BUTTON_A_OR_DPAD') {
+    circle(x + r * 0.7, y + r, r * 0.66, '#e8504a', 'A', '#fff');
+    cross(x + s + r * 0.15, y + r, s * 0.78, null);
+    wDrawn = s * 1.6;
+  } else if (input && input.startsWith('BUTTON_DPAD')) cross(x + r, y + r, s * 0.92, ARROW[input]);
+  else {
+    // タッチ：白い丸に点（フリック・スライドは矢印つき）
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x + r, y + r, r * 0.86, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#3a8f6a'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#3a8f6a'; g.beginPath(); g.arc(x + r, y + r, r * 0.28, 0, Math.PI * 2); g.fill();
+    if (input === 'TOUCH_FLICK' || input === 'TOUCH_SLIDE') {
+      g.strokeStyle = '#3a8f6a'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(x + r * 0.5, y + r * 1.55); g.lineTo(x + r * 1.6, y + r * 0.45); g.stroke();
+    }
+    if (input === 'TOUCH_RELEASE' || input === 'TOUCH_QUICK_TAP') {
+      g.strokeStyle = '#3a8f6a'; g.lineWidth = 2;
+      g.beginPath(); g.arc(x + r, y + r, r * 0.55, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+    }
+  }
+  g.restore();
+  return wDrawn;
 }
 
 function wrap(g, text, maxW, maxLines) {

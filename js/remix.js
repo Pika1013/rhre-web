@@ -1,7 +1,7 @@
 // .rhref（remix.json）の解釈。テンポ・パターン展開・音の鳴らし方は RHRE fresh 本体と同じ規則に合わせてある。
 
 import { readZip } from './zip.js?v=4';
-import { SFXDatabase } from './db.js?v=6';
+import { SFXDatabase } from './db.js?v=7';
 
 // ---------------------------------------------------------------- テンポ（徐々の変化とスウィング込み）
 
@@ -108,6 +108,7 @@ class Model {
     let d;
     switch (o.type) {
       case 'cue': d = o.duration > 0 ? Number(o.duration) : 0.5; break;
+      case 'playalongEntity': d = Number(o.duration) || 0.5; break;
       case 'pattern':
       case 'multiCue': d = Math.max(0, ...(o.cues || []).map((c) => Number(c.beat || 0) + this.ptrDur(c))); break;
       case 'keepTheBeat': d = Number(o.defaultDuration) > 0 ? Number(o.defaultDuration) : this.seqLen(o); break;
@@ -159,6 +160,7 @@ class Model {
       case 'pattern': case 'equidistant': case 'randomCue': case 'multiCue': return !!o.stretchable;
       case 'pitchDependent': return this.options(o).some((c) => { const x = this.db.get(c.id); return x?.type === 'cue' && !!x.stretchable; });
       case 'subtitleEntity': case 'textureEntity': case 'shakeEntity': return true;
+      case 'playalongEntity': return !!o.stretchable;
       default: return false;
     }
   }

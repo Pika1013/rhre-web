@@ -1,11 +1,12 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=11';
-import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=9';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=16';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=10';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=12';
+import { customRegistry } from './db.js?v=7';
+import { t, setLang, applyStatic } from './i18n.js?v=10';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=17';
 import { makeZip } from './zip.js?v=4';
+import { PLAYALONG_GAME_ID, PlayalongJudge, hasPlayalong, INPUT } from './playalong.js?v=1';
 
-const VERSION = '2.5';
+const VERSION = '2.6';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -645,6 +646,12 @@ function renderGrid() {
     b.textContent = t('終わり・字幕・画像');
     b.addEventListener('click', () => openSpecial());
     grid.appendChild(b);
+    // ボタンを押して遊ぶキュー（プレゼンテーションモードで遊べる）
+    const pb = document.createElement('button');
+    pb.className = 'game txt';
+    pb.textContent = t('🎮 プレイアロング');
+    pb.addEventListener('click', () => openPlayalongList());
+    grid.appendChild(pb);
     openSpecial();
     return;
   } else if (!q && currentTab === 'custom') {
@@ -697,6 +704,13 @@ async function openSpecial() {
   showGameList({ id: '__special', name: t('特殊'), objects: objs });
 }
 
+function openPlayalongList() {
+  const g = remix.db.games.get(PLAYALONG_GAME_ID);
+  if (!g) return;
+  showGameList({ id: '__playalong', name: t('プレイアロング（プレゼンテーションモードで遊べる）'), objects: g.objects });
+  setStatus(t('置いたら、メニューの「プレゼンテーションモード」で遊べます'));
+}
+
 async function openGame(gid, jumpBeat, highlightObj) {
   if (gid === CUSTOM_GAME_ID && customRegistry.game) { showGameList(customRegistry.game, highlightObj); return; }
   setStatus('読み込み中…');
@@ -710,7 +724,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
   }
 }
 
-const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像' };
+const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像', playalongEntity: 'ボタン' };
 const PV_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
 
 function renderListHead(game) {
@@ -755,7 +769,7 @@ function showGameList(game, highlightObj, filter) {
   const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
   for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
-  let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || ['endEntity', 'subtitleEntity', 'textureEntity'].includes(o.type)));
+  let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || ['endEntity', 'subtitleEntity', 'textureEntity', 'playalongEntity'].includes(o.type)));
   if (filter) objs = objs.filter(filter);
   objs.sort((a, b) => (isMulti(b) ? 1 : 0) - (isMulti(a) ? 1 : 0));
   const list = $('list');
@@ -1211,6 +1225,7 @@ function startPlayback(fromSec) {
   previewer.stop();
   player.metronome = metronome;
   player.onEnd = () => {
+    if (judge && presenting && !paEnded) { finishPlayalong(); return; }
     mode = 'stopped';
     view.playhead = null;
     view.dirty = true;
@@ -1311,6 +1326,11 @@ function frame(now) {
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
+    if (judge && !paEnded) {
+      const pt = paTime();
+      judge.update(pt);
+      if (judge.allDone && pt > judge.lastEnd + 1.2) finishPlayalong();
+    }
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
@@ -1563,6 +1583,8 @@ $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
   renderThemeGrid();
   applyBackgroundOptions();
+  $('paOffset').value = String(Number(settings.paOffset) || 0);
+  $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
   $('settingsModal').hidden = false;
 });
@@ -1821,16 +1843,155 @@ function startPresentation() {
   document.documentElement.classList.add('presenting');
   view.dirty = true;
   if (mode !== 'playing') play();
+  // ボタンのキューがあれば、そのまま遊べる
+  if (hasPlayalong(remix)) startPlayalong();
 }
 function stopPresentation() {
   if (!presenting) return;
   presenting = false;
   document.documentElement.classList.remove('presenting');
+  endPlayalong();
   stopPlayback();
   applyPanel();
   view.dirty = true;
 }
 $('presentExit').addEventListener('click', stopPresentation);
+
+// ---------------------------------------------------------------- プレイアロング（ボタンのキューに合わせて押して遊ぶ）
+
+let judge = null;
+let paEnded = false;
+// 聞こえている音の時刻（スピーカーやイヤホンの遅れと、設定の「タイミング調整」を引く）
+function paTime() {
+  const ctx = engine.ctx;
+  const lat = (ctx?.outputLatency || 0) + (ctx?.baseLatency || 0) + (Number(settings.paOffset) || 0) / 1000;
+  return player.time - lat * (player.speed || 1);
+}
+const BADNESS = { ACE: 0, GOOD: 1, BARELY: 2, MISS: 3 };
+const JUDGE_TEXT = { ACE: ['ACE!', '#4dff8a'], GOOD: ['GOOD', '#b6ff6a'], BARELY: ['BARELY', '#ffd84d'], MISS: ['MISS', '#ff5b5b'] };
+
+function startPlayalong() {
+  for (const e of remix.entities) e.judge = null;
+  judge = new PlayalongJudge(remix, player.speed || 1);
+  judge.skipBefore(remix.tempo.b2s(remix.playbackStart) - 0.05);
+  paEnded = false;
+  judge.onJudge = (a, timing) => {
+    if (!a.ent.judge || BADNESS[timing] > BADNESS[a.ent.judge]) a.ent.judge = timing;
+    const el = $('playJudge');
+    el.textContent = JUDGE_TEXT[timing][0];
+    el.style.color = JUDGE_TEXT[timing][1];
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    if (timing === 'MISS') { try { navigator.vibrate?.(40); } catch (_) { /* 未対応 */ } }
+    updatePlayHud();
+    view.dirty = true;
+  };
+  const keys = judge.neededKeys();
+  const dpad = ['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k));
+  $('padDpad').hidden = !dpad;
+  $('padAB').hidden = !keys.has('A') && !keys.has('B');
+  $('padAB').querySelector('.akey').hidden = !keys.has('A');
+  $('padAB').querySelector('.bkey').hidden = !keys.has('B');
+  const touch = keys.has('TOUCH') || keys.has('FLICK') || keys.has('SLIDE');
+  $('playHint').textContent = touch ? t('画面をタップ') : '';
+  $('playResult').hidden = true;
+  $('playUI').hidden = false;
+  updatePlayHud();
+}
+function updatePlayHud() {
+  if (!judge) return;
+  $('playScore').textContent = judge.score.toFixed(1);
+  const any = judge.actions.some((a) => a.results.length);
+  $('playPerfect').hidden = !(judge.perfect && any);
+}
+function finishPlayalong() {
+  if (!judge || paEnded) return;
+  paEnded = true;
+  judge.update(Infinity);
+  stopPlayback();
+  const sc = judge.score;
+  const c = judge.counts;
+  $('prRank').textContent = sc >= 80 ? t('すばらしい！') : sc >= 60 ? t('OK') : t('もう少し…');
+  $('prRank').style.color = sc >= 80 ? '#ff8ad8' : sc >= 60 ? '#7fd0ff' : '#c9c9c9';
+  $('prScore').textContent = `${t('スコア')} ${sc.toFixed(1)}`;
+  $('prPerfect').hidden = !judge.perfect || !judge.expected;
+  $('prCounts').innerHTML = `<span style="color:#4dff8a">ACE ${c.ACE}</span>　<span style="color:#b6ff6a">GOOD ${c.GOOD}</span><br><span style="color:#ffd84d">BARELY ${c.BARELY}</span>　<span style="color:#ff5b5b">MISS ${c.MISS}</span>`;
+  $('playResult').hidden = false;
+}
+function endPlayalong() {
+  judge = null;
+  paEnded = false;
+  $('playUI').hidden = true;
+  $('playResult').hidden = true;
+  for (const e of remix?.entities || []) e.judge = null;
+  for (const b of document.querySelectorAll('.pkey.down-now')) b.classList.remove('down-now');
+  view.dirty = true;
+}
+$('prRetry').addEventListener('click', () => {
+  $('playResult').hidden = true;
+  stopPlayback();
+  play();
+  startPlayalong();
+});
+$('prExit').addEventListener('click', stopPresentation);
+
+function paPress(key) { if (judge && !paEnded && mode === 'playing') judge.press(key, paTime()); }
+function paRelease(key) { if (judge && !paEnded && mode === 'playing') judge.release(key, paTime()); }
+
+// 画面のボタン（A・B・十字）
+for (const b of document.querySelectorAll('#playUI .pkey')) {
+  const key = b.dataset.key;
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { b.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    b.classList.add('down-now');
+    try { navigator.vibrate?.(6); } catch (_) { /* 未対応 */ }
+    paPress(key);
+  });
+  const up = () => { if (!b.classList.contains('down-now')) return; b.classList.remove('down-now'); paRelease(key); };
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointercancel', up);
+  b.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+// 画面のどこでもタッチ（タップ・フリック・スライド）
+{
+  const pad = $('touchPad');
+  const touches = new Map();
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { pad.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), slid: false, flicked: false });
+    paPress('TOUCH');
+  });
+  pad.addEventListener('pointermove', (e) => {
+    const s = touches.get(e.pointerId);
+    if (!s) return;
+    const d = Math.hypot(e.clientX - s.x, e.clientY - s.y);
+    const dt = performance.now() - s.t;
+    if (!s.flicked && d > 34 && dt < 220) { s.flicked = true; paPress('FLICK'); }
+    if (!s.slid && d > 26) { s.slid = true; paPress('SLIDE'); }
+  });
+  const end = (e) => { if (!touches.has(e.pointerId)) return; touches.delete(e.pointerId); paRelease('TOUCH'); };
+  pad.addEventListener('pointerup', end);
+  pad.addEventListener('pointercancel', end);
+}
+// キーボード（パソコン）：A＝J・スペース、B＝K、十字＝矢印・WASD
+const PA_KEYS = { KeyJ: 'A', Space: 'A', Enter: 'A', KeyK: 'B', ArrowUp: 'UP', KeyW: 'UP', ArrowDown: 'DOWN', KeyS: 'DOWN', ArrowLeft: 'LEFT', KeyA: 'LEFT', ArrowRight: 'RIGHT', KeyD: 'RIGHT' };
+window.addEventListener('keydown', (e) => {
+  if (!judge || !presenting) return;
+  const k = PA_KEYS[e.code];
+  if (!k) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (!e.repeat) paPress(k);
+}, true);
+window.addEventListener('keyup', (e) => {
+  if (!judge || !presenting) return;
+  const k = PA_KEYS[e.code];
+  if (!k) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  paRelease(k);
+}, true);
 
 // ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）
 
@@ -1957,6 +2118,8 @@ function applyBackgroundOptions() {
   $('bgAlphaVal').textContent = `${Math.round(alpha * 100)}%`;
   view.dirty = true;
 }
+$('paOffset').addEventListener('input', () => { settings.paOffset = Number($('paOffset').value); $('paOffsetVal').textContent = `${settings.paOffset}ms`; });
+$('paOffset').addEventListener('change', () => saveSettings());
 $('bgPick').addEventListener('click', () => $('bgInput').click());
 $('bgInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
@@ -2089,7 +2252,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, get remix() { return remix; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; } };
 
 applySettings();
 (async () => {
