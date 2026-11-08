@@ -30,15 +30,31 @@ function decodeNative(ctx, ab) {
   });
 }
 
+// 0.5秒の無音 WAV（iPhone を「メディア再生中」にしておくため、<audio> で流し続ける）
+function silentWavUrl() {
+  const n = 4000;
+  const dv = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, 8000, true); dv.setUint32(28, 16000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  w(36, 'data'); dv.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([dv.buffer], { type: 'audio/wav' }));
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
+    this.decodeCtx = null;
     this.buffers = new Map();
     this.forceWasm = /[?&]wasm\b/.test(location.search);
     this.nativeOggFailed = false;
     this.usedWasm = false;
+    this.stale = false;
+    this.keepAlive = null;
   }
 
+  // 実際に鳴らす AudioContext。iPhone ではタップの中（unlock）で作るのが確実
   get context() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -49,23 +65,68 @@ export class AudioEngine {
     return this.ctx;
   }
 
-  // iPhone ではタップの中で呼ぶ必要がある
-  async unlock() {
+  // 読み込み時のデコード専用。音を出さないので、タップ前に作っても iPhone の再生に影響しない
+  get decoder() {
+    if (!this.decodeCtx) {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      this.decodeCtx = OAC ? new OAC(2, 1, 48000) : this.context;
+    }
+    return this.decodeCtx;
+  }
+
+  get state() {
+    return this.ctx ? this.ctx.state : 'none';
+  }
+
+  // タップの処理の中で（await より前に）呼ぶこと
+  unlock() {
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) { /* 未対応 */ }
+    this.startKeepAlive();
+    // 止まったまま戻らない状態（ホーム画面アプリでよく起きる）なら作り直す
+    if (this.ctx && (this.stale || this.ctx.state === 'closed' || this.ctx.state === 'interrupted')) {
+      const old = this.ctx;
+      this.ctx = null;
+      try { old.close(); } catch (_) { /* 済み */ }
+    }
+    this.stale = false;
     const ctx = this.context;
-    const b = ctx.createBuffer(1, 1, 22050);
-    const s = ctx.createBufferSource();
-    s.buffer = b;
-    s.connect(ctx.destination);
-    s.start(0);
-    if (ctx.state !== 'running') await ctx.resume();
+    try {
+      const b = ctx.createBuffer(1, 1, 22050);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (_) { /* 無視 */ }
+    let p = null;
+    try { p = ctx.resume(); } catch (_) { /* interrupted だと例外になることがある */ }
+    return Promise.resolve(p).catch(() => {});
+  }
+
+  startKeepAlive() {
+    try {
+      if (!this.keepAlive) {
+        const a = new Audio();
+        a.src = silentWavUrl();
+        a.loop = true;
+        a.setAttribute('playsinline', '');
+        this.keepAlive = a;
+      }
+      clearTimeout(this.keepAliveTimer);
+      const p = this.keepAlive.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (_) { /* 無視 */ }
+  }
+
+  stopKeepAlive() {
+    clearTimeout(this.keepAliveTimer);
+    this.keepAliveTimer = setTimeout(() => { try { this.keepAlive?.pause(); } catch (_) { /* 無視 */ } }, 1500);
   }
 
   async decode(ab) {
     const ogg = isOgg(ab);
     if (!ogg || (!this.forceWasm && !this.nativeOggFailed)) {
       try {
-        return await decodeNative(this.context, ab.slice(0));
+        return await decodeNative(this.decoder, ab.slice(0));
       } catch (e) {
         if (!ogg) throw e;
         this.nativeOggFailed = true; // 古い iOS は .ogg を読めない → WASM デコーダへ
@@ -93,7 +154,7 @@ export class AudioEngine {
     this.wasmQueue = job.catch(() => {});
     const r = await job;
     const len = Math.max(1, r.samplesDecoded);
-    const buf = this.context.createBuffer(Math.max(1, r.channelData.length), len, r.sampleRate);
+    const buf = this.decoder.createBuffer(Math.max(1, r.channelData.length), len, r.sampleRate);
     r.channelData.forEach((ch, i) => buf.getChannelData(i).set(ch.subarray(0, len)));
     return buf;
   }

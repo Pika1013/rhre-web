@@ -1,5 +1,5 @@
 import { loadRemix, cleanName, isMulti } from './remix.js';
-import { AudioEngine, Player, Previewer, renderWav } from './audio.js';
+import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=3';
 import { EditorView, Minimap, fmtTime } from './view.js';
 
 const $ = (id) => document.getElementById(id);
@@ -187,6 +187,7 @@ async function preview(o) {
   await engine.loadSounds(urls, remix.db);
   const beat = view.playhead ?? remix.playbackStart;
   previewer.play(remix.previewEvents(o, remix.tempo.tempoAt(beat)));
+  setTimeout(() => { if (mode !== 'playing') engine.stopKeepAlive(); }, 5000);
 }
 
 // ---------------------------------------------------------------- 読み込み
@@ -224,7 +225,7 @@ async function openBuffer(ab, name) {
     if (failed.length) notes.push(`読めなかった音 ${failed.length} 件`);
     loadInfo = `${name} ／ ${fmtTime(remix.durationSec)} ／ ミニゲーム ${games.size} 種・ブロック ${remix.entities.length} 個${notes.length ? ' ／ ⚠ ' + notes.join('・') : ''}`;
     setStatus(loadInfo);
-    $('version').textContent = `RHRE Web 試作 0.1 ／ DB v${remix.raw.databaseVersion ?? '?'}`;
+    $('version').textContent = `RHRE Web 試作 0.1.3 ／ DB v${remix.raw.databaseVersion ?? '?'}`;
     $('helpDiag').textContent = `データベース: ${remix.db.commit} ／ ogg の読み込み: ${engine.usedWasm ? 'WASM（予備）' : 'ブラウザ内蔵'}${res.missing.length ? ' ／ 見つからない ID: ' + res.missing.slice(0, 6).join(', ') : ''}`;
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   } catch (e) {
@@ -250,6 +251,33 @@ async function openSample() {
 
 // ---------------------------------------------------------------- 再生
 
+let toastTimer = 0;
+function toast(msg, ms = 6000) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+// 再生を始めたのに音の時計が進まないとき（iPhone のホーム画面アプリで起きることがある）は止めて知らせる
+let watchTimer = 0;
+function watchAudio() {
+  const ctx = engine.ctx;
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  clearTimeout(watchTimer);
+  watchTimer = setTimeout(() => {
+    if (mode !== 'playing') return;
+    if (ctx.state !== 'running' || ctx.currentTime - t0 < 0.2) {
+      const st = ctx.state;
+      stopPlayback();
+      engine.stale = true;
+      toast(`音を開始できませんでした（状態: ${st}）。もう一度 ▶ を押してください。続くときはアプリを閉じて開き直してください。`, 9000);
+    }
+  }, 900);
+}
+
 function startPlayback(fromSec) {
   previewer.stop();
   player.metronome = metronome;
@@ -257,17 +285,20 @@ function startPlayback(fromSec) {
     mode = 'stopped';
     view.playhead = null;
     view.dirty = true;
+    engine.stopKeepAlive();
     updateButtons();
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   };
   player.start(remix, musicBuf, fromSec);
   mode = 'playing';
   updateButtons();
+  watchAudio();
 }
 
 function play() {
   if (!remix || loading || mode === 'playing') return;
-  engine.unlock(); // iPhone ではタップの中で音を有効にする必要がある
+  engine.unlock(); // iPhone ではタップの中で音を有効にする必要がある（await より前に呼ぶ）
+  $('toast').hidden = true;
   const from = mode === 'paused' ? pausedSec : remix.tempo.b2s(remix.playbackStart);
   startPlayback(from);
 }
@@ -277,12 +308,14 @@ function pause() {
   player.pause();
   pausedSec = player.pausedAt;
   mode = 'paused';
+  engine.stopKeepAlive();
   updateButtons();
 }
 
 function stopPlayback() {
   player.stop();
   previewer.stop();
+  engine.stopKeepAlive();
   if (mode !== 'stopped' && remix) {
     // デスクトップ版と同じく、停止したら再生開始位置へ戻る
     view.scrollBeat = remix.playbackStart - (view.W * 0.3) / view.ppb;
@@ -328,13 +361,13 @@ requestAnimationFrame(frame);
 
 // ---------------------------------------------------------------- ボタン
 
-$('openBtn').addEventListener('click', () => { engine.unlock(); $('fileInput').click(); });
+$('openBtn').addEventListener('click', () => { $('fileInput').click(); });
 $('fileInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
   e.target.value = '';
   if (f) openBuffer(await f.arrayBuffer(), f.name);
 });
-$('sampleBtn').addEventListener('click', () => { engine.unlock(); openSample(); });
+$('sampleBtn').addEventListener('click', () => { openSample(); });
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
 $('stopBtn').addEventListener('click', stopPlayback);
@@ -384,7 +417,10 @@ $('fsBtn').addEventListener('click', async () => {
   } catch (_) { /* 断られたらそのまま */ }
 });
 
-$('helpBtn').addEventListener('click', () => { $('helpModal').hidden = false; });
+$('helpBtn').addEventListener('click', () => {
+  $('helpAudio').textContent = `音の状態: ${engine.state} ／ ${inStandalone ? 'ホーム画面アプリ' : 'ブラウザ'} ／ ogg: ${engine.usedWasm ? 'WASM（予備）' : 'ブラウザ内蔵'}`;
+  $('helpModal').hidden = false;
+});
 $('helpClose').addEventListener('click', () => { $('helpModal').hidden = true; });
 
 let exportUrl = null;
@@ -422,7 +458,11 @@ window.addEventListener('drop', async (e) => {
   const f = e.dataTransfer?.files?.[0];
   if (f) openBuffer(await f.arrayBuffer(), f.name);
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'playing') pause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (mode === 'playing') pause(); }
+  else if (mode !== 'playing') engine.stale = true; // 戻ってきたら、次の ▶ で音の部品を作り直す
+});
+window.addEventListener('pageshow', (e) => { if (e.persisted) engine.stale = true; });
 
 updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });

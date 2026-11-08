@@ -100,6 +100,11 @@
     padding: 4px 14px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); font-weight: 700; font-size: 18px;
     text-align: center; pointer-events: none; white-space: pre-wrap;
   }
+  #toast {
+    position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 5; width: min(520px, calc(100% - 24px));
+    box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #5a1d1d; border: 2px solid #c94a4a;
+    font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center;
+  }
   #loading {
     position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72);
   }
@@ -261,6 +266,7 @@
   <main id="editor">
     <canvas id="view" aria-label="トラック"></canvas>
     <div id="subtitle" hidden></div>
+    <div id="toast" role="status" hidden></div>
     <div id="loading">
       <div class="card">
         <h2 id="loadTitle">準備中…</h2>
@@ -289,7 +295,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.1.3</span></footer>
 </div>
 
 <div class="modal" id="exportModal" hidden>
@@ -320,11 +326,12 @@
     <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。ホーム画面のアイコンから開くと、Safari のバーなしで使えます。</p>
     <p>編集・保存はまだできません。字幕は表示しますが、プレイアロングや画面揺れなどの演出は再生しません。</p>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
+    <p id="helpAudio" style="color:#9a9a9a;font-size:12px"></p>
     <div class="row"><button class="btn" id="helpClose">閉じる</button></div>
   </div>
 </div>
 
 <input type="file" id="fileInput" hidden>
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>
