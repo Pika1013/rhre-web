@@ -239,6 +239,10 @@
   @media (min-width: 641px) { #toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } #toolbar::-webkit-scrollbar { display: none; } }
   @media (max-width: 1000px) { .wide { display: none; } }
   @media (max-width: 640px) {
+    #speedCtl { width: 84px; }
+    #speedCtl .sp-label { font-size: 9px; }
+    #timebox { min-width: 88px !important; padding: 0 7px; }
+    #timebox .t { font-size: 15px; }
     #ctxbar { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; column-gap: 4px; --btn-size: 34px; }
     #ctxbar .grp { gap: 4px; padding-right: 5px; }
     #ctxbar .val { min-width: 36px; }
@@ -256,6 +260,22 @@
   }
   #panelToggle svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.4; fill: none; transition: transform 0.15s; }
   #panelToggle.collapsed svg { transform: rotate(180deg); }
+  /* 再生速度のつまみ */
+  #speedCtl {
+    position: relative; flex: none; width: 128px; height: var(--btn-size); box-sizing: border-box; border-radius: 3px; background: #262626;
+    touch-action: none; cursor: ew-resize; outline-offset: 1px;
+  }
+  #speedCtl .sp-label { position: absolute; top: 1px; left: 0; right: 0; text-align: center; font-size: 10px; font-weight: 700; color: #ddd; line-height: 1.2; }
+  #speedCtl .sp-track { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 17px; }
+  #speedCtl .sp-rainbow {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, #7d22d6 0 14.3%, #2f5fe9 14.3% 28.6%, #33c13d 28.6% 42.9%, #a6e43f 42.9% 57.1%, #f2db30 57.1% 71.4%, #f39b2c 71.4% 85.7%, #e2302c 85.7% 100%);
+    clip-path: polygon(0 72%, 100% 0, 100% 100%, 0 100%);
+  }
+  #speedCtl .sp-thumb { position: absolute; top: -3px; bottom: -2px; width: 5px; margin-left: -3px; background: #fff; border: 2px solid #111; border-radius: 2px; left: 42.9%; }
+  #speedCtl .sp-val { position: absolute; right: 7px; bottom: 3px; font-weight: 800; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; font-variant-numeric: tabular-nums; }
+  :root[data-theme="light"] #speedCtl { background: #c9d0d8; }
+  :root[data-theme="light"] #speedCtl .sp-label { color: #1b2430; }
   /* テンポ／拍子／音楽の音量の切り替え */
   .seg { display: flex; gap: 4px; margin-bottom: 8px; background: #1e1e1e; padding: 3px; border-radius: 8px; }
   .seg button { flex: 1; height: 34px; border: 0; border-radius: 6px; background: none; font-weight: 800; font-size: 14px; color: #bbb; }
@@ -390,6 +410,11 @@
     </div>
     <div class="group">
       <div id="timebox" aria-live="off"><span class="t" id="timeText">00:00.000</span><span class="b" id="beatText">Beat 0.000</span></div>
+      <div id="speedCtl" role="slider" tabindex="0" aria-label="再生速度" aria-valuemin="0.25" aria-valuemax="2" aria-valuenow="1" title="再生速度（ダブルタップで 1.0 に戻す）">
+        <span class="sp-label">再生速度</span>
+        <div class="sp-track"><div class="sp-rainbow"></div><div class="sp-thumb" id="speedThumb"></div></div>
+        <span class="sp-val" id="speedVal">1.0×</span>
+      </div>
       <button class="tb" id="fsBtn" title="全画面" aria-label="全画面" hidden>
         <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
       </button>
@@ -433,7 +458,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.1</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -584,8 +609,6 @@
       </select>
     </div>
     <p class="note">同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
-    <div class="field"><label for="speedInput">再生速度</label><input id="speedInput" type="range" min="0.25" max="2" step="0.05" value="1"><span id="speedVal" class="speedval">1.00×</span><button class="btn small" id="speedReset">1.0</button></div>
-    <p class="note">再生速度は、テンポと音程の両方が変わります（デスクトップ版と同じ）。WAV の書き出しは常に 1.0 倍です。</p>
     <div class="field"><label for="themeSelect">テーマ</label>
       <select id="themeSelect"><option value="dark">ダーク</option><option value="black">ブラック</option><option value="light">ライト</option></select>
     </div>
@@ -636,6 +659,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=13"></script>
+<script type="module" src="js/app.js?v=14"></script>
 </body>
 </html>

@@ -125,8 +125,13 @@ export class EditorView {
     const tempoH = compact ? 24 : 38;
     const avail = this.H - infoH - rulerH - tempoH - 6;
     const rowH = clamp(avail / tc, 18, 64);
-    const tracksTop = infoH + rulerH;
-    return { infoH, rulerH, tempoH, rowH, tracksTop, tracksBottom: tracksTop + rowH * tc, tc };
+    const contentH = infoH + rulerH + rowH * tc + tempoH + 6;
+    const maxScrollY = Math.max(0, contentH - this.H);
+    if (this.stickBottom !== false) this.scrollY = maxScrollY;
+    this.scrollY = clamp(this.scrollY || 0, 0, maxScrollY);
+    const top = -this.scrollY;
+    const tracksTop = top + infoH + rulerH;
+    return { infoH, rulerH, tempoH, rowH, top, maxScrollY, tracksTop, tracksBottom: tracksTop + rowH * tc, tc };
   }
 
   x(beat) { return (beat - this.scrollBeat) * this.ppb; }
@@ -168,7 +173,7 @@ export class EditorView {
     const mx = this.x(R.tempo.s2b(R.musicStartSec));
     const px = this.x(R.playbackStart);
     const tol = 22;
-    const upper = y < L.infoH * 0.5;
+    const upper = y < L.top + L.infoH * 0.5;
     if (upper && Math.abs(x - mx) <= tol) return 'music';
     if (!upper && Math.abs(x - px) <= tol) return 'playback';
     if (upper && Math.abs(x - px) <= tol && Math.abs(x - mx) > tol) return 'playback';
@@ -298,6 +303,13 @@ export class EditorView {
         this.edgeScroll(e.offsetX);
       } else {
         this.scrollBeat = d.s0 - dx / this.ppb;
+        const L2 = this.layout();
+        if (L2.maxScrollY > 0) {
+          if (d.sy0 == null) d.sy0 = this.scrollY;
+          this.stickBottom = false;
+          this.scrollY = clamp(d.sy0 - dy, 0, L2.maxScrollY);
+          if (this.scrollY >= L2.maxScrollY - 1) this.stickBottom = true;
+        }
         const t = performance.now();
         const dt = Math.max(1, t - d.lt);
         d.vx = 0.8 * ((e.offsetX - d.lx) / dt) + 0.2 * d.vx;
@@ -543,17 +555,17 @@ export class EditorView {
     const fd = this.flagDrag;
     const musicBeat = fd?.kind === 'music' ? fd.beat : R.tempo.s2b(R.musicStartSec);
     const musicSec = fd?.kind === 'music' ? R.tempo.b2s(fd.beat) : R.musicStartSec;
-    this.drawFlag(g, L, musicBeat, C.music, 4, LABELS.music, [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
+    this.drawFlag(g, L, musicBeat, C.music, L.top + 4, LABELS.music, [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
     const pbBeat = fd?.kind === 'playback' ? fd.beat : R.playbackStart;
     const pbSec = R.tempo.b2s(pbBeat);
-    this.drawFlag(g, L, pbBeat, C.playback, L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
+    this.drawFlag(g, L, pbBeat, C.playback, L.top + L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
 
     // 再生位置
     if (this.playhead != null) {
       const x = Math.round(this.x(this.playhead)) + 0.5;
       g.strokeStyle = C.playhead;
       g.lineWidth = 2;
-      g.beginPath(); g.moveTo(x, L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
+      g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
     }
   }
 
@@ -701,6 +713,20 @@ export class EditorView {
     g.fillStyle = base;
     g.fillRect(x, y, w, h);
 
+    // 枠の外に音がある（等間隔など）ときは、全体を薄い帯でつないで見せる
+    if (e.leaves.length && (e.minBeat < e.beat - 1e-6 || e.maxBeat > e.beat + e.width + 1e-6)) {
+      const t0 = Math.min(e.track, ...e.leaves.map((l) => l.track));
+      const t1 = Math.max(e.track + e.height - 1, ...e.leaves.map((l) => l.track));
+      const bx = this.x(e.minBeat), bw = (e.maxBeat - e.minBeat) * this.ppb;
+      const by = L.tracksTop + t0 * L.rowH + 2, bh = (t1 - t0 + 1) * L.rowH - 4;
+      g.globalAlpha = 0.14;
+      g.fillStyle = base;
+      g.fillRect(bx, by, bw, bh);
+      g.globalAlpha = 0.35;
+      g.fillRect(bx, by + bh - 2, bw, 2);
+      g.globalAlpha = 1;
+    }
+
     // 中の cue の位置（デスクトップ版と同じく薄い枠）
     if (e.leaves.length > 1 || (e.leaves[0] && e.type !== 'cue')) {
       g.lineWidth = 1;
@@ -721,6 +747,17 @@ export class EditorView {
         g.strokeRect(Math.round(lx) + 0.5, Math.round(ly) + 0.5, Math.round(lw) - 1, Math.round(L.rowH - 6));
         g.globalAlpha = 1;
       }
+    }
+
+    // 鳴った音そのものの位置を光らせる（等間隔の離れた部分も）
+    if (e.leafFlash?.length) {
+      e.leafFlash = e.leafFlash.filter((f) => now - f.at < 260);
+      for (const f of e.leafFlash) {
+        const a = 1 - (now - f.at) / 260;
+        g.fillStyle = `rgba(255,255,255,${0.6 * a})`;
+        g.fillRect(this.x(f.beat), L.tracksTop + f.track * L.rowH + 2, Math.max(3, f.width * this.ppb), L.rowH - 4);
+      }
+      if (e.leafFlash.length) this.dirty = true;
     }
 
     // 発音した瞬間に光らせる

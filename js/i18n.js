@@ -130,4 +130,5 @@ const ATTR_EN = {
   'スナップ（置く・動かす間隔）': 'Snap (placing and moving grid)', '一時停止': 'Pause', '再生（スペース）': 'Play (Space)', '再生': 'Play', '停止': 'Stop',
   '全画面': 'Fullscreen', '使い方': 'Help', '設定': 'Settings', 'ゲーム一覧を隠す／出す': 'Show/hide the game list',
   'ミニゲームを検索': 'Search minigames', '検索': 'Search', 'トラック': 'Tracks',
+  '再生速度（ダブルタップで 1.0 に戻す）': 'Playback speed (double-tap to reset to 1.0)', '再生速度': 'Playback speed',
 };

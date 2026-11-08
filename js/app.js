@@ -1,11 +1,11 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=7';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=8';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=8';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=1';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=8';
+import { t, setLang, applyStatic } from './i18n.js?v=2';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=9';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.0';
+const VERSION = '1.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1160,7 +1160,10 @@ function frame(now) {
     const beat = remix.tempo.s2b(t);
     view.playhead = beat;
     view.follow(beat);
-    for (const ent of player.takeVisual(t)) ent.flashAt = now;
+    for (const { ent, leaf } of player.takeVisual(t)) {
+      if (!leaf || (leaf.beat >= ent.beat - 1e-6 && leaf.beat < ent.beat + ent.width + 1e-6)) ent.flashAt = now;
+      if (leaf) (ent.leafFlash ||= []).push({ ...leaf, at: now });
+    }
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
@@ -1305,7 +1308,6 @@ $('helpBtn').addEventListener('click', openHelp);
 // 設定画面
 $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
-  $('speedInput').value = String(Number(settings.speed) || 1);
   $('themeSelect').value = settings.theme || 'dark';
   $('uiLangSelect').value = settings.uiLang || 'ja';
   $('settingsModal').hidden = false;
@@ -1580,17 +1582,52 @@ function applySettings() {
   applyStatic(document.body);
   for (const b of document.querySelectorAll('#tabs .tab')) b.textContent = t(b.dataset.ja);
   const sp = Number(settings.speed) || 1;
-  $('speedVal').textContent = `${sp.toFixed(2)}×`;
+  $('speedVal').textContent = `${sp.toFixed(sp * 10 % 1 ? 2 : 1)}×`;
+  $('speedThumb').style.left = `${((sp - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100}%`;
+  // つまみが右寄りのときは、数字を左に出して重ならないように
+  const right = (sp - SPEED_MIN) / (SPEED_MAX - SPEED_MIN) > 0.62;
+  $('speedVal').style.left = right ? '7px' : '';
+  $('speedVal').style.right = right ? 'auto' : '';
+  $('speedCtl').setAttribute('aria-valuenow', String(sp));
   view.dirty = true;
 }
-$('speedInput').addEventListener('input', () => {
-  settings.speed = Number($('speedInput').value);
-  saveSettings();
+// 再生速度のつまみ：横にドラッグ（0.25〜2.0、1.0 の近くで止まる）、ダブルタップで 1.0
+const SPEED_MIN = 0.25, SPEED_MAX = 2;
+function setSpeed(v, commit) {
+  let sp = clamp(Math.round(v * 20) / 20, SPEED_MIN, SPEED_MAX);
+  if (Math.abs(sp - 1) < 0.051) sp = 1;
+  settings.speed = sp;
   applySettings();
-  if (mode === 'playing') startPlayback(player.time);
   updateTimebox(player.time || 0, remix ? remix.tempo.s2b(player.time || 0) : 0);
-});
-$('speedReset').addEventListener('click', () => { $('speedInput').value = '1'; $('speedInput').dispatchEvent(new Event('input')); });
+  if (commit) {
+    saveSettings();
+    if (mode === 'playing') startPlayback(player.time);
+  }
+}
+{
+  const ctl = $('speedCtl');
+  const fromX = (clientX) => {
+    const r = ctl.querySelector('.sp-track').getBoundingClientRect();
+    return SPEED_MIN + clamp((clientX - r.left) / r.width, 0, 1) * (SPEED_MAX - SPEED_MIN);
+  };
+  let dragging = false, lastTap = 0;
+  ctl.addEventListener('pointerdown', (e) => {
+    const now = performance.now();
+    if (now - lastTap < 320) { setSpeed(1, true); lastTap = 0; return; }
+    lastTap = now;
+    dragging = true;
+    try { ctl.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
+    setSpeed(fromX(e.clientX), false);
+  });
+  ctl.addEventListener('pointermove', (e) => { if (dragging) setSpeed(fromX(e.clientX), false); });
+  const end = () => { if (!dragging) return; dragging = false; setSpeed(Number(settings.speed) || 1, true); };
+  ctl.addEventListener('pointerup', end);
+  ctl.addEventListener('pointercancel', end);
+  ctl.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setSpeed((Number(settings.speed) || 1) - 0.05, true); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setSpeed((Number(settings.speed) || 1) + 0.05, true); }
+  });
+}
 $('themeSelect').addEventListener('change', () => { settings.theme = $('themeSelect').value; saveSettings(); applySettings(); });
 $('uiLangSelect').addEventListener('change', () => {
   settings.uiLang = $('uiLangSelect').value;
@@ -1599,6 +1636,10 @@ $('uiLangSelect').addEventListener('change', () => {
   buildCustomGame();
   renderGrid();
   if (shownGame) showGameList(shownGame.id === CUSTOM_GAME_ID && customRegistry.game ? customRegistry.game : shownGame);
+  else {
+    $('listHead').textContent = t('パターン');
+    $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。'))}</div>`;
+  }
   updateCtxbar();
   setStatus(summaryText());
 });

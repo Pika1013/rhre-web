@@ -316,6 +316,7 @@ function leafToEvents(lf, T, db, rng, ent, out) {
     loop: cue.loops ? { start: Number(cue.loopStart || 0), end: Number(cue.loopEnd) > 0 ? Number(cue.loopEnd) : 0 } : null,
     speedPitch: !!(cue.repitchable || lf.semi !== 0 || Number(cue.baseBpm) > 0),
     ent,
+    leaf: { beat: lf.beat, width: lf.width, track: lf.track },
   };
   if (isFill && lf.width > 0) {
     const w = lf.width;

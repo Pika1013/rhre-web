@@ -309,7 +309,7 @@ export class Player {
       const when = this.ctxT0 + (e.start - this.t0) / this.speed;
       const s = scheduleEvent(ctx, this.out, this.engine.buffers, e, when, 0, this.speed);
       if (s) this.sources.push(s);
-      if (e.ent) this.visual.push({ t: e.start, ent: e.ent });
+      if (e.ent) this.visual.push({ t: e.start, ent: e.ent, leaf: e.leaf });
     }
     if (this.metronome) {
       const T = this.remix.tempo;
@@ -334,7 +334,7 @@ export class Player {
   // 発音した瞬間のエンティティを返す（画面の点滅用）
   takeVisual(now) {
     const hit = [];
-    while (this.visual.length && this.visual[0].t <= now) hit.push(this.visual.shift().ent);
+    while (this.visual.length && this.visual[0].t <= now) hit.push(this.visual.shift());
     return hit;
   }
 
