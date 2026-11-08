@@ -105,8 +105,14 @@
   /* エディタ */
   #editor { position: relative; min-height: 0; overflow: hidden; background: #242424; }
   #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  /* 再生中に画面の中央下に出す：特殊の画像（縦横比そのまま）と字幕 */
+  #stageOverlay {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: 92%; z-index: 3;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+  }
+  #stageImg { display: block; width: auto; height: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
   #subtitle {
-    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); max-width: 88%;
+    max-width: 95%;
     padding: 4px 14px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); font-weight: 700; font-size: 18px;
     text-align: center; pointer-events: none; white-space: pre-wrap;
   }
@@ -247,6 +253,23 @@
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
   .modal .card { max-height: 84vh; max-height: 84dvh; overflow-y: auto; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .row.tight { margin-top: 4px; }
+  /* 設定：テーマの見本と背景の画像 */
+  .sb-title { margin: 14px 0 6px; font-weight: 800; font-size: 14px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; }
+  .theme-sw { border: 0; background: none; padding: 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text); font: 700 11px var(--font); }
+  .theme-sw .sw {
+    position: relative; width: 52px; height: 34px; border-radius: 8px; box-sizing: border-box; border: 1px solid rgba(128, 128, 128, 0.5);
+    background: repeating-linear-gradient(90deg, var(--sw-grid) 0 1.5px, transparent 1.5px 13px), linear-gradient(transparent 48%, var(--sw-grid) 48% 52%, transparent 52%), var(--sw-bg);
+  }
+  .theme-sw .sw::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--sw-acc); box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.35); }
+  .theme-sw[data-theme="custom"] .sw { background: conic-gradient(#ff5d5d, #ffd23f, #5ee07a, #4fc3ff, #b18cff, #ff5d5d); }
+  .theme-sw[data-theme="custom"] .sw::after { display: none; }
+  .theme-sw.on .sw { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .custom-colors { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .custom-colors label { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; }
+  .custom-colors input[type=color] { width: 56px; height: 36px; padding: 0; border: 1px solid #555; border-radius: 6px; background: none; }
+  .range-val { min-width: 42px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px;
     border-radius: 5px; border: 0; background: var(--btn); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text);
@@ -361,6 +384,8 @@
   .p-mid { display: grid; place-content: center; justify-items: center; gap: 10px; }
   #pIcon { width: clamp(80px, 22vmin, 180px); height: auto; image-rendering: pixelated; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
   #pGameName { font-size: clamp(16px, 4vw, 28px); font-weight: 800; }
+  #pStage { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #pImg { object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)); }
   #pSub { min-height: 1.4em; font-size: clamp(18px, 4.5vw, 34px); font-weight: 800; white-space: pre-wrap; text-shadow: 0 2px 8px #000; }
   .p-bottom { display: grid; gap: 8px; justify-items: center; }
   #pTime { font-size: clamp(16px, 4vw, 26px); font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -512,7 +537,7 @@
 
   <main id="editor">
     <canvas id="view" aria-label="トラック"></canvas>
-    <div id="subtitle" hidden></div>
+    <div id="stageOverlay"><img id="stageImg" alt="" hidden><div id="subtitle" hidden></div></div>
     <div id="toast" role="status" hidden></div>
     <input id="tsEdit" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="拍子" hidden>
     <div id="updateBar" role="status" hidden><span id="updateText">新しい版があります</span><button id="updateBtn">更新する</button><button id="updateLater" aria-label="あとで">あとで</button></div>
@@ -540,7 +565,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.3</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -549,7 +574,7 @@
 <div id="present" hidden>
   <div class="p-top"><div id="pTitle"></div><div id="pArtist"></div></div>
   <div class="p-mid" id="pGame"><img id="pIcon" alt="" hidden><div id="pGameName"></div></div>
-  <div id="pSub"></div>
+  <div id="pStage"><img id="pImg" alt="" hidden><div id="pSub"></div></div>
   <div class="p-bottom">
     <div id="pTime">00:00 / 00:00</div>
     <div class="p-bar"><div id="pBar"></div></div>
@@ -700,9 +725,20 @@
       </select>
     </div>
     <p class="note">同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
-    <div class="field"><label for="themeSelect">テーマ</label>
-      <select id="themeSelect"><option value="dark">ダーク</option><option value="black">ブラック</option><option value="light">ライト</option></select>
+    <div class="sb-title">テーマ</div>
+    <div id="themeGrid" class="theme-grid" role="group" aria-label="テーマ"></div>
+    <div id="customColors" class="custom-colors" hidden>
+      <label>背景<input type="color" id="ccBg"></label>
+      <label>線<input type="color" id="ccGrid"></label>
+      <label>アクセント<input type="color" id="ccAccent"></label>
     </div>
+    <div class="sb-title">背景の画像</div>
+    <div class="row tight"><button class="btn" id="bgPick">画像を選ぶ</button><button class="btn" id="bgClear" disabled>外す</button></div>
+    <div class="field"><label for="bgFit">表示</label>
+      <select id="bgFit"><option value="cover">画面いっぱい</option><option value="contain">全体が見えるように</option></select>
+    </div>
+    <div class="field"><label for="bgAlpha">濃さ</label><input type="range" id="bgAlpha" min="10" max="100" step="5" value="60"><span id="bgAlphaVal" class="range-val">60%</span></div>
+    <input type="file" id="bgInput" accept="image/*" hidden>
     <div class="field"><label for="uiLangSelect">画面の言語</label>
       <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
     </div>
@@ -750,6 +786,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=25"></script>
+<script type="module" src="js/app.js?v=26"></script>
 </body>
 </html>

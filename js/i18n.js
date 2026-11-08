@@ -45,7 +45,11 @@ const EN = {
   // キャンバス
   '音楽開始': 'Music start', '再生開始': 'Playback start',
   '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play', 'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
-  '名前を「{n}」にしました': 'Renamed to "{n}".', '全画面に戻る': 'Back to full screen',
+  '名前を「{n}」にしました': 'Renamed to "{n}".', 'ダーク': 'Dark', 'ブラック': 'Black', 'ライト': 'Light', 'ネイビー': 'Navy', 'オーシャン': 'Ocean',
+  'フォレスト': 'Forest', 'パープル': 'Purple', 'ワイン': 'Wine', 'サンセット': 'Sunset', 'レトロ': 'Retro', 'さくら': 'Sakura', 'ミント': 'Mint',
+  'レモン': 'Lemon', 'ラベンダー': 'Lavender', 'そら': 'Sky', '背景の画像を設定しました': 'Background image set.', '背景の画像を外しました': 'Background image removed.',
+  'この画像は読み込めませんでした': "This image couldn't be loaded.",
+'全画面に戻る': 'Back to full screen',
   '追加しました。ホーム画面（アプリ一覧）の RHRE Web から開くと、いつも全画面です。': 'Installed. Open RHRE Web from your home screen or app list for full screen.',
 '押すと .rhref の名前を変えられます': 'Tap to rename the .rhref',
   // 拍子・テンポ・音量の画面
@@ -104,6 +108,8 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play',
+  '背景の画像': 'Background image', '画像を選ぶ': 'Choose image', '外す': 'Remove', '表示': 'Fit', '濃さ': 'Strength',
+  '画面いっぱい': 'Fill the screen', '全体が見えるように': 'Show the whole image', '背景': 'Background', '線': 'Lines', 'アクセント': 'Accent',
   '💾 保存': '💾 Save', 'ホーム画面に追加して使ってください': 'Add to your Home Screen to use it', '全画面で使う': 'Use in full screen',
   '全画面で始める': 'Start in full screen', '📲 アプリとして追加': '📲 Install as an app', '作業中のリミックスを .rhref で保存': 'Save the current remix as .rhref',
 '名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',

@@ -53,8 +53,9 @@ const THEMES = {
   black: { bg: '#000000', grid: '#7fb0de', beatNum: '#9cc2e6', timeSig: 'rgba(110, 150, 196, 0.8)', tempoTri: '#3a44d0', tempoText: '#7480ff', gridRGB: '127,176,222' },
   light: { bg: '#eef1f5', grid: '#5d84ad', beatNum: '#3c5f85', timeSig: 'rgba(70, 110, 160, 0.45)', tempoTri: '#2b34b8', tempoText: '#2b34b8', gridRGB: '93,132,173' },
 };
-export function applyTheme(name) {
-  const t = THEMES[name] || THEMES.dark;
+// 名前（ダーク・ブラック・ライト）か、色の組 { bg, grid, gridRGB, beatNum, timeSig, tempoTri, tempoText } を受け取る
+export function applyTheme(spec) {
+  const t = typeof spec === 'string' ? (THEMES[spec] || THEMES.dark) : spec;
   for (const k of Object.keys(t)) C[k] = t[k];
 }
 
@@ -94,6 +95,7 @@ export class EditorView {
     this.lastUser = 0;
     this.pointers = new Map();
     this.momentum = null;
+    this.bgImage = null; // { img, fit: 'cover' | 'contain', alpha }
     this.resize();
     new ResizeObserver(() => { this.resize(); this.dirty = true; }).observe(canvas);
     this.bindInput();
@@ -519,6 +521,7 @@ export class EditorView {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     g.fillStyle = C.bg;
     g.fillRect(0, 0, W, H);
+    this.drawBackgroundImage(g, W, H);
     if (!this.remix) return;
     const R = this.remix;
     const L = this.layout();
@@ -653,6 +656,31 @@ export class EditorView {
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
     }
+  }
+
+  // 背景の画像：縦横比はそのまま。「画面いっぱい」ははみ出す所を切る、「全体」は全部見せる。
+  // 毎回大きな画像を縮めると重いので、今の画面の大きさに縮めたものを取っておく
+  drawBackgroundImage(g, W, H) {
+    const bg = this.bgImage;
+    if (!bg?.img) return;
+    const key = `${W}x${H}@${this.dpr}/${bg.fit}`;
+    if (!bg.cache || bg.cacheKey !== key) {
+      const iw = bg.img.naturalWidth || bg.img.width, ih = bg.img.naturalHeight || bg.img.height;
+      if (!iw || !ih) return;
+      const s = bg.fit === 'contain' ? Math.min(W / iw, H / ih) : Math.max(W / iw, H / ih);
+      const dw = iw * s, dh = ih * s;
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(W * this.dpr));
+      c.height = Math.max(1, Math.round(H * this.dpr));
+      const cg = c.getContext('2d');
+      cg.imageSmoothingQuality = 'high';
+      cg.drawImage(bg.img, ((W - dw) / 2) * this.dpr, ((H - dh) / 2) * this.dpr, dw * this.dpr, dh * this.dpr);
+      bg.cache = c;
+      bg.cacheKey = key;
+    }
+    g.globalAlpha = bg.alpha ?? 0.6;
+    g.drawImage(bg.cache, 0, 0, W, H);
+    g.globalAlpha = 1;
   }
 
   // テンポ・音量の印をドラッグ中：トラックを縦に貫く点線と、拍の数字（置けない位置は赤）
@@ -876,9 +904,13 @@ export class EditorView {
     if (e.type === 'textureEntity') {
       const img = this.h.textureImage?.(e);
       if (img) {
+        // 縦横比はそのまま、ブロックの中に収まる大きさで真ん中に
+        const bw = w - 4, bh = h - 4;
+        const s = Math.min(bw / (img.naturalWidth || img.width || 1), bh / (img.naturalHeight || img.height || 1));
+        const dw = (img.naturalWidth || img.width) * s, dh = (img.naturalHeight || img.height) * s;
         g.save();
-        g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
-        g.drawImage(img, x + 2, y + 2, w - 4, h - 4);
+        g.beginPath(); g.rect(x + 2, y + 2, bw, bh); g.clip();
+        g.drawImage(img, x + 2 + (bw - dw) / 2, y + 2 + (bh - dh) / 2, dw, dh);
         g.restore();
         if (sel) { g.strokeStyle = C.select; g.lineWidth = 3; g.strokeRect(x + 1, y + 1, w - 2, h - 2); }
         return;

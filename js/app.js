@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=11';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=6';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
+import { t, setLang, applyStatic } from './i18n.js?v=7';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=15';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '2.2';
+const VERSION = '2.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1257,8 +1257,35 @@ function stopPlayback() {
   view.playhead = null;
   view.dirty = true;
   $('subtitle').hidden = true;
+  showStageImage($('stageImg'), null);
   updateButtons();
   updateCtxbar();
+}
+
+// 再生位置にある「特殊」の画像（最後に始まったもの）
+function activeTexture(beat) {
+  let cur = null;
+  for (const e of remix.entities) {
+    if (e.type === 'textureEntity' && e.extra?.texHash && beat >= e.beat && beat < e.beat + e.width) {
+      if (!cur || e.beat >= cur.beat) cur = e;
+    }
+  }
+  return cur;
+}
+// 画面の中央下に、縦横比を変えずに出す。小さい画像は枠（maxW×maxH）いっぱいまで拡大する
+function showStageImage(el, ent, maxW, maxH) {
+  const img = ent ? textureImages.get(ent.extra.texHash) : null;
+  if (!img) { if (!el.hidden) { el.hidden = true; el.removeAttribute('src'); el.dataset.hash = ''; } return; }
+  if (el.dataset.hash !== ent.extra.texHash) { el.src = img.src; el.dataset.hash = ent.extra.texHash; }
+  const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+  if (nw && nh && maxW && maxH) {
+    const s = Math.min(maxW / nw, maxH / nh);
+    el.style.width = `${Math.round(nw * s)}px`;
+    el.style.height = `${Math.round(nh * s)}px`;
+    // ドット絵のような小さい画像は、ぼやけないように拡大する
+    el.style.imageRendering = s >= 2 ? 'pixelated' : 'auto';
+  }
+  el.hidden = false;
 }
 
 function updateSubtitle(beat) {
@@ -1267,6 +1294,8 @@ function updateSubtitle(beat) {
   const text = active.map((s) => s.subtitle).join('\n');
   if (text) { if (el.textContent !== text) el.textContent = text; el.hidden = false; }
   else el.hidden = true;
+  const ed = $('editor');
+  showStageImage($('stageImg'), activeTexture(beat), ed.clientWidth * 0.5, ed.clientHeight * 0.4);
 }
 
 function frame(now) {
@@ -1489,7 +1518,8 @@ $('helpBtn').addEventListener('click', openHelp);
 // 設定画面
 $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
-  $('themeSelect').value = settings.theme || 'dark';
+  renderThemeGrid();
+  applyBackgroundOptions();
   $('uiLangSelect').value = settings.uiLang || 'ja';
   $('settingsModal').hidden = false;
 });
@@ -1768,6 +1798,7 @@ function updatePresentation(sec, beat) {
   }
   const subs = remix.subtitles.filter((s2) => (s2.o?.subtitleType || 'subtitle') === 'subtitle' && beat >= s2.beat && beat < s2.beat + s2.width).map((s2) => s2.subtitle).join('\n');
   if ($('pSub').textContent !== subs) $('pSub').textContent = subs;
+  showStageImage($('pImg'), activeTexture(beat), window.innerWidth * 0.7, window.innerHeight * 0.3);
   $('pPause').textContent = mode === 'playing' ? t('⏸ 一時停止') : t('▶ 再生');
 }
 $('pExit').addEventListener('click', stopPresentation);
@@ -1775,10 +1806,158 @@ $('pPause').addEventListener('click', () => { if (mode === 'playing') pause(); e
 
 // ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）
 
+// ---- テーマ：色の組をいろいろ用意。カスタムは 背景・線・アクセント を自分で選べる
+const THEME_PRESETS = [
+  { id: 'dark', name: 'ダーク', bg: '#242424', grid: '#9cc7ee', accent: '#5fd3ff', builtin: true },
+  { id: 'black', name: 'ブラック', bg: '#000000', grid: '#7fb0de', accent: '#5fd3ff', builtin: true },
+  { id: 'light', name: 'ライト', bg: '#eef1f5', grid: '#5d84ad', accent: '#1f8fc0', builtin: true },
+  { id: 'navy', name: 'ネイビー', bg: '#15203a', grid: '#9cc0ff', accent: '#6fb4ff' },
+  { id: 'ocean', name: 'オーシャン', bg: '#0f2a33', grid: '#86e3ee', accent: '#3fd0e0' },
+  { id: 'forest', name: 'フォレスト', bg: '#13271b', grid: '#95dcaa', accent: '#5ed68a' },
+  { id: 'purple', name: 'パープル', bg: '#1f1733', grid: '#c6b0ff', accent: '#b18cff' },
+  { id: 'wine', name: 'ワイン', bg: '#2b151b', grid: '#f3a9b8', accent: '#ff7a9a' },
+  { id: 'sunset', name: 'サンセット', bg: '#2c1b12', grid: '#ffc58f', accent: '#ffa04d' },
+  { id: 'retro', name: 'レトロ', bg: '#0f2f17', grid: '#9bd37a', accent: '#b8e86a' },
+  { id: 'sakura', name: 'さくら', bg: '#fff0f4', grid: '#d77d9b', accent: '#e0608a' },
+  { id: 'mint', name: 'ミント', bg: '#ebf8f2', grid: '#4f9e80', accent: '#2fae84' },
+  { id: 'lemon', name: 'レモン', bg: '#fffae3', grid: '#a8902b', accent: '#d8a800' },
+  { id: 'lavender', name: 'ラベンダー', bg: '#f3effd', grid: '#8673c4', accent: '#7a5cd6' },
+  { id: 'sky', name: 'そら', bg: '#eaf5ff', grid: '#4f86c0', accent: '#2f8fe0' },
+];
+const hexRgb = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = m ? parseInt(m[1], 16) : 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const rgbHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+const mixHex = (a, b, k) => { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k); };
+const isLightHex = (h) => { const [r, g, b] = hexRgb(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55; };
+const THEME_VARS = ['--chrome', '--chrome-edge', '--btn', '--btn-hi', '--panel', '--panel-line', '--accent', '--on'];
+
+function currentTheme() {
+  if (settings.theme === 'custom') {
+    const c = settings.customTheme || {};
+    return { id: 'custom', bg: c.bg || '#242424', grid: c.grid || '#9cc7ee', accent: c.accent || '#5fd3ff' };
+  }
+  return THEME_PRESETS.find((p) => p.id === settings.theme) || THEME_PRESETS[0];
+}
+
+function applyThemeSettings() {
+  const th = currentTheme();
+  const rs = document.documentElement.style;
+  if (th.builtin) {
+    // もとからあるダーク・ブラック・ライトは、今までどおりの色
+    applyTheme(th.id);
+    document.documentElement.dataset.theme = th.id;
+    for (const v of THEME_VARS) rs.removeProperty(v);
+    document.body.style.background = '';
+    $('editor').style.background = '';
+  } else {
+    const light = isLightHex(th.bg);
+    const [r, g, b] = hexRgb(th.grid);
+    applyTheme({
+      bg: th.bg, grid: th.grid, gridRGB: `${r},${g},${b}`,
+      beatNum: mixHex(th.grid, light ? '#000000' : '#ffffff', 0.15),
+      timeSig: `rgba(${r}, ${g}, ${b}, ${light ? 0.45 : 0.7})`,
+      tempoTri: '#2b34b8', tempoText: light ? '#2b34b8' : '#7c86ff',
+    });
+    document.documentElement.dataset.theme = light ? 'light' : 'dark';
+    const ink = light ? '#000000' : '#ffffff';
+    const vars = light
+      ? { '--chrome': mixHex(th.bg, ink, 0.08), '--chrome-edge': mixHex(th.bg, ink, 0.2), '--btn': mixHex(th.bg, ink, 0.15), '--btn-hi': mixHex(th.bg, ink, 0.22), '--panel': mixHex(th.bg, '#ffffff', 0.55), '--panel-line': mixHex(th.bg, ink, 0.15), '--on': mixHex(th.accent, '#ffffff', 0.45) }
+      : { '--chrome': mixHex(th.bg, ink, 0.14), '--chrome-edge': mixHex(th.bg, '#000000', 0.4), '--btn': mixHex(th.bg, ink, 0.22), '--btn-hi': mixHex(th.bg, ink, 0.3), '--panel': mixHex(th.bg, '#000000', 0.35), '--panel-line': mixHex(th.bg, ink, 0.22), '--on': mixHex(th.accent, th.bg, 0.45) };
+    vars['--accent'] = th.accent;
+    for (const [k, v] of Object.entries(vars)) rs.setProperty(k, v);
+    document.body.style.background = vars['--panel'];
+    $('editor').style.background = th.bg;
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--chrome').trim() || '#3b3b3b';
+  view.dirty = true;
+}
+
+// 設定画面のテーマの見本（押すとすぐ変わる）
+function renderThemeGrid() {
+  const grid = $('themeGrid');
+  const cur = settings.theme || 'dark';
+  const sw = (id, name, style) => `<button class="theme-sw${cur === id ? ' on' : ''}" data-theme="${id}" style="${style}" aria-pressed="${cur === id}"><span class="sw"></span><span class="nm">${esc(t(name))}</span></button>`;
+  grid.innerHTML = THEME_PRESETS.map((p) => sw(p.id, p.name, `--sw-bg:${p.bg};--sw-grid:${p.grid};--sw-acc:${p.accent}`)).join('')
+    + sw('custom', 'カスタム', 'background:none');
+  const c = currentTheme();
+  $('customColors').hidden = cur !== 'custom';
+  $('ccBg').value = c.bg; $('ccGrid').value = c.grid; $('ccAccent').value = c.accent;
+}
+$('themeGrid').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-theme]');
+  if (!b) return;
+  if (b.dataset.theme === 'custom' && settings.theme !== 'custom') {
+    // カスタムは、今のテーマの色から始める
+    const c = currentTheme();
+    settings.customTheme = { bg: c.bg, grid: c.grid, accent: c.accent };
+  }
+  settings.theme = b.dataset.theme;
+  saveSettings();
+  applySettings();
+  renderThemeGrid();
+});
+for (const [id, key] of [['ccBg', 'bg'], ['ccGrid', 'grid'], ['ccAccent', 'accent']]) {
+  $(id).addEventListener('input', () => {
+    settings.customTheme = { ...(settings.customTheme || {}), [key]: $(id).value };
+    settings.theme = 'custom';
+    applyThemeSettings();
+  });
+  $(id).addEventListener('change', () => saveSettings());
+}
+
+// ---- 背景の画像（端末に保存。縦横比は変えない）
+let bgUrl = null;
+async function setBackgroundImage(bytes, type) {
+  if (bgUrl) URL.revokeObjectURL(bgUrl);
+  bgUrl = null;
+  view.bgImage = null;
+  $('present').style.backgroundImage = '';
+  if (bytes) {
+    bgUrl = URL.createObjectURL(new Blob([bytes], { type: type || 'image/png' }));
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = bgUrl; });
+    view.bgImage = { img, fit: settings.bgFit || 'cover', alpha: (Number(settings.bgAlpha) || 60) / 100 };
+  }
+  applyBackgroundOptions();
+}
+function applyBackgroundOptions() {
+  const fit = settings.bgFit || 'cover';
+  const alpha = (Number(settings.bgAlpha) || 60) / 100;
+  if (view.bgImage) { view.bgImage.fit = fit; view.bgImage.alpha = alpha; view.bgImage.cacheKey = ''; }
+  // プレゼンテーションの画面にも同じ画像を（濃さの分だけ暗く重ねる）
+  $('present').style.backgroundImage = bgUrl
+    ? `linear-gradient(rgba(16, 20, 24, ${(1 - alpha * 0.85).toFixed(2)}), rgba(16, 20, 24, ${(1 - alpha * 0.85).toFixed(2)})), url("${bgUrl}")`
+    : '';
+  $('present').style.backgroundSize = fit === 'contain' ? 'auto, contain' : 'auto, cover';
+  $('present').style.backgroundPosition = 'center';
+  $('present').style.backgroundRepeat = 'no-repeat';
+  $('bgClear').disabled = !bgUrl;
+  $('bgFit').value = fit;
+  $('bgAlpha').value = String(Math.round(alpha * 100));
+  $('bgAlphaVal').textContent = `${Math.round(alpha * 100)}%`;
+  view.dirty = true;
+}
+$('bgPick').addEventListener('click', () => $('bgInput').click());
+$('bgInput').addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  e.target.value = '';
+  if (!f) return;
+  try {
+    const bytes = await f.arrayBuffer();
+    await setBackgroundImage(bytes, f.type);
+    store.set('bgImage', { bytes, type: f.type });
+    setStatus(t('背景の画像を設定しました'));
+  } catch (_) { toast(t('この画像は読み込めませんでした'), 3000); }
+});
+$('bgClear').addEventListener('click', () => { setBackgroundImage(null); store.set('bgImage', null); setStatus(t('背景の画像を外しました')); });
+$('bgFit').addEventListener('change', () => { settings.bgFit = $('bgFit').value; saveSettings(); applyBackgroundOptions(); });
+$('bgAlpha').addEventListener('input', () => { settings.bgAlpha = Number($('bgAlpha').value); applyBackgroundOptions(); });
+$('bgAlpha').addEventListener('change', () => saveSettings());
+store.get('bgImage').then((rec) => { if (rec?.bytes) setBackgroundImage(rec.bytes, rec.type).catch(() => {}); else applyBackgroundOptions(); });
+
 function applySettings() {
   player.speedSetting = Number(settings.speed) || 1;
-  applyTheme(settings.theme || 'dark');
-  document.documentElement.dataset.theme = settings.theme || 'dark';
+  applyThemeSettings();
   setLang(settings.uiLang || 'ja');
   document.documentElement.lang = settings.uiLang === 'en' ? 'en' : 'ja';
   LABELS.music = t('音楽開始');
@@ -1833,7 +2012,6 @@ function setSpeed(v, commit) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setSpeed((Number(settings.speed) || 1) + 0.05, true); }
   });
 }
-$('themeSelect').addEventListener('change', () => { settings.theme = $('themeSelect').value; saveSettings(); applySettings(); });
 $('uiLangSelect').addEventListener('change', () => {
   settings.uiLang = $('uiLangSelect').value;
   saveSettings();
