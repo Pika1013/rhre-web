@@ -3,7 +3,7 @@ import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.
 import { EditorView, fmtTime } from './view.js?v=7';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.7';
+const VERSION = '0.8';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -386,17 +386,6 @@ function updateCtxbar() {
   const bar = $('ctxbar');
   const show = (on) => { bar.hidden = !on; $('toolbar').hidden = on; };
   if (!remix || mode === 'playing') { show(false); return; }
-  const undoBtns = `<span class="sep"></span>`
-    + `<button class="tb" data-c="undo" title="元に戻す" aria-label="元に戻す"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
-    + `<button class="tb" data-c="redo" title="やり直す" aria-label="やり直す"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`
-    + `<span class="sep"></span>`;
-  if (armed) {
-    bar.innerHTML = `<button class="txtbtn" data-c="disarm">やめる</button>` + undoBtns
-      + `<span class="lbl">置く：</span><span class="lbl" style="color:#fff">${esc(cleanName(armed.name))}</span>`
-      + `<span class="hint long">トラックの空いている所をタップ（続けて置けます）</span>`;
-    show(true);
-    return;
-  }
   const sel = [...view.selection];
   if (!sel.length && !multiSelect) { show(false); return; }
   const one = sel.length === 1 ? sel[0] : null;
@@ -431,7 +420,7 @@ $('ctxbar').addEventListener('click', (e) => {
     case 'vol-': changeVolume(-10); break;
     case 'vol+': changeVolume(10); break;
     case 'multi': multiSelect = !multiSelect; updateCtxbar(); break;
-    case 'clear': multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); setStatus(summaryText()); break;
+    case 'clear': multiSelect = false; view.selection.clear(); view.dirty = true; if (armed) setArmed(null); else { updateCtxbar(); setStatus(summaryText()); } break;
   }
 });
 

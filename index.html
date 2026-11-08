@@ -243,7 +243,7 @@
   /* ピッカーを畳んだとき（横向きのスマホでは最初から畳む） */
   #panel.collapsed { display: none; }
   #panelToggle {
-    position: absolute; left: 6px; bottom: 0; z-index: 4; height: 22px; width: 34px; padding: 0; display: grid; place-items: center;
+    position: absolute; left: 6px; bottom: 0; z-index: 4; height: 24px; padding: 0 9px 0 5px; display: flex; align-items: center; gap: 3px;
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font-size: 11px; font-weight: 700;
   }
   #panelToggle svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.4; fill: none; transition: transform 0.15s; }
@@ -345,7 +345,7 @@
     <canvas id="view" aria-label="トラック"></canvas>
     <div id="subtitle" hidden></div>
     <div id="toast" role="status" hidden></div>
-    <button id="panelToggle" title="ゲーム一覧を隠す／出す" aria-label="ゲーム一覧を隠す／出す" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button id="panelToggle" title="ゲーム一覧を隠す／出す" aria-label="ゲーム一覧を隠す／出す" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span>ゲームを選ぶ</span></button>
     <div id="loading">
       <div class="card">
         <h2 id="loadTitle">準備中…</h2>
@@ -368,7 +368,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.7</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.8</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -483,13 +483,13 @@
     <ul>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
-      <li>一覧の左上の小さな ⌄：ゲーム一覧を隠す／出す</li>
+      <li>一覧の左上の「ゲームを選ぶ」：ゲーム一覧を隠す／出す</li>
       <li>赤い旗（音楽開始）と緑の旗（再生開始）は、横にドラッグして動かせます</li>
       <li>Snap：置く・動かす間隔（1〜1/32）を選ぶ</li>
     </ul>
     <p><b>編集</b></p>
     <ul>
-      <li>置く：下でミニゲームを選び、パターン名を押す → トラックの空いている所をタップ（続けて置けます）</li>
+      <li>置く：下でミニゲームを選び、パターン名を押す → トラックの空いている所をタップ（続けて置けます。やめるときは名前をもう一度押すか、編集バーの ✕）</li>
       <li>選ぶ：ブロックをタップ。「複数選択」を押すと、タップで追加・解除できます</li>
       <li>動かす：選んだブロックをドラッグ（重なる所には置けません）</li>
       <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
@@ -508,6 +508,6 @@
 
 <input type="file" id="fileInput" hidden>
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
-<script type="module" src="js/app.js?v=10"></script>
+<script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>
