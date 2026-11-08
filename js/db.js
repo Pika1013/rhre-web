@@ -43,6 +43,9 @@ async function cachedFetch(url, cacheName) {
 
 const subStar = (s, gid) => (typeof s === 'string' ? s.split('*').join(gid) : s);
 
+// 自分で読み込んだ効果音（カスタム）。新しく作るデータベースにも入れる
+export const customRegistry = { game: null };
+
 export class SFXDatabase {
   constructor(commit) {
     this.commit = (commit || 'master').trim();
@@ -54,6 +57,12 @@ export class SFXDatabase {
     this.objects = new Map();
     this.pending = new Map();
     this.failedGames = new Map();
+    if (customRegistry.game) this.addGame(customRegistry.game);
+  }
+
+  addGame(game) {
+    this.games.set(game.id, game);
+    for (const o of game.objects) this.objects.set(o.id, o);
   }
 
   static gameIdOf(id) {
@@ -151,6 +160,7 @@ export class SFXDatabase {
   }
 
   soundUrl(cue) {
+    if (cue.url) return cue.url; // カスタム効果音
     return `${this.base}games/${cue.id}.${cue.fileExtension || 'ogg'}`;
   }
 

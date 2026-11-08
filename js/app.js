@@ -1,9 +1,13 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=6';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=7';
-import { EditorView, fmtTime } from './view.js?v=7';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=7';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=8';
+import { customRegistry } from './db.js?v=6';
+import { t, setLang, applyStatic } from './i18n.js?v=1';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=8';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.9';
+const VERSION = '1.0';
+const t2 = t; // ループの変数名 t と重ならないように
+const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -24,14 +28,18 @@ let loading = false;
 let metronome = false;
 let multiSelect = false;
 let armed = null; // 置こうとしているデータモデル（一覧で名前を押したもの）
+let pasteArmed = false; // 貼り付ける場所を待っている
+let clipboard = null; // { items: [{ json, dB, dT }], width, height }
+const textureImages = new Map(); // texHash → Image
 const undoStack = [];
 const redoStack = [];
 
 const SNAPS = [[1, '1'], [0.5, '1/2'], [0.25, '1/4'], [0.125, '1/8'], [0.0625, '1/16'], [0.03125, '1/32']];
 
+// 並び：シリーズ → 特殊 → 使用中・お気に入り・最近・カスタム（検索は右端に固定）
 const SERIES_TABS = [
-  ['used', '使用中'], ['tengoku', 'GBA'], ['ds', 'DS'], ['fever', 'Wii'], ['megamix', '3DS'],
-  ['groove', 'Groove'], ['side', 'サイド'], ['other', 'その他'], ['special', '特殊'],
+  ['tengoku', 'GBA'], ['ds', 'DS'], ['fever', 'Wii'], ['megamix', '3DS'], ['groove', 'Groove'], ['side', 'サイド'],
+  ['other', 'その他'], ['special', '特殊'], ['used', '使用中'], ['fav', 'お気に入り'], ['recent', '最近'], ['custom', 'カスタム'],
 ];
 let gamesIndex = [];
 
@@ -48,7 +56,7 @@ const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading,
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => selectEntity(ent, additive),
-  onPlace: (beat, track) => placeArmed(beat, track),
+  onPlace: (beat, track) => (pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track)),
   validateMove: (dB, dT) => moveValid(dB, dT),
   onMove: (dB, dT) => doMove(dB, dT),
   validateResize: (ent, b, w) => !remix.collides(b, ent.track, w, ent.height, new Set([ent])),
@@ -64,7 +72,18 @@ const view = new EditorView($('view'), {
     view.dirty = true;
     scheduleAutosave();
   },
-  onTempoTap: (beat, marker) => openTempo(beat, marker),
+  onMarkerTap: (beat, snapped, tol) => openMarker(beat, snapped, tol),
+  isMultiSelect: () => multiSelect,
+  onBoxStart: () => { multiSelect = true; updateCtxbar(); setStatus(t('範囲を指でなぞって選んでください')); },
+  onBoxSelect: (hits, additive) => {
+    if (!additive) view.selection.clear();
+    for (const h of hits) view.selection.add(h);
+    if (hits.length) multiSelect = true;
+    view.dirty = true;
+    updateCtxbar();
+    setStatus(t('{n} 個を選択中', { n: view.selection.size }));
+  },
+  textureImage: (ent) => textureImages.get(ent.extra?.texHash) || null,
   onSetMusicStart: (beat) => {
     if (!remix) return;
     const sec = Math.round(remix.tempo.b2s(beat) * 1000) / 1000;
@@ -81,7 +100,7 @@ function setStatus(text) { $('statusText').textContent = text; }
 let loadWarn = '';
 function summaryText() {
   if (!remix) return '';
-  return `${fileName} ／ ${fmtTime(remix.durationSec)} ／ ミニゲーム ${usedGames().length} 種・ブロック ${remix.entities.length} 個${loadWarn}`;
+  return `${fileName} ／ ${fmtTime(remix.durationSec)} ／ ${t('ミニゲーム {g} 種・ブロック {n} 個', { g: usedGames().length, n: remix.entities.length })}${loadWarn}`;
 }
 
 let toastTimer = 0;
@@ -123,17 +142,18 @@ function updateButtons() {
 
 function updateTimebox(sec, beat) {
   $('timeText').textContent = fmtTime(sec);
-  $('beatText').textContent = `Beat ${beat.toFixed(3)}`;
+  const sp = Number(settings.speed) || 1;
+  $('beatText').textContent = `Beat ${beat.toFixed(3)}${sp !== 1 ? `  ×${sp.toFixed(2)}` : ''}`;
 }
 
 function describe(ent) {
   const parts = [];
   if (ent.game) parts.push(ent.game.name);
   parts.push(ent.name);
-  parts.push(`拍 ${+ent.beat.toFixed(3)}`);
-  if (ent.width) parts.push(`長さ ${+ent.width.toFixed(3)}`);
-  if (ent.semitone) parts.push(`音程 ${ent.semitone > 0 ? '+' : ''}${ent.semitone}`);
-  if (ent.volume !== 100) parts.push(`音量 ${ent.volume}%`);
+  parts.push(t('拍 {b}', { b: +ent.beat.toFixed(3) }));
+  if (ent.width) parts.push(t('長さ {w}', { w: +ent.width.toFixed(3) }));
+  if (ent.semitone) parts.push(t('音程 {s}', { s: `${ent.semitone > 0 ? '+' : ''}${ent.semitone}` }));
+  if (ent.volume !== 100) parts.push(t('音量 {v}%', { v: ent.volume }));
   if (!ent.o) parts.push('（データベースに無い ID）');
   return parts.join(' ／ ');
 }
@@ -269,22 +289,30 @@ function placeAt(o, beat, track) {
   if (!o || !remix) return false;
   if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
   const ent = remix.createEntity(o, beat, track);
-  if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast('ほかのブロックと重なるので置けません', 2200); return false; }
+  if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
+  if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   if (!edit(() => { remix.entities.push(ent); })) return false;
   view.selection.clear();
   view.selection.add(ent);
   updateCtxbar();
-  setStatus(`置きました：${describe(ent)}`);
+  setStatus(`${t('置きました')}：${describe(ent)}`);
   engine.loadSounds(remix.soundUrlsOf(o), remix.db);
+  if (o.game && !o.game.id.startsWith('special')) {
+    settings.recent = [o.game.id, ...(settings.recent || []).filter((x) => x !== o.game.id)].slice(0, 30);
+    saveSettings();
+  }
+  if (o.type === 'subtitleEntity') openTextEditor(ent);
+  if (o.type === 'textureEntity') pickTexture(ent);
   return true;
 }
 
 // ---------------------------------------------------------------- 一覧で名前を押してから、トラックをタップして置く
 
-function armHint() { return `「${cleanName(armed.name)}」を置く：トラックの空いている所をタップ`; }
+function armHint() { return t('「{name}」を置く：トラックの空いている所をタップ', { name: cleanName(armed.name) }); }
 
 function setArmed(o) {
   armed = o;
+  if (o) pasteArmed = false;
   view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) } : null;
   view.hover = null;
   view.dirty = true;
@@ -322,6 +350,67 @@ function deleteSelection() {
     updateCtxbar();
     setStatus(`${n} 個を削除しました（元に戻すボタンで戻せます）`);
   }
+}
+
+function copySelection() {
+  const sel = [...view.selection];
+  if (!sel.length) return;
+  const minB = Math.min(...sel.map((e) => e.beat));
+  const minT = Math.min(...sel.map((e) => e.track));
+  clipboard = {
+    items: sel.map((e) => ({ json: remix.entToJSON(e), dB: e.beat - minB, dT: e.track - minT })),
+    width: Math.max(...sel.map((e) => e.beat + e.width)) - minB,
+    height: Math.max(...sel.map((e) => e.track + e.height)) - minT,
+  };
+  startPaste();
+  setStatus(t('{n} 個をコピーしました。貼り付ける場所をタップしてください', { n: sel.length }));
+}
+
+function startPaste() {
+  if (!clipboard) return;
+  if (armed) setArmed(null);
+  pasteArmed = true;
+  view.armed = { width: clipboard.width, height: clipboard.height };
+  view.dirty = true;
+  updateCtxbar();
+  setStatus(t('貼り付ける場所をタップしてください（続けて貼れます）'));
+}
+
+function pasteAt(beat, track) {
+  if (!clipboard) return;
+  const tr = clamp(track, 0, Math.max(0, remix.trackCount - clipboard.height));
+  const items = clipboard.items.map((it) => {
+    const c = remix.entFromJSON(it.json);
+    c.beat = beat + it.dB;
+    c.track = tr + it.dT;
+    return c;
+  });
+  if (items.some((c) => remix.collides(c.beat, c.track, c.width, c.height))) { toast(t('ほかのブロックと重なるので貼り付けられません'), 2500); return; }
+  if (!edit(() => { remix.entities.push(...items); })) return;
+  view.selection.clear();
+  for (const c of items) view.selection.add(c);
+  updateCtxbar();
+  setStatus(t('{n} 個を貼り付けました', { n: items.length }));
+}
+
+function splitSelection() {
+  const sel = [...view.selection];
+  if (sel.length !== 1 || !remix.model.canSplit(sel[0].o)) { toast(t('このブロックは分けられません'), 2200, 'info'); return; }
+  const e = sel[0];
+  const kids = remix.model.children(e.o, e.beat, e.track, e.width, e.semitone, e.volume, remix.trackCount).map((j) => remix.entFromJSON(j));
+  const ignore = new Set([e]);
+  for (let i = 0; i < kids.length; i++) {
+    const k = kids[i];
+    if (remix.collides(k.beat, k.track, k.width, k.height, ignore)) { toast(t('分けると、ほかのブロックと重なります'), 2500); return; }
+    ignore.add(k);
+  }
+  // 子どうしの重なりは RHRE でも起きうるので、外のブロックとの重なりだけ確かめる
+  if (!edit(() => { remix.entities = remix.entities.filter((x) => x !== e); remix.entities.push(...kids); })) return;
+  view.selection.clear();
+  for (const k of kids) view.selection.add(k);
+  multiSelect = kids.length > 1 || multiSelect;
+  updateCtxbar();
+  setStatus(t('{n} 個に分けました', { n: kids.length }));
 }
 
 function duplicateSelection() {
@@ -378,6 +467,7 @@ const ICON = {
   minus: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>',
   close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="#fff"/><circle cx="12" cy="12" r="1.6" fill="#fff"/><circle cx="19" cy="12" r="1.6" fill="#fff"/></svg>',
   undo: '<svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg>',
   redo: '<svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg>',
 };
@@ -385,27 +475,50 @@ const ICON = {
 function updateCtxbar() {
   const bar = $('ctxbar');
   const show = (on) => { bar.hidden = !on; $('toolbar').hidden = on; };
+  closeMore();
   if (!remix || mode === 'playing') { show(false); return; }
   const sel = [...view.selection];
-  if (!sel.length && !multiSelect) { show(false); return; }
+  if (!sel.length && !multiSelect && !pasteArmed) { show(false); return; }
   const one = sel.length === 1 ? sel[0] : null;
-  const semi = one ? (one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`) : '…';
-  const vol = one ? `${one.volume}%` : '…';
   const dis = sel.length ? '' : ' disabled';
   const grp = (html) => `<span class="grp">${html}</span>`;
-  bar.innerHTML = grp(`<button class="tb" data-c="clear" title="選択をやめる" aria-label="選択をやめる">${ICON.close}</button><span class="lbl">${sel.length}個</span>`)
-    + grp(`<button class="tb" data-c="undo" title="元に戻す" aria-label="元に戻す"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
-      + `<button class="tb" data-c="redo" title="やり直す" aria-label="やり直す"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`)
-    + grp(`<button class="tb danger" data-c="del" title="削除" aria-label="削除"${dis}>${ICON.trash}</button>`
-      + `<button class="tb" data-c="dup" title="複製" aria-label="複製"${dis}>${ICON.copy}</button>`)
-    + grp(`<button class="txtbtn${multiSelect ? ' on' : ''}" data-c="multi" aria-pressed="${multiSelect}">複数選択</button>`)
-    + grp(`<span class="hint">音程</span><button class="tb" data-c="semi-" aria-label="音程を下げる"${dis}>${ICON.minus}</button>`
-      + `<span class="val">${semi}</span><button class="tb" data-c="semi+" aria-label="音程を上げる"${dis}>${ICON.plus}</button>`)
-    + grp(`<span class="hint">音量</span><button class="tb" data-c="vol-" aria-label="音量を下げる"${dis}>${ICON.minus}</button>`
-      + `<span class="val">${vol}</span><button class="tb" data-c="vol+" aria-label="音量を上げる"${dis}>${ICON.plus}</button>`);
+  const btn = (c, icon, label, extra = '') => `<button class="tb${extra}" data-c="${c}" title="${esc(t(label))}" aria-label="${esc(t(label))}"${dis}>${icon}</button>`;
+  let html = grp(`<button class="tb" data-c="clear" title="${esc(t('選択をやめる'))}" aria-label="${esc(t('選択をやめる'))}">${ICON.close}</button><span class="lbl">${sel.length}${t('個') === '個' ? '個' : ' ' + t('個')}</span>`)
+    + grp(`<button class="tb" data-c="undo" title="${esc(t('元に戻す'))}" aria-label="${esc(t('元に戻す'))}"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
+      + `<button class="tb" data-c="redo" title="${esc(t('やり直す'))}" aria-label="${esc(t('やり直す'))}"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`)
+    + grp(btn('del', ICON.trash, '削除', ' danger') + btn('dup', ICON.copy, '複製') + `<button class="tb" data-c="more" title="${esc(t('その他の操作'))}" aria-label="${esc(t('その他の操作'))}">${ICON.more}</button>`)
+    + grp(`<button class="txtbtn${multiSelect ? ' on' : ''}" data-c="multi" aria-pressed="${multiSelect}">${esc(t('複数選択'))}</button>`);
+  // 字幕・画像を1つ選んでいるときは、それ専用のボタン
+  if (one?.type === 'subtitleEntity') html += grp(`<button class="txtbtn" data-c="text">${esc(t('文字を編集'))}</button>`);
+  if (one?.type === 'textureEntity') html += grp(`<button class="txtbtn" data-c="image">${esc(t('画像を選ぶ'))}</button>`);
+  // 音程・音量は、変えられるブロックがあるときだけ
+  if (!sel.length || sel.some((e) => remix.canRepitch(e))) {
+    const semi = one ? (one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`) : '…';
+    html += grp(`<span class="hint">${esc(t('音程'))}</span>${btn('semi-', ICON.minus, '音程')}<span class="val">${semi}</span>${btn('semi+', ICON.plus, '音程')}`);
+  }
+  if (!sel.length || sel.some((e) => remix.hasVolume(e))) {
+    const vol = one ? `${one.volume}%` : '…';
+    html += grp(`<span class="hint">${esc(t('音量'))}</span>${btn('vol-', ICON.minus, '音量')}<span class="val">${vol}</span>${btn('vol+', ICON.plus, '音量')}`);
+  }
+  bar.innerHTML = html;
   show(true);
 }
 
+// 「…」：コピー・貼り付け・分解（あまり使わないものはここにまとめる）
+function openMore(anchor) {
+  const m = $('moreMenu');
+  const sel = [...view.selection];
+  const canSplit = sel.length === 1 && remix.model.canSplit(sel[0].o);
+  m.innerHTML = `<button data-m="copy"${sel.length ? '' : ' disabled'}>${esc(t('コピー'))}</button>`
+    + `<button data-m="paste"${clipboard ? '' : ' disabled'}>${esc(t('貼り付け'))}</button>`
+    + `<button data-m="split"${canSplit ? '' : ' disabled'}>${esc(t('分解'))}</button>`;
+  m.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const w = m.offsetWidth;
+  m.style.left = `${Math.max(6, Math.min(window.innerWidth - w - 6, r.left + r.width / 2 - w / 2))}px`;
+  m.style.top = `${r.bottom + 6}px`;
+}
+function closeMore() { const m = $('moreMenu'); if (m) m.hidden = true; }
 $('ctxbar').addEventListener('click', (e) => {
   const c = e.target.closest('[data-c]')?.dataset.c;
   if (!c) return;
@@ -419,8 +532,11 @@ $('ctxbar').addEventListener('click', (e) => {
     case 'semi+': changeSemitone(1); break;
     case 'vol-': changeVolume(-10); break;
     case 'vol+': changeVolume(10); break;
-    case 'multi': multiSelect = !multiSelect; updateCtxbar(); break;
-    case 'clear': multiSelect = false; view.selection.clear(); view.dirty = true; if (armed) setArmed(null); else { updateCtxbar(); setStatus(summaryText()); } break;
+    case 'multi': multiSelect = !multiSelect; updateCtxbar(); if (multiSelect) setStatus(t('範囲を指でなぞって選んでください')); break;
+    case 'more': { const m = $('moreMenu'); if (!m.hidden) closeMore(); else openMore(e.target.closest('[data-c]')); break; }
+    case 'text': openTextEditor([...view.selection][0]); break;
+    case 'image': pickTexture([...view.selection][0]); break;
+    case 'clear': multiSelect = false; pasteArmed = false; view.selection.clear(); view.dirty = true; if (armed) setArmed(null); else { view.armed = null; updateCtxbar(); setStatus(summaryText()); } break;
   }
 });
 
@@ -432,7 +548,8 @@ function buildTabs() {
     const b = document.createElement('button');
     b.className = 'tab';
     b.dataset.tab = key;
-    b.textContent = label;
+    b.textContent = t(label);
+    b.dataset.ja = label;
     b.setAttribute('role', 'tab');
     b.addEventListener('click', () => { $('search').value = ''; currentTab = key; renderGrid(); });
     tabs.appendChild(b);
@@ -489,24 +606,36 @@ function renderGrid() {
   const grid = $('gameGrid');
   grid.textContent = '';
   const q = $('search').value.trim().toLowerCase();
-  for (const t of $('tabs').querySelectorAll('.tab')) t.classList.toggle('on', !q && t.dataset.tab === currentTab);
+  for (const tb of $('tabs').querySelectorAll('.tab')) {
+    const on = !q && tb.dataset.tab === currentTab;
+    tb.classList.toggle('on', on);
+    if (on) tb.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
   if (!remix) return;
   const used = new Set(usedGames().map((g) => g.id));
   let tiles; // [{ id, name, first?, variants? }]
   if (!q && currentTab === 'used') {
     tiles = usedGames();
-    if (!tiles.length) { grid.innerHTML = '<div class="empty">まだ何も置いていません。上のタブからミニゲームを選んでください。</div>'; return; }
+    if (!tiles.length) { grid.innerHTML = `<div class="empty">${esc(t('まだ何も置いていません。上のタブからミニゲームを選んでください。'))}</div>`; return; }
   } else if (!q && currentTab === 'special') {
     const b = document.createElement('button');
     b.className = 'game txt';
-    b.textContent = 'End Remix';
-    b.title = 'リミックスの終わり';
-    b.addEventListener('click', async () => {
-      const g = await remix.db.loadGame('special').catch(() => null);
-      if (g) showGameList(g, null, (o) => o.type === 'endEntity');
-    });
+    b.textContent = t('終わり・字幕・画像');
+    b.addEventListener('click', () => openSpecial());
     grid.appendChild(b);
+    openSpecial();
     return;
+  } else if (!q && currentTab === 'custom') {
+    renderCustomGrid(grid);
+    return;
+  } else if (!q && (currentTab === 'fav' || currentTab === 'recent')) {
+    const ids = currentTab === 'fav' ? (settings.favs || []) : (settings.recent || []);
+    tiles = ids.map((id) => gamesIndex.find((g) => g.id === id) || (id === CUSTOM_GAME_ID && customRegistry.game ? { id, name: customRegistry.game.name } : null))
+      .filter(Boolean).map((g) => ({ id: g.id, name: g.name }));
+    if (!tiles.length) {
+      grid.innerHTML = `<div class="empty">${esc(t(currentTab === 'fav' ? 'パターン一覧の上の ☆ を押すと、ここに並びます。' : '置いたミニゲームが、ここに新しい順で並びます。'))}</div>`;
+      return;
+    }
   } else {
     let list;
     if (q) list = gamesIndex.filter((g) => !g.id.startsWith('special') && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.hints.some((h) => String(h).toLowerCase().includes(q))));
@@ -517,7 +646,7 @@ function renderGrid() {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
       .slice(0, q ? 80 : 400);
   }
-  if (!tiles.length) { grid.innerHTML = '<div class="empty">見つかりませんでした。</div>'; return; }
+  if (!tiles.length) { grid.innerHTML = `<div class="empty">${esc(t('見つかりませんでした。'))}</div>`; return; }
   const shownKey = shownGame ? variantsOf(shownGame.id).map((v) => v.id) : [];
   for (const t of tiles) {
     const ids = t.variants ? t.variants.map((v) => v.id) : [t.id];
@@ -529,6 +658,7 @@ function renderGrid() {
     const img = document.createElement('img');
     img.alt = '';
     img.loading = 'lazy';
+    if (t.id === CUSTOM_GAME_ID) { b.classList.add('txt'); b.textContent = t2('カスタム'); b.onclick = () => openGame(t.id); grid.appendChild(b); continue; }
     img.src = `${remix.db.base}games/${t.id}/icon.png`;
     img.onerror = () => { if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = remix.db.rawUrl(img.src); } };
     b.appendChild(img);
@@ -539,24 +669,47 @@ function renderGrid() {
   }
 }
 
+async function openSpecial() {
+  const [a, b] = await Promise.all([remix.db.loadGame('special').catch(() => null), remix.db.loadGame('specialVfx').catch(() => null)]);
+  const objs = [...(a?.objects || []).filter((o) => o.type === 'endEntity'), ...(b?.objects || []).filter((o) => o.type === 'subtitleEntity' || o.type === 'textureEntity')];
+  showGameList({ id: '__special', name: t('特殊'), objects: objs });
+}
+
 async function openGame(gid, jumpBeat, highlightObj) {
+  if (gid === CUSTOM_GAME_ID && customRegistry.game) { showGameList(customRegistry.game, highlightObj); return; }
   setStatus('読み込み中…');
   try {
     const game = await remix.db.loadGame(gid);
     showGameList(game, highlightObj);
-    setStatus(`${game.name} ／ 名前を押してから、トラックの空いている所をタップすると置けます`);
+    setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: game.name }));
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
     toast(`${gid} を読み込めませんでした`, 3000);
   }
 }
 
-const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり' };
+const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像' };
 const PV_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
 
 function renderListHead(game) {
   const head = $('listHead');
   head.textContent = '';
+  if (!game.id.startsWith('__')) {
+    const fav = (settings.favs || []).includes(game.id);
+    const st = document.createElement('button');
+    st.className = 'star' + (fav ? ' on' : '');
+    st.textContent = fav ? '★' : '☆';
+    st.title = t(fav ? 'お気に入りから外す' : 'お気に入りに入れる');
+    st.setAttribute('aria-label', st.title);
+    st.addEventListener('click', () => {
+      const list = settings.favs || [];
+      settings.favs = list.includes(game.id) ? list.filter((x) => x !== game.id) : [game.id, ...list];
+      saveSettings();
+      renderListHead(game);
+      if (currentTab === 'fav') renderGrid();
+    });
+    head.appendChild(st);
+  }
   const title = document.createElement('span');
   title.className = 'lh-title';
   title.textContent = game.name;
@@ -580,7 +733,7 @@ function showGameList(game, highlightObj, filter) {
   const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
   for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
-  let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || o.type === 'endEntity'));
+  let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || ['endEntity', 'subtitleEntity', 'textureEntity'].includes(o.type)));
   if (filter) objs = objs.filter(filter);
   objs.sort((a, b) => (isMulti(b) ? 1 : 0) - (isMulti(a) ? 1 : 0));
   const list = $('list');
@@ -604,8 +757,8 @@ function showGameList(game, highlightObj, filter) {
     if (KIND[o.type] || used.has(o)) {
       const tags = document.createElement('span');
       tags.className = 'tags';
-      if (KIND[o.type]) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = KIND[o.type]; tags.appendChild(k); }
-      if (used.has(o)) { const u = document.createElement('span'); u.className = 'used'; u.textContent = '使用中'; tags.appendChild(u); }
+      if (KIND[o.type]) { const k = document.createElement('span'); k.className = 'kind'; k.textContent = t(KIND[o.type]); tags.appendChild(k); }
+      if (used.has(o)) { const u = document.createElement('span'); u.className = 'used'; u.textContent = t('使用中'); tags.appendChild(u); }
       txt.appendChild(tags);
     }
     main.append(arrow, txt);
@@ -623,7 +776,7 @@ function showGameList(game, highlightObj, filter) {
     list.appendChild(row);
     if (o === highlightObj) requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest' }));
   }
-  if (!objs.length) list.innerHTML = '<div class="empty">表示できる項目がありません。</div>';
+  if (!objs.length) list.innerHTML = `<div class="empty">${esc(t('表示できる項目がありません。'))}</div>`;
 }
 
 async function preview(o) {
@@ -648,14 +801,16 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   redoStack.length = 0;
   multiSelect = false;
   armed = null;
+  pasteArmed = false;
   view.armed = null;
+  await loadTexturesFromExtra();
   view.setRemix(remix);
   shownGame = null;
   currentTab = 'used';
   $('search').value = '';
   renderGrid();
-  $('listHead').textContent = 'パターン';
-  $('list').innerHTML = '<div class="empty">ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。</div>';
+  $('listHead').textContent = t('パターン');
+  $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。'))}</div>`;
   const sounds = [...remix.allSoundCues().keys()];
   const failed = await engine.loadSounds(sounds, remix.db, (d, t) => showLoading(name, `効果音を読み込み中 ${d} / ${t}`, 0.25 + 0.75 * (d / t)));
   if (musicFile) {
@@ -740,9 +895,15 @@ async function openAutosave() {
 
 function buildRhref() {
   const json = remix.toJSON(musicFile);
+  const used = new Set(remix.entities.map((e) => e.extra?.texHash).filter(Boolean));
+  json.textures = [...used];
   const files = [{ name: 'remix.json', data: new TextEncoder().encode(JSON.stringify(json)) }];
   if (musicFile) files.push({ name: 'music.bin', data: musicFile.bytes });
-  for (const f of extraFiles) files.push(f);
+  for (const f of extraFiles) {
+    const m = /^(.+)\.png$/i.exec(f.name);
+    if (m && !used.has(m[1])) continue;
+    files.push(f);
+  }
   return makeZip(files, 'Rhythm Heaven Remix Editor Refresh savefile - RHRE Web');
 }
 
@@ -776,33 +937,86 @@ function save() {
 
 // ---------------------------------------------------------------- テンポ・音楽のダイアログ
 
-let tempoCtx = null;
-function openTempo(beat, marker) {
+// トラックの下の段をタップ → テンポ／拍子／音楽の音量を1つの画面で（近くに印があればそれを編集）
+let markerCtx = null;
+function openMarker(beat, snapped, tol) {
   if (!remix) return;
-  if (mode === 'playing') { toast('再生中はテンポを変えられません。', 2500, 'info'); return; }
-  tempoCtx = { beat: marker ? marker.beat : beat, marker };
-  const first = marker && (marker.isImmutable || Math.abs(marker.beat) < 1e-6);
-  $('tempoTitle').textContent = marker ? 'テンポを変更' : 'テンポ変更を追加';
-  $('tempoInfo').textContent = marker
-    ? `拍 ${+marker.beat.toFixed(3)} のテンポです。${first ? '最初のテンポなので削除はできません。' : ''}`
-    : `拍 ${+beat.toFixed(3)} から、このテンポに変わります。`;
-  $('tempoInput').value = String(+(marker ? marker.bpm : remix.tempo.tempoAt(beat)).toFixed(2));
-  $('tempoDel').hidden = !marker || first;
-  $('tempoModal').hidden = false;
+  if (mode === 'playing') { toast(t('再生中は編集できません。■ で止めてから編集してください。'), 2500, 'info'); return; }
+  const tempo = remix.near(remix.tempoTrackers, beat, tol);
+  const ts = remix.near(remix.timeSignatures, beat, tol);
+  const vol = remix.near(remix.musicVolumes, beat, tol);
+  markerCtx = { beat: snapped, tempo, ts, vol };
+  setMarkerKind(tempo ? 'tempo' : vol ? 'vol' : ts ? 'ts' : 'tempo');
+  $('markerModal').hidden = false;
 }
-$('tempoOk').addEventListener('click', () => {
-  const v = parseFloat($('tempoInput').value);
-  if (!(v >= 5 && v <= 600)) { toast('テンポは 5〜600 の数で入れてください', 2500); return; }
-  const b = tempoCtx.beat;
-  edit(() => remix.setTempo(b, Math.round(v * 1000) / 1000));
-  $('tempoModal').hidden = true;
+
+function setMarkerKind(kind) {
+  markerCtx.kind = kind;
+  for (const b of document.querySelectorAll('#markerModal [data-mt]')) b.classList.toggle('on', b.dataset.mt === kind);
+  $('mtTempo').hidden = kind !== 'tempo';
+  $('mtTs').hidden = kind !== 'ts';
+  $('mtVol').hidden = kind !== 'vol';
+  const fmtB = (b) => +b.toFixed(3);
+  let existing = null, first = false;
+  if (kind === 'tempo') {
+    existing = markerCtx.tempo;
+    first = !!existing && (existing.isImmutable || Math.abs(existing.beat) < 1e-6);
+    const b = existing ? existing.beat : markerCtx.beat;
+    $('markerInfo').textContent = existing ? t('拍 {b} のテンポです。', { b: fmtB(b) }) + (first ? t('最初のテンポなので削除はできません。') : '') : t('拍 {b} から、このテンポに変わります。', { b: fmtB(b) });
+    $('tempoInput').value = String(+(existing ? existing.bpm : remix.tempo.tempoAt(b)).toFixed(2));
+    $('rampInput').value = String(existing ? existing.width : 0);
+    const ratio = existing ? Number(existing.swingRatio) : 50;
+    $('swingSelect').value = [50, 60, 67, 75].includes(ratio) ? String(ratio) : '50';
+    $('swingDiv').value = existing && Number(existing.swingDivision) === 0.5 ? '0.5' : '1';
+  } else if (kind === 'ts') {
+    existing = markerCtx.ts;
+    first = !!existing && Math.abs(existing.beat) < 1e-6;
+    const b = existing ? existing.beat : Math.round(markerCtx.beat);
+    $('markerInfo').textContent = existing ? t('拍 {b} の拍子です。', { b: fmtB(b) }) + (first ? t('最初の拍子なので削除はできません。') : '') : t('拍 {b} から、この拍子になります。', { b: fmtB(b) });
+    const cur = existing || remix.measureAt(b);
+    $('tsBeats').value = String(existing ? existing.perMeasure : cur.perMeasure || 4);
+    $('tsUnit').value = String(existing ? existing.unit : 4);
+  } else {
+    existing = markerCtx.vol;
+    const b = existing ? existing.beat : markerCtx.beat;
+    $('markerInfo').textContent = existing ? t('拍 {b} の音楽の音量です。', { b: fmtB(b) }) : t('拍 {b} から、音楽の音量が変わります。', { b: fmtB(b) });
+    $('volInput').value = String(existing ? existing.volume : Math.round(remix.musicVolumeAt(b + 1e-6) * 100));
+    $('volRamp').value = String(existing ? existing.width : 0);
+  }
+  $('markerDel').hidden = !existing || first;
+}
+for (const b of document.querySelectorAll('#markerModal [data-mt]')) b.addEventListener('click', () => setMarkerKind(b.dataset.mt));
+
+$('markerOk').addEventListener('click', () => {
+  const k = markerCtx.kind;
+  if (k === 'tempo') {
+    const v = parseFloat($('tempoInput').value);
+    if (!(v >= 5 && v <= 600)) { toast(t('テンポは 5〜600 の数で入れてください'), 2500); return; }
+    const b = markerCtx.tempo ? markerCtx.tempo.beat : markerCtx.beat;
+    const width = Math.max(0, parseFloat($('rampInput').value) || 0);
+    edit(() => remix.setTempo(b, Math.round(v * 1000) / 1000, { width, swingRatio: Number($('swingSelect').value), swingDivision: Number($('swingDiv').value) }));
+  } else if (k === 'ts') {
+    const n = clamp(parseInt($('tsBeats').value, 10) || 4, 1, 64);
+    const u = Number($('tsUnit').value) || 4;
+    const b = markerCtx.ts ? markerCtx.ts.beat : Math.round(markerCtx.beat);
+    edit(() => remix.setTimeSignature(b, n, u));
+  } else {
+    const v = parseFloat($('volInput').value);
+    if (!(v >= 0 && v <= 200)) { toast(t('音量は 0〜200 の数で入れてください'), 2500); return; }
+    const b = markerCtx.vol ? markerCtx.vol.beat : markerCtx.beat;
+    const width = Math.max(0, parseFloat($('volRamp').value) || 0);
+    edit(() => remix.setMusicVolume(b, Math.round(v), width));
+  }
+  $('markerModal').hidden = true;
 });
-$('tempoDel').addEventListener('click', () => {
-  const b = tempoCtx.beat;
-  edit(() => remix.removeTempo(b));
-  $('tempoModal').hidden = true;
+$('markerDel').addEventListener('click', () => {
+  const k = markerCtx.kind;
+  if (k === 'tempo' && markerCtx.tempo) edit(() => remix.removeTempo(markerCtx.tempo.beat));
+  if (k === 'ts' && markerCtx.ts) edit(() => remix.removeTimeSignature(markerCtx.ts.beat));
+  if (k === 'vol' && markerCtx.vol) edit(() => remix.removeMusicVolume(markerCtx.vol.beat));
+  $('markerModal').hidden = true;
 });
-$('tempoCancel').addEventListener('click', () => { $('tempoModal').hidden = true; });
+$('markerCancel').addEventListener('click', () => { $('markerModal').hidden = true; });
 
 function openMusicStart() {
   if (!remix) return;
@@ -950,6 +1164,7 @@ function frame(now) {
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
+    if (presenting) updatePresentation(t, beat);
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
@@ -984,6 +1199,8 @@ function doAction(act) {
       });
       break;
     case 'help': openHelp(); break;
+    case 'tracks': openTracks(); break;
+    case 'present': startPresentation(); break;
   }
 }
 
@@ -1088,6 +1305,9 @@ $('helpBtn').addEventListener('click', openHelp);
 // 設定画面
 $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
+  $('speedInput').value = String(Number(settings.speed) || 1);
+  $('themeSelect').value = settings.theme || 'dark';
+  $('uiLangSelect').value = settings.uiLang || 'ja';
   $('settingsModal').hidden = false;
 });
 $('langSelect').addEventListener('change', () => {
@@ -1137,9 +1357,11 @@ window.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
   else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); }
+  else if (mod && e.key.toLowerCase() === 'c') { if (view.selection.size) { e.preventDefault(); copySelection(); } }
+  else if (mod && e.key.toLowerCase() === 'v') { if (clipboard) { e.preventDefault(); startPaste(); } }
   else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { if (view.selection.size) { e.preventDefault(); deleteSelection(); } }
-  else if (e.key === 'Escape') { if (armed) setArmed(null); else { multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); } }
+  else if (e.key === 'Escape') { if (presenting) stopPresentation(); else if (pasteArmed) { pasteArmed = false; view.armed = null; updateCtxbar(); setStatus(summaryText()); } else if (armed) setArmed(null); else { multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); } }
 });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', async (e) => {
@@ -1152,6 +1374,245 @@ document.addEventListener('visibilitychange', () => {
   else if (mode !== 'playing') engine.stale = true; // 戻ってきたら、次の ▶ で音の部品を作り直す
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) engine.stale = true; });
+
+// ---------------------------------------------------------------- 字幕・画像
+
+let textTarget = null;
+function openTextEditor(ent) {
+  if (!ent) return;
+  textTarget = ent;
+  $('textInput').value = ent.subtitle || '';
+  $('textModal').hidden = false;
+  setTimeout(() => $('textInput').focus(), 50);
+}
+$('textOk').addEventListener('click', () => {
+  const ent = textTarget;
+  const v = $('textInput').value;
+  $('textModal').hidden = true;
+  if (ent && v !== (ent.subtitle || '')) edit(() => { ent.subtitle = v; });
+  updateCtxbar();
+});
+$('textCancel').addEventListener('click', () => { $('textModal').hidden = true; });
+
+let textureTarget = null;
+function pickTexture(ent) {
+  if (!ent) return;
+  textureTarget = ent;
+  $('imageInput').click();
+}
+// どんな画像も PNG にして .rhref に入れる（RHRE は "<名前>.png" を読む）
+$('imageInput').addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  e.target.value = '';
+  const ent = textureTarget;
+  if (!f || !ent) return;
+  try {
+    const bmp = await createImageBitmap(f);
+    const cv = document.createElement('canvas');
+    const scale = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+    cv.width = Math.max(1, Math.round(bmp.width * scale));
+    cv.height = Math.max(1, Math.round(bmp.height * scale));
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    const blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const hash = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => b.toString(16).padStart(2, '0')).join('');
+    extraFiles.push({ name: `${hash}.png`, data: bytes });
+    await addTextureImage(hash, bytes);
+    edit(() => { ent.extra = { ...ent.extra, texHash: hash }; });
+  } catch (_) {
+    toast('この画像は読み込めませんでした', 3000);
+  }
+});
+
+function addTextureImage(hash, bytes) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => { textureImages.set(hash, img); view.dirty = true; res(); };
+    img.onerror = () => res();
+    img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+  });
+}
+
+async function loadTexturesFromExtra() {
+  textureImages.clear();
+  for (const f of extraFiles) {
+    const m = /^(.+)\.png$/i.exec(f.name);
+    if (m) await addTextureImage(m[1], f.data);
+  }
+}
+
+// ---------------------------------------------------------------- カスタム効果音（自分の音声ファイル）
+
+let customSounds = []; // [{ id, name, bytes }]
+
+function buildCustomGame() {
+  if (!customSounds.length) { customRegistry.game = null; return; }
+  const game = { id: CUSTOM_GAME_ID, name: t('カスタム効果音'), series: 'custom', icon: null, objects: [] };
+  for (const c of customSounds) {
+    game.objects.push({ type: 'cue', id: `${CUSTOM_GAME_ID}/${c.id}`, name: c.name, duration: 1, stretchable: true, repitchable: true, game, url: `custom:${c.id}` });
+  }
+  customRegistry.game = game;
+  if (remix) { remix.db.addGame(game); remix.rebuild(); view.dirty = true; }
+}
+
+async function decodeCustom(c) {
+  try { engine.buffers.set(`custom:${c.id}`, await engine.decode(c.bytes.buffer.slice(c.bytes.byteOffset, c.bytes.byteOffset + c.bytes.byteLength))); } catch (_) { /* 読めない */ }
+}
+
+async function restoreCustomSounds() {
+  const list = await store.get('customSounds');
+  if (!Array.isArray(list)) return;
+  customSounds = list;
+  await Promise.all(customSounds.map(decodeCustom));
+  buildCustomGame();
+}
+
+function renderCustomGrid(grid) {
+  const add = document.createElement('button');
+  add.className = 'game txt';
+  add.textContent = t('＋ 音声ファイルを追加');
+  add.addEventListener('click', () => $('customInput').click());
+  grid.appendChild(add);
+  if (customRegistry.game) {
+    const b = document.createElement('button');
+    b.className = 'game txt' + (shownGame?.id === CUSTOM_GAME_ID ? ' sel' : '');
+    b.dataset.gids = CUSTOM_GAME_ID;
+    b.textContent = `${t('カスタム効果音')}（${customSounds.length}）`;
+    b.addEventListener('click', () => openGame(CUSTOM_GAME_ID));
+    grid.appendChild(b);
+    showGameList(customRegistry.game);
+  }
+}
+
+$('customInput').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  if (!files.length) return;
+  let added = 0;
+  for (const f of files) {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const base = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'sound';
+    let id = base, n = 2;
+    while (customSounds.some((c) => c.id === id)) id = `${base}_${n++}`;
+    const c = { id, name: f.name.replace(/\.[^.]+$/, ''), bytes };
+    await decodeCustom(c);
+    if (!engine.buffers.has(`custom:${id}`)) continue;
+    customSounds.push(c);
+    added++;
+  }
+  store.set('customSounds', customSounds);
+  buildCustomGame();
+  renderGrid();
+  toast(added ? `${added} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。` : 'この音声ファイルは読み込めませんでした', 6000, added ? 'info' : '');
+});
+
+// ---------------------------------------------------------------- トラックの数
+
+function openTracks() {
+  if (!remix) return;
+  $('tracksInput').value = String(remix.trackCount);
+  $('tracksModal').hidden = false;
+}
+$('tracksOk').addEventListener('click', () => {
+  const n = parseInt($('tracksInput').value, 10);
+  if (!(n >= 5 && n <= 10)) { toast(t('トラックの数は 5〜10 です'), 2500); return; }
+  const snap = remix.snapshot();
+  if (!remix.setTrackCount(n)) { toast(t('はみ出すブロックがあるので、トラックを減らせません'), 3000); return; }
+  remix.rebuild();
+  undoStack.push(snap);
+  redoStack.length = 0;
+  afterEdit();
+  $('tracksModal').hidden = true;
+});
+$('tracksCancel').addEventListener('click', () => { $('tracksModal').hidden = true; });
+
+// ---------------------------------------------------------------- プレゼンテーションモード（再生画面だけを大きく）
+
+let presenting = false;
+function startPresentation() {
+  if (!remix) return;
+  presenting = true;
+  $('present').hidden = false;
+  const titleEnt = remix.entities.find((e) => e.o?.subtitleType === 'songTitle' && e.subtitle);
+  const artistEnt = remix.entities.find((e) => e.o?.subtitleType === 'songArtist' && e.subtitle);
+  $('pTitle').textContent = titleEnt ? titleEnt.subtitle : fileName.replace(/\.[^.]+$/, '');
+  $('pArtist').textContent = artistEnt ? artistEnt.subtitle : '';
+  if (mode !== 'playing') play();
+  const sec = mode === 'playing' ? player.time : remix.tempo.b2s(remix.playbackStart);
+  updatePresentation(sec, remix.tempo.s2b(sec));
+}
+function stopPresentation() {
+  presenting = false;
+  $('present').hidden = true;
+  stopPlayback();
+}
+function updatePresentation(sec, beat) {
+  const total = Math.max(remix.durationSec, 0.001);
+  $('pTime').textContent = `${fmtTime(Math.max(0, sec)).replace(/\.\d+$/, '')} / ${fmtTime(total).replace(/\.\d+$/, '')}`;
+  $('pBar').style.width = `${clamp(sec / total, 0, 1) * 100}%`;
+  let cur = null;
+  for (const e of remix.entities) { if (e.beat > beat) break; if (e.game && !e.game.id.startsWith('special')) cur = e; }
+  const gid = cur?.game?.id || '';
+  if ($('pGame').dataset.gid !== gid) {
+    $('pGame').dataset.gid = gid;
+    $('pGameName').textContent = cur?.game?.name || '';
+    const img = $('pIcon');
+    if (cur?.game && gid !== CUSTOM_GAME_ID) { img.src = `${remix.db.base}games/${gid}/icon.png`; img.hidden = false; } else img.hidden = true;
+  }
+  const subs = remix.subtitles.filter((s2) => (s2.o?.subtitleType || 'subtitle') === 'subtitle' && beat >= s2.beat && beat < s2.beat + s2.width).map((s2) => s2.subtitle).join('\n');
+  if ($('pSub').textContent !== subs) $('pSub').textContent = subs;
+  $('pPause').textContent = mode === 'playing' ? t('⏸ 一時停止') : t('▶ 再生');
+}
+$('pExit').addEventListener('click', stopPresentation);
+$('pPause').addEventListener('click', () => { if (mode === 'playing') pause(); else play(); });
+
+// ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）
+
+function applySettings() {
+  player.speedSetting = Number(settings.speed) || 1;
+  applyTheme(settings.theme || 'dark');
+  document.documentElement.dataset.theme = settings.theme || 'dark';
+  setLang(settings.uiLang || 'ja');
+  document.documentElement.lang = settings.uiLang === 'en' ? 'en' : 'ja';
+  LABELS.music = t('音楽開始');
+  LABELS.playback = t('再生開始');
+  LABELS.volume = t('音量');
+  applyStatic(document.body);
+  for (const b of document.querySelectorAll('#tabs .tab')) b.textContent = t(b.dataset.ja);
+  const sp = Number(settings.speed) || 1;
+  $('speedVal').textContent = `${sp.toFixed(2)}×`;
+  view.dirty = true;
+}
+$('speedInput').addEventListener('input', () => {
+  settings.speed = Number($('speedInput').value);
+  saveSettings();
+  applySettings();
+  if (mode === 'playing') startPlayback(player.time);
+  updateTimebox(player.time || 0, remix ? remix.tempo.s2b(player.time || 0) : 0);
+});
+$('speedReset').addEventListener('click', () => { $('speedInput').value = '1'; $('speedInput').dispatchEvent(new Event('input')); });
+$('themeSelect').addEventListener('change', () => { settings.theme = $('themeSelect').value; saveSettings(); applySettings(); });
+$('uiLangSelect').addEventListener('change', () => {
+  settings.uiLang = $('uiLangSelect').value;
+  saveSettings();
+  applySettings();
+  buildCustomGame();
+  renderGrid();
+  if (shownGame) showGameList(shownGame.id === CUSTOM_GAME_ID && customRegistry.game ? customRegistry.game : shownGame);
+  updateCtxbar();
+  setStatus(summaryText());
+});
+
+// 「…」メニュー
+$('moreMenu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-m]');
+  if (!b || b.disabled) return;
+  closeMore();
+  if (b.dataset.m === 'copy') copySelection();
+  else if (b.dataset.m === 'paste') startPaste();
+  else if (b.dataset.m === 'split') splitSelection();
+});
+document.addEventListener('pointerdown', (e) => { if (!$('moreMenu').hidden && !e.target.closest('#moreMenu, [data-c="more"]')) closeMore(); });
 
 // ---------------------------------------------------------------- 新しい版の確認
 // GitHub Pages はページを10分ほどキャッシュするので、起動時と画面に戻ったときに version.json を見て、
@@ -1183,7 +1644,12 @@ buildTabs();
 updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
+// 動作確認用（URL に ?debug を付けたときだけ）
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, get remix() { return remix; } };
+
+applySettings();
 (async () => {
+  await restoreCustomSounds().catch(() => {});
   const restored = await openAutosave().catch(() => false);
   if (!restored) await openSample();
 })();

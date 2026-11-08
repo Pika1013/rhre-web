@@ -153,7 +153,8 @@
     height: 38px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px;
     border-bottom: 1px solid #333; font-weight: 700; font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden;
   }
-  #tabs { padding: 0 6px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  #tabsRow { padding: 0 6px; gap: 6px; }
+  #tabs { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; height: 100%; }
   #tabs::-webkit-scrollbar { display: none; }
   .tab {
     flex: none; height: 28px; padding: 0 9px; border-radius: 14px; border: 1px solid #4a4a4a; background: #262626;
@@ -190,7 +191,7 @@
   .empty { padding: 14px; color: var(--muted); font-size: 14px; line-height: 1.6; }
   #listHead { overflow-x: auto; scrollbar-width: none; }
   #listHead::-webkit-scrollbar { display: none; }
-  .lh-title { flex: none; color: #ddd; margin-right: 2px; }
+  .lh-title { flex: none; color: var(--text); margin-right: 2px; }
   .chip {
     flex: none; height: 26px; padding: 0 9px; border-radius: 13px; border: 1px solid #4a4a4a; background: #262626;
     font-weight: 700; font-size: 12px; color: #cfcfcf;
@@ -255,6 +256,61 @@
   }
   #panelToggle svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.4; fill: none; transition: transform 0.15s; }
   #panelToggle.collapsed svg { transform: rotate(180deg); }
+  /* テンポ／拍子／音楽の音量の切り替え */
+  .seg { display: flex; gap: 4px; margin-bottom: 8px; background: #1e1e1e; padding: 3px; border-radius: 8px; }
+  .seg button { flex: 1; height: 34px; border: 0; border-radius: 6px; background: none; font-weight: 800; font-size: 14px; color: #bbb; }
+  .seg button.on { background: var(--accent); color: #102028; }
+  .field select + select { flex: 0 0 auto; }
+  .note { font-size: 12px !important; color: #9a9a9a !important; margin: -2px 0 6px !important; }
+  .speedval { min-width: 52px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .btn.small { min-height: 32px; padding: 0 10px; font-size: 13px; }
+  .field input[type=range] { flex: 1; min-width: 0; height: 32px; padding: 0; border: 0; background: none; accent-color: var(--accent); }
+  #textInput {
+    width: 100%; box-sizing: border-box; min-height: 80px; border-radius: 6px; border: 1px solid #555; background: #161616; color: var(--text);
+    font: 700 16px var(--font); padding: 8px; resize: vertical; -webkit-user-select: text; user-select: text;
+  }
+  .star { flex: none; width: 28px; height: 28px; border: 0; background: none; color: #ffe14d; font-size: 20px; padding: 0; }
+  .popover.list { grid-template-columns: 1fr; min-width: 140px; }
+  .popover.list button { text-align: left; padding: 0 14px; font-size: 15px; }
+  .popover button:disabled { opacity: 0.35; }
+  /* プレゼンテーションモード */
+  #present {
+    position: fixed; inset: 0; z-index: 35; display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; text-align: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: radial-gradient(circle at 50% 35%, #2c3a4a, #101418 70%); color: #fff;
+  }
+  #pTitle { font-size: clamp(20px, 5vw, 40px); font-weight: 800; }
+  #pArtist { font-size: clamp(14px, 3vw, 22px); color: #b9c6d6; font-weight: 700; }
+  .p-mid { display: grid; place-content: center; justify-items: center; gap: 10px; }
+  #pIcon { width: clamp(80px, 22vmin, 180px); height: auto; image-rendering: pixelated; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+  #pGameName { font-size: clamp(16px, 4vw, 28px); font-weight: 800; }
+  #pSub { min-height: 1.4em; font-size: clamp(18px, 4.5vw, 34px); font-weight: 800; white-space: pre-wrap; text-shadow: 0 2px 8px #000; }
+  .p-bottom { display: grid; gap: 8px; justify-items: center; }
+  #pTime { font-size: clamp(16px, 4vw, 26px); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .p-bar { width: min(640px, 100%); height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
+  #pBar { height: 100%; width: 0; background: var(--play); }
+  .p-ctl { display: flex; gap: 8px; }
+  /* テーマ（ライト・ブラック） */
+  :root[data-theme="black"] { --chrome: #141414; --chrome-edge: #000; --btn: #262626; --btn-hi: #333; --panel: #050505; --panel-line: #2a2a2a; }
+  :root[data-theme="black"] body, :root[data-theme="black"] #editor { background: #000; }
+  :root[data-theme="light"] { color-scheme: light; --chrome: #dfe3e8; --chrome-edge: #c3c9d1; --btn: #c9d0d8; --btn-hi: #b7c0ca; --panel: #f4f6f8; --panel-line: #cfd5dc; --text: #1b2430; --muted: #5c6774; --accent: #1f8fc0; --on: #8cc4e6; }
+  :root[data-theme="light"] body, :root[data-theme="light"] #editor { background: #eef1f5; }
+  :root[data-theme="light"] .tb svg { stroke: #1b2430; }
+  :root[data-theme="light"] #timebox, :root[data-theme="light"] #snapBtn, :root[data-theme="light"] #transport .tb { background: #c9d0d8; }
+  :root[data-theme="light"] .tab, :root[data-theme="light"] .chip, :root[data-theme="light"] #search, :root[data-theme="light"] .game { background: #fff; border-color: #c3c9d1; color: #1b2430; }
+  :root[data-theme="light"] .tab.on { background: #ffd23f; border-color: #ffd23f; }
+  :root[data-theme="light"] #status { background: #dfe3e8; }
+  :root[data-theme="light"] .card { background: #fff; border-color: #c3c9d1; }
+  :root[data-theme="light"] .card p, :root[data-theme="light"] .card ul { color: #2b3644; }
+  :root[data-theme="light"] .field input, :root[data-theme="light"] .field select, :root[data-theme="light"] #textInput { background: #f4f6f8; color: #1b2430; border-color: #c3c9d1; }
+  :root[data-theme="light"] .seg { background: #e8ecf0; }
+  :root[data-theme="light"] #panelToggle { background: #dfe3e8; color: #1b2430; border-color: #c3c9d1; }
+  :root[data-theme="light"] #panelToggle svg { stroke: #1b2430; }
+  :root[data-theme="light"] .pane-head { border-color: #d6dbe1; }
+  :root[data-theme="light"] #ctxbar { background: #cfe7f3; border-color: #8cc4e6; }
+  :root[data-theme="light"] #ctxbar .tb, :root[data-theme="light"] #ctxbar .txtbtn { background: #a9d3ea; color: #10222c; }
+  :root[data-theme="light"] #ctxbar .lbl, :root[data-theme="light"] #ctxbar .hint, :root[data-theme="light"] #ctxbar .val { color: #10222c; }
+  :root[data-theme="light"] .popover { background: #fff; border-color: #c3c9d1; }
   /* スナップの選択肢 */
   .popover {
     position: fixed; z-index: 25; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-radius: 8px;
@@ -365,7 +421,8 @@
 
   <section id="panel">
     <div class="pane">
-      <div class="pane-head" id="tabs" role="tablist">
+      <div class="pane-head" id="tabsRow">
+        <div id="tabs" role="tablist"></div>
         <input id="search" type="search" placeholder="検索" aria-label="ミニゲームを検索" autocomplete="off" enterkeyhint="search">
       </div>
       <div id="gameGrid"></div>
@@ -376,10 +433,22 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.9</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
+<div class="popover list" id="moreMenu" hidden role="menu"></div>
+
+<div id="present" hidden>
+  <div class="p-top"><div id="pTitle"></div><div id="pArtist"></div></div>
+  <div class="p-mid" id="pGame"><img id="pIcon" alt="" hidden><div id="pGameName"></div></div>
+  <div id="pSub"></div>
+  <div class="p-bottom">
+    <div id="pTime">00:00 / 00:00</div>
+    <div class="p-bar"><div id="pBar"></div></div>
+    <div class="p-ctl"><button class="btn" id="pPause">⏸ 一時停止</button><button class="btn danger" id="pExit">■ 終わる</button></div>
+  </div>
+</div>
 
 <div class="modal" id="menuModal" hidden>
   <div class="card">
@@ -395,22 +464,58 @@
       <button class="btn" data-act="musicStart">⏱ 音楽の開始位置</button>
       <button class="btn" data-act="musicRemove">✖️ 音楽を外す</button>
       <hr>
+      <button class="btn" data-act="tracks">☰ トラックの数</button>
+      <button class="btn" data-act="present">🖥 プレゼンテーションモード</button>
+      <hr>
       <button class="btn" data-act="help">❔ 使い方</button>
       <button class="btn" data-act="close">閉じる</button>
     </div>
   </div>
 </div>
 
-<div class="modal" id="tempoModal" hidden>
+<div class="modal" id="markerModal" hidden>
   <div class="card">
-    <h2 id="tempoTitle">テンポ</h2>
-    <p id="tempoInfo"></p>
-    <div class="field"><label for="tempoInput">♩=</label><input id="tempoInput" type="number" inputmode="decimal" min="5" max="600" step="0.1"></div>
-    <div class="row">
-      <button class="btn primary" id="tempoOk">決定</button>
-      <button class="btn danger" id="tempoDel">削除</button>
-      <button class="btn" id="tempoCancel">やめる</button>
+    <div class="seg" role="tablist">
+      <button data-mt="tempo">テンポ</button><button data-mt="ts">拍子</button><button data-mt="vol">音楽の音量</button>
     </div>
+    <p id="markerInfo"></p>
+    <div id="mtTempo">
+      <div class="field"><label for="tempoInput">♩=</label><input id="tempoInput" type="number" inputmode="decimal" min="5" max="600" step="0.1"></div>
+      <div class="field"><label for="rampInput">変化にかける拍数</label><input id="rampInput" type="number" inputmode="decimal" min="0" step="0.25"></div>
+      <div class="field"><label for="swingSelect">スウィング</label>
+        <select id="swingSelect"><option value="50">なし</option><option value="60">軽め</option><option value="67">スウィング</option><option value="75">強め</option></select>
+        <select id="swingDiv" aria-label="音符"><option value="1">8分</option><option value="0.5">16分</option></select>
+      </div>
+    </div>
+    <div id="mtTs" hidden>
+      <div class="field"><label for="tsBeats">1小節の拍数</label><input id="tsBeats" type="number" inputmode="numeric" min="1" max="64" step="1"></div>
+      <div class="field"><label for="tsUnit">音符</label><select id="tsUnit"><option value="2">2</option><option value="4">4</option><option value="8">8</option><option value="16">16</option></select></div>
+    </div>
+    <div id="mtVol" hidden>
+      <div class="field"><label for="volInput">%</label><input id="volInput" type="number" inputmode="numeric" min="0" max="200" step="5"></div>
+      <div class="field"><label for="volRamp">変化にかける拍数</label><input id="volRamp" type="number" inputmode="decimal" min="0" step="0.25"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="markerOk">決定</button>
+      <button class="btn danger" id="markerDel">削除</button>
+      <button class="btn" id="markerCancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="textModal" hidden>
+  <div class="card">
+    <h2>字幕の文字</h2>
+    <textarea id="textInput" rows="3"></textarea>
+    <div class="row"><button class="btn primary" id="textOk">決定</button><button class="btn" id="textCancel">やめる</button></div>
+  </div>
+</div>
+
+<div class="modal" id="tracksModal" hidden>
+  <div class="card">
+    <h2>トラックの数</h2>
+    <div class="field"><label for="tracksInput">トラックの数（5〜10）</label><input id="tracksInput" type="number" inputmode="numeric" min="5" max="10" step="1"></div>
+    <div class="row"><button class="btn primary" id="tracksOk">決定</button><button class="btn" id="tracksCancel">やめる</button></div>
   </div>
 </div>
 
@@ -478,7 +583,15 @@
         <option value="de">Deutsch</option>
       </select>
     </div>
-    <p>同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
+    <p class="note">同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
+    <div class="field"><label for="speedInput">再生速度</label><input id="speedInput" type="range" min="0.25" max="2" step="0.05" value="1"><span id="speedVal" class="speedval">1.00×</span><button class="btn small" id="speedReset">1.0</button></div>
+    <p class="note">再生速度は、テンポと音程の両方が変わります（デスクトップ版と同じ）。WAV の書き出しは常に 1.0 倍です。</p>
+    <div class="field"><label for="themeSelect">テーマ</label>
+      <select id="themeSelect"><option value="dark">ダーク</option><option value="black">ブラック</option><option value="light">ライト</option></select>
+    </div>
+    <div class="field"><label for="uiLangSelect">画面の言語</label>
+      <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
+    </div>
     <div class="row"><button class="btn" id="settingsClose">閉じる</button></div>
   </div>
 </div>
@@ -499,14 +612,19 @@
     <ul>
       <li>置く：下でミニゲームを選び、パターン名を押す → トラックの空いている所をタップ（続けて置けます。やめるときは名前をもう一度押すか、編集バーの ✕）</li>
       <li>選ぶ：ブロックをタップ。「複数選択」を押すと、タップで追加・解除できます</li>
+      <li>範囲選択：トラックの空いている所を長押ししてから、指でなぞる（パソコンはそのままドラッグ）</li>
+      <li>コピー・貼り付け・分解：編集バーの「…」から（パソコンは Ctrl+C／Ctrl+V も使えます）</li>
       <li>動かす：選んだブロックをドラッグ（重なる所には置けません）</li>
       <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
       <li>削除・複製・音程・音量：選ぶと上のツールバーが青い編集バーに変わります（✕ で戻る）</li>
-      <li>テンポ：トラックの下（♩=…の段）をタップして追加・変更・削除</li>
+      <li>テンポ・拍子・音楽の音量：トラックの下（♩=…の段）をタップ。上の切り替えで種類を選びます。テンポは「変化にかける拍数」で徐々に変えたり、スウィングも付けられます</li>
+      <li>字幕・画像：「特殊」タブから置きます。選ぶと「文字を編集」「画像を選ぶ」が出ます</li>
+      <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加</li>
+      <li>再生速度・テーマ・画面の言語：歯車の設定から。トラックの数・プレゼンテーションモードはメニュー（≡）から</li>
       <li>保存：メニュー →「保存」。iPhone は共有メニューから「ファイルに保存」</li>
       <li>作業中は自動で保存され、次に開くと続きから始まります</li>
     </ul>
-    <p>まだできないこと：拍子の変更、字幕の文字入力、トラック数の変更、カスタム効果音。</p>
+    <p>まだできないこと：画面揺れ、ピッチベンド、メジャー、プレイアロング、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。</p>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
     <p id="helpAudio" style="color:#9a9a9a;font-size:12px"></p>
@@ -516,6 +634,8 @@
 
 <input type="file" id="fileInput" hidden>
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
-<script type="module" src="js/app.js?v=12"></script>
+<input type="file" id="imageInput" accept="image/*" hidden>
+<input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
+<script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

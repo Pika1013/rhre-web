@@ -1,7 +1,7 @@
 // Web Audio による再生・試聴・WAV書き出し。
 // 発音は少し先まで予約していく方式（ルックアヘッド）なので、タイマーが多少遅れても音の時刻はずれない。
 
-import { mapLimit } from './db.js?v=5';
+import { mapLimit } from './db.js?v=6';
 
 const OGG_DECODER_URL = 'https://cdn.jsdelivr.net/npm/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js';
 const LOOKAHEAD = 0.6; // 秒
@@ -177,12 +177,14 @@ export class AudioEngine {
 }
 
 // 1つの発音イベントを予約する（リアルタイム／オフライン共通）
-export function scheduleEvent(ctx, dest, buffers, ev, when, off) {
+export function scheduleEvent(ctx, dest, buffers, ev, when, off, speed = 1) {
   const buf = buffers.get(ev.url);
   if (!buf) return null;
   const src = ctx.createBufferSource();
   src.buffer = buf;
-  let bufOff = Math.max(0, off) * ev.rate;
+  const pm = ev.speedPitch ? speed : 1;
+  const rate = ev.rate * pm;
+  let bufOff = (Math.max(0, off) / speed) * rate;
   if (ev.loop) {
     src.loop = true;
     const ls = Math.min(ev.loop.start, buf.duration);
@@ -193,11 +195,11 @@ export function scheduleEvent(ctx, dest, buffers, ev, when, off) {
   } else if (bufOff >= buf.duration) {
     return null;
   }
-  const span = Math.max(0, ev.end - ev.start - Math.max(0, off));
-  src.playbackRate.value = ev.rate;
+  const span = Math.max(0, ev.end - ev.start - Math.max(0, off)) / speed;
+  src.playbackRate.value = rate;
   if (ev.rateEnd != null && span > 0) {
-    src.playbackRate.setValueAtTime(ev.rate, when);
-    src.playbackRate.linearRampToValueAtTime(ev.rateEnd, when + span);
+    src.playbackRate.setValueAtTime(rate, when);
+    src.playbackRate.linearRampToValueAtTime(ev.rateEnd * pm, when + span);
   }
   const g = ctx.createGain();
   g.gain.value = ev.vol;
@@ -222,15 +224,16 @@ function scheduleClick(ctx, dest, when, accent) {
   o.stop(when + 0.06);
 }
 
-function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec) {
+function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1) {
   if (!musicBuf) return null;
   const src = ctx.createBufferSource();
   src.buffer = musicBuf;
+  src.playbackRate.value = speed;
   const g = ctx.createGain();
   g.gain.setValueAtTime(remix.musicVolumeAt(remix.tempo.s2b(fromSec)), ctxStart);
   for (const p of remix.musicVolumeAutomation()) {
     if (p.t <= fromSec) continue;
-    const at = ctxStart + (p.t - fromSec);
+    const at = ctxStart + (p.t - fromSec) / speed;
     if (p.ramp) g.gain.linearRampToValueAtTime(p.v, at);
     else g.gain.setValueAtTime(p.v, at);
   }
@@ -241,7 +244,7 @@ function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec) {
     if (off >= musicBuf.duration) return null;
     src.start(ctxStart, off);
   } else {
-    src.start(ctxStart - off, 0);
+    src.start(ctxStart - off / speed, 0);
   }
   return src;
 }
@@ -253,11 +256,13 @@ export class Player {
     this.metronome = false;
     this.visual = [];
     this.onEnd = null;
+    this.speed = 1;
+    this.speedSetting = 1;
   }
 
   get time() {
     if (!this.playing) return this.pausedAt ?? 0;
-    return this.t0 + (this.engine.context.currentTime - this.ctxT0);
+    return this.t0 + (this.engine.context.currentTime - this.ctxT0) * this.speed;
   }
 
   start(remix, musicBuf, fromSec) {
@@ -269,13 +274,14 @@ export class Player {
     this.out.connect(this.engine.master);
     this.ctxT0 = ctx.currentTime + 0.08;
     this.t0 = fromSec;
+    this.speed = Math.max(0.1, Number(this.speedSetting) || 1);
     // End Remix を置いていなければ、止めるまでずっと進む（デスクトップ版と同じ）
     this.endSec = remix.hasEndEntity ? remix.durationSec : Infinity;
     this.sources = [];
     this.visual = [];
     for (const ev of this.events) {
       if (ev.start < fromSec && ev.end > fromSec) {
-        const s = scheduleEvent(ctx, this.out, this.engine.buffers, ev, this.ctxT0, fromSec - ev.start);
+        const s = scheduleEvent(ctx, this.out, this.engine.buffers, ev, this.ctxT0, fromSec - ev.start, this.speed);
         if (s) this.sources.push(s);
       }
     }
@@ -283,7 +289,7 @@ export class Player {
     while (lo < hi) { const m = (lo + hi) >> 1; if (this.events[m].start < fromSec) lo = m + 1; else hi = m; }
     this.idx = lo;
     this.metroBeat = Math.ceil(remix.tempo.s2b(fromSec) - 1e-6);
-    const m = scheduleMusic(ctx, this.out, remix, musicBuf, this.ctxT0, fromSec);
+    const m = scheduleMusic(ctx, this.out, remix, musicBuf, this.ctxT0, fromSec, this.speed);
     if (m) this.sources.push(m);
     this.playing = true;
     this.pausedAt = null;
@@ -295,13 +301,13 @@ export class Player {
     if (!this.playing) return;
     const ctx = this.engine.context;
     const now = this.time;
-    const horizon = now + LOOKAHEAD;
+    const horizon = now + LOOKAHEAD * this.speed;
     const ev = this.events;
     while (this.idx < ev.length && ev[this.idx].start < horizon) {
       const e = ev[this.idx++];
       if (e.start > this.endSec) continue;
-      const when = this.ctxT0 + (e.start - this.t0);
-      const s = scheduleEvent(ctx, this.out, this.engine.buffers, e, when, 0);
+      const when = this.ctxT0 + (e.start - this.t0) / this.speed;
+      const s = scheduleEvent(ctx, this.out, this.engine.buffers, e, when, 0, this.speed);
       if (s) this.sources.push(s);
       if (e.ent) this.visual.push({ t: e.start, ent: e.ent });
     }
@@ -312,7 +318,7 @@ export class Player {
         const at = T.b2s(b);
         if (at < this.t0 - 1e-6) continue;
         const { beatInMeasure } = this.remix.measureAt(b);
-        scheduleClick(ctx, this.out, this.ctxT0 + (at - this.t0), Math.abs(beatInMeasure) < 1e-6);
+        scheduleClick(ctx, this.out, this.ctxT0 + (at - this.t0) / this.speed, Math.abs(beatInMeasure) < 1e-6);
       }
     } else {
       this.metroBeat = Math.ceil(this.remix.tempo.s2b(horizon) - 1e-6);

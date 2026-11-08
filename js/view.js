@@ -4,6 +4,7 @@ const FONT = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans",
 
 export const C = {
   bg: '#242424',
+  gridRGB: '156,199,238',
   grid: '#9cc7ee',
   beatNum: '#a8cbeb',
   timeSig: 'rgba(122, 162, 206, 0.85)',
@@ -41,6 +42,20 @@ export function fmtTime(sec) {
   const m = Math.floor(s / 60);
   const r = s - m * 60;
   return `${neg ? '-' : ''}${String(m).padStart(2, '0')}:${r.toFixed(3).padStart(6, '0')}`;
+}
+
+// キャンバスに描く言葉（設定で英語にできる）
+export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量' };
+
+// テーマ（色）。トラックまわりの色を入れ替える
+const THEMES = {
+  dark: { bg: '#242424', grid: '#9cc7ee', beatNum: '#a8cbeb', timeSig: 'rgba(122, 162, 206, 0.85)', tempoTri: '#2b34b8', tempoText: '#5361ff', gridRGB: '156,199,238' },
+  black: { bg: '#000000', grid: '#7fb0de', beatNum: '#9cc2e6', timeSig: 'rgba(110, 150, 196, 0.8)', tempoTri: '#3a44d0', tempoText: '#7480ff', gridRGB: '127,176,222' },
+  light: { bg: '#eef1f5', grid: '#5d84ad', beatNum: '#3c5f85', timeSig: 'rgba(70, 110, 160, 0.45)', tempoTri: '#2b34b8', tempoText: '#2b34b8', gridRGB: '93,132,173' },
+};
+export function applyTheme(name) {
+  const t = THEMES[name] || THEMES.dark;
+  for (const k of Object.keys(t)) C[k] = t[k];
 }
 
 const iconCache = new Map();
@@ -177,7 +192,7 @@ export class EditorView {
   bindInput() {
     const cv = this.cv;
     cv.addEventListener('pointerdown', (e) => {
-      cv.setPointerCapture(e.pointerId);
+      try { cv.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
       this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
       this.momentum = null;
       this.lastUser = performance.now();
@@ -192,9 +207,27 @@ export class EditorView {
           else {
             const hit = this.hitTest(e.offsetX, e.offsetY, L);
             if (hit && this.selection.has(hit) && this.h.canEdit?.()) mode = 'move';
+            else if (!hit && !this.armed && (e.pointerType === 'mouse' || this.h.isMultiSelect?.())) mode = 'box';
           }
         }
         this.drag = { mode, edge, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
+        if (mode === 'box') this.box = { b0: this.beatAt(e.offsetX), y0: e.offsetY, b1: this.beatAt(e.offsetX), y1: e.offsetY };
+        // 指で空き地を長押し → 範囲選択を始める
+        clearTimeout(this.longTimer);
+        if (mode === 'scroll' && e.pointerType !== 'mouse' && L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom && !this.armed
+          && !this.hitTest(e.offsetX, e.offsetY, L)) {
+          const d = this.drag;
+          this.longTimer = setTimeout(() => {
+            if (this.drag !== d || d.moved || this.pointers.size !== 1) return;
+            d.mode = 'box';
+            d.moved = true;
+            d.x0 = d.lx;
+            this.box = { b0: this.beatAt(d.x0), y0: d.y0, b1: this.beatAt(d.x0), y1: d.y0 };
+            this.h.onBoxStart?.();
+            try { navigator.vibrate?.(12); } catch (_) { /* 未対応 */ }
+            this.dirty = true;
+          }, 420);
+        }
         this.pinch = null;
       } else if (this.pointers.size === 2) {
         const [a, b] = [...this.pointers.values()];
@@ -244,6 +277,9 @@ export class EditorView {
           this.flagDrag = { kind: 'playback', beat: this.snapRound(this.beatAt(e.offsetX)) };
         }
         this.edgeScroll(e.offsetX);
+      } else if (d.mode === 'box') {
+        if (this.box) { this.box.b1 = this.beatAt(e.offsetX); this.box.y1 = e.offsetY; }
+        this.edgeScroll(e.offsetX);
       } else if (d.mode === 'move') {
         const dBeat = this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0));
         const dTrack = Math.round(dy / L.rowH);
@@ -281,12 +317,23 @@ export class EditorView {
       }
       const d = this.drag;
       this.drag = null;
-      const ms = this.moveState, rs = this.resizeState, fd = this.flagDrag;
+      clearTimeout(this.longTimer);
+      const ms = this.moveState, rs = this.resizeState, fd = this.flagDrag, box = this.box;
       this.moveState = null;
       this.resizeState = null;
       this.flagDrag = null;
+      this.box = null;
       this.dirty = true;
       if (!d || e.type === 'pointercancel') return;
+      if (d.mode === 'box' && box && (d.moved || Math.abs(box.b1 - box.b0) * this.ppb > 6)) {
+        const L = this.layout();
+        const lo = Math.min(box.b0, box.b1), hi = Math.max(box.b0, box.b1);
+        const t0 = Math.floor((Math.min(box.y0, box.y1) - L.tracksTop) / L.rowH);
+        const t1 = Math.floor((Math.max(box.y0, box.y1) - L.tracksTop) / L.rowH);
+        const hits = this.remix.entities.filter((en) => en.beat < hi && en.beat + Math.max(en.width, 1e-3) > lo && en.track <= t1 && en.track + en.height - 1 >= t0);
+        this.h.onBoxSelect?.(hits, d.shift);
+        return;
+      }
       if (!d.moved) {
         if (d.mode === 'music') { this.h.onFlagTap?.('music'); return; }
         if (performance.now() - d.t0 < 600) this.tap(e.offsetX, e.offsetY, d.shift);
@@ -337,10 +384,7 @@ export class EditorView {
       return;
     }
     if (y > L.tracksBottom) {
-      if (y <= L.tracksBottom + L.tempoH + 6) {
-        const marker = this.remix.tempoMarkerNear(this.beatAt(x), 16 / this.ppb);
-        this.h.onTempoTap?.(this.snapFloor(this.beatAt(x)), marker);
-      }
+      if (y <= L.tracksBottom + L.tempoH + 6) this.h.onMarkerTap?.(this.beatAt(x), this.snapRound(this.beatAt(x)), 16 / this.ppb);
       return;
     }
     const hit = this.hitTest(x, y, L);
@@ -400,7 +444,7 @@ export class EditorView {
     const snap = this.snap > 0 ? this.snap : 0.25;
     let gs = snap;
     while (gs < 1 && gs * this.ppb < 7) gs *= 2;
-    if (gs < 1) this.drawSubLines(g, L, b0, b1, gs, 'rgba(156,199,238,0.16)', 'rgba(156,199,238,0.28)');
+    if (gs < 1) this.drawSubLines(g, L, b0, b1, gs, `rgba(${C.gridRGB},0.16)`, `rgba(${C.gridRGB},0.28)`);
 
     // 編集中のキューがある小節だけは、必ずスナップの間隔で線を出す（うっすら色も付ける）
     if (snap < 1) {
@@ -420,12 +464,12 @@ export class EditorView {
       const isMeasure = Math.abs(beatInMeasure) < 1e-6;
       if (isMeasure) {
         const x = Math.round(this.x(b));
-        g.strokeStyle = 'rgba(156,199,238,0.95)';
+        g.strokeStyle = `rgba(${C.gridRGB},0.95)`;
         g.lineWidth = 2;
         g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
       } else {
         const x = Math.round(this.x(b)) + 0.5;
-        g.strokeStyle = `rgba(156,199,238,${beatAlpha})`;
+        g.strokeStyle = `rgba(${C.gridRGB},${beatAlpha})`;
         g.lineWidth = 1;
         g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
       }
@@ -483,24 +527,26 @@ export class EditorView {
       const sw = t.swing.ratio !== 0.5 ? `  ${Math.round(t.swing.ratio * 100)}%` : '';
       g.fillText(`♩=${t.bpm.toFixed(1)}${sw}`, x + triH / 2 + 2, ty + 3);
     }
-    g.font = `700 12px ${FONT}`;
+    g.font = `700 ${L.tempoH > 30 ? 12 : 10}px ${FONT}`;
     g.textBaseline = 'bottom';
     for (const mv of R.musicVolumes) {
       const x = this.x(mv.beat);
       if (x < -100 || x > W + 10) continue;
+      const yb = L.tracksBottom + L.tempoH + 2;
       g.fillStyle = C.volText;
-      g.fillRect(x - 1, L.tracksTop - 16, 2, 16);
-      g.fillText(`音量 ${mv.volume}%`, x + 4, L.tracksTop - 2);
+      if (mv.width > 0) { g.globalAlpha = 0.35; g.fillRect(x, yb - 4, mv.width * this.ppb, 3); g.globalAlpha = 1; }
+      g.beginPath(); g.moveTo(x, yb); g.lineTo(x - 5, yb - 8); g.lineTo(x + 5, yb - 8); g.closePath(); g.fill();
+      g.fillText(`${LABELS.volume} ${mv.volume}%`, x + 7, yb);
     }
 
     // 音楽開始（赤）と再生開始（緑）の旗
     const fd = this.flagDrag;
     const musicBeat = fd?.kind === 'music' ? fd.beat : R.tempo.s2b(R.musicStartSec);
     const musicSec = fd?.kind === 'music' ? R.tempo.b2s(fd.beat) : R.musicStartSec;
-    this.drawFlag(g, L, musicBeat, C.music, 4, '音楽開始', [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
+    this.drawFlag(g, L, musicBeat, C.music, 4, LABELS.music, [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
     const pbBeat = fd?.kind === 'playback' ? fd.beat : R.playbackStart;
     const pbSec = R.tempo.b2s(pbBeat);
-    this.drawFlag(g, L, pbBeat, C.playback, L.infoH * 0.5, '再生開始', [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
+    this.drawFlag(g, L, pbBeat, C.playback, L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
 
     // 再生位置
     if (this.playhead != null) {
@@ -583,6 +629,17 @@ export class EditorView {
     if (this.resizeState) {
       const { ent, beat, width, valid } = this.resizeState;
       ghost(beat, ent.track, width, ent.height, valid);
+    }
+    if (this.box) {
+      const b = this.box;
+      const x0 = this.x(b.b0), x1 = this.x(b.b1);
+      g.fillStyle = 'rgba(25,240,255,0.12)';
+      g.strokeStyle = C.select;
+      g.lineWidth = 1.5;
+      g.setLineDash([5, 4]);
+      g.fillRect(Math.min(x0, x1), Math.min(b.y0, b.y1), Math.abs(x1 - x0), Math.abs(b.y1 - b.y0));
+      g.strokeRect(Math.min(x0, x1) + 0.5, Math.min(b.y0, b.y1) + 0.5, Math.abs(x1 - x0), Math.abs(b.y1 - b.y0));
+      g.setLineDash([]);
     }
     if (this.drop) {
       const d = this.drop;
@@ -681,6 +738,17 @@ export class EditorView {
     g.lineWidth = sel ? 3 : 2;
     g.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
+    if (e.type === 'textureEntity') {
+      const img = this.h.textureImage?.(e);
+      if (img) {
+        g.save();
+        g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
+        g.drawImage(img, x + 2, y + 2, w - 4, h - 4);
+        g.restore();
+        if (sel) { g.strokeStyle = C.select; g.lineWidth = 3; g.strokeRect(x + 1, y + 1, w - 2, h - 2); }
+        return;
+      }
+    }
     if (w < 14) return;
     g.save();
     g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
@@ -699,7 +767,8 @@ export class EditorView {
     g.textBaseline = 'top';
     const maxW = x + w - 4 - tx;
     if (maxW > 8) {
-      const lines = wrap(g, e.name, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
+      const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}` : e.name;
+      const lines = wrap(g, label, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
       lines.forEach((ln, i) => g.fillText(ln, tx, y + 3 + i * (fs + 2)));
     }
     if (e.semitone || e.volume !== 100) {

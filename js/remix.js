@@ -1,7 +1,7 @@
 // .rhref（remix.json）の解釈。テンポ・パターン展開・音の鳴らし方は RHRE fresh 本体と同じ規則に合わせてある。
 
 import { readZip } from './zip.js?v=4';
-import { SFXDatabase } from './db.js?v=5';
+import { SFXDatabase } from './db.js?v=6';
 
 // ---------------------------------------------------------------- テンポ（徐々の変化とスウィング込み）
 
@@ -158,7 +158,7 @@ class Model {
       case 'keepTheBeat': return true;
       case 'pattern': case 'equidistant': case 'randomCue': case 'multiCue': return !!o.stretchable;
       case 'pitchDependent': return this.options(o).some((c) => { const x = this.db.get(c.id); return x?.type === 'cue' && !!x.stretchable; });
-      case 'subtitleEntity': return true;
+      case 'subtitleEntity': case 'textureEntity': case 'shakeEntity': return true;
       default: return false;
     }
   }
@@ -172,8 +172,53 @@ class Model {
 
   defaultWidth(o) {
     if (o.type === 'multiCue' && Number(o.width) > 0) return Number(o.width);
-    if (o.type === 'subtitleEntity') return 1;
+    if (o.type === 'subtitleEntity' || o.type === 'textureEntity' || o.type === 'shakeEntity') return 1;
     return this.duration(o);
+  }
+
+  // パターンを1段だけ分けたときの中身（RHRE のハサミと同じ。子がパターンならパターンのまま）
+  children(o, x, y, w, semi, volPct, trackCount) {
+    const out = [];
+    const cues = o.cues || [];
+    const push = (c, cx, cy, cw) => {
+      const co = this.db.get(c.id);
+      if (!co) return;
+      out.push({
+        datamodel: co.id, beat: cx, track: cy, width: cw, height: this.height(co, trackCount),
+        semitone: Number(c.semitone || 0) + (this.canRepitch(co) ? semi : 0),
+        volume: Math.round(volPct * (c.volume != null ? Number(c.volume) : 100) / 100),
+      });
+    };
+    switch (o.type) {
+      case 'pattern': {
+        const base = this.duration(o);
+        const scale = o.stretchable && base > 0 ? w / base : 1;
+        for (const c of cues) push(c, x + Number(c.beat || 0) * scale, y + Number(c.track || 0), this.ptrDur(c) * scale);
+        break;
+      }
+      case 'multiCue': for (const c of cues) push(c, x + Number(c.beat || 0), y + Number(c.track || 0), w); break;
+      case 'keepTheBeat': {
+        const seq = Math.max(this.duration(o), this.seqLen(o));
+        if (!cues.length || !(seq > 0)) break;
+        for (let i = 0; i < 100000; i++) {
+          const c = cues[i % cues.length];
+          const b = Number(c.beat || 0) + Math.floor(i / cues.length) * seq;
+          if (b >= w) break;
+          push(c, x + b, y + Number(c.track || 0), this.ptrDur(c));
+        }
+        break;
+      }
+      case 'equidistant': {
+        let rel = 0;
+        cues.forEach((c, i) => { const t = Number(c.track || 0); if (t === 0 && i > 0) rel += w; push(c, x + rel, y + t, w); });
+        break;
+      }
+    }
+    return out;
+  }
+
+  canSplit(o) {
+    return !!o && (o.type === 'pattern' || o.type === 'keepTheBeat' || o.type === 'equidistant' || (o.type === 'multiCue' && o.canSplit !== false));
   }
 
   // RHRE の MultipartEntity と同じ規則で、実際に鳴る cue（葉）まで展開する
@@ -269,6 +314,7 @@ function leafToEvents(lf, T, db, rng, ent, out) {
     rateEnd: null,
     vol: lf.vol,
     loop: cue.loops ? { start: Number(cue.loopStart || 0), end: Number(cue.loopEnd) > 0 ? Number(cue.loopEnd) : 0 } : null,
+    speedPitch: !!(cue.repitchable || lf.semi !== 0 || Number(cue.baseBpm) > 0),
     ent,
   };
   if (isFill && lf.width > 0) {
@@ -468,12 +514,52 @@ export class Remix {
     return best;
   }
 
-  setTempo(beat, bpm) {
-    const t = this.tempoTrackers.find((x) => Math.abs(x.beat - beat) < 1e-6);
+  setTempo(beat, bpm, opts = {}) {
+    let t = this.tempoTrackers.find((x) => Math.abs(x.beat - beat) < 1e-6);
     if (t) t.bpm = bpm;
-    else this.tempoTrackers.push({ beat, bpm, width: 0, swingRatio: 50, swingDivision: 1, isImmutable: false });
+    else { t = { beat, bpm, width: 0, swingRatio: 50, swingDivision: 1, isImmutable: false }; this.tempoTrackers.push(t); }
+    if (opts.width != null) t.width = Math.max(0, opts.width);
+    if (opts.swingRatio != null) t.swingRatio = opts.swingRatio;
+    if (opts.swingDivision != null) t.swingDivision = opts.swingDivision;
     this.tempoTrackers.sort((a, b) => a.beat - b.beat);
-    if (t?.isImmutable || Math.abs(beat) < 1e-6) this.defaultTempo = bpm;
+    if (t.isImmutable || Math.abs(beat) < 1e-6) this.defaultTempo = bpm;
+  }
+
+  near(list, beat, tol) {
+    let best = null;
+    for (const t of list) { const d = Math.abs(t.beat - beat); if (d <= tol && (!best || d < Math.abs(best.beat - beat))) best = t; }
+    return best;
+  }
+
+  setTimeSignature(beat, perMeasure, unit) {
+    const t = this.timeSignatures.find((x) => Math.abs(x.beat - beat) < 1e-6);
+    if (t) { t.perMeasure = perMeasure; t.unit = unit; } else this.timeSignatures.push({ beat, perMeasure, unit });
+    this.timeSignatures.sort((a, b) => a.beat - b.beat);
+  }
+
+  removeTimeSignature(beat) {
+    if (Math.abs(beat) < 1e-6) return;
+    this.timeSignatures = this.timeSignatures.filter((x) => Math.abs(x.beat - beat) >= 1e-6);
+  }
+
+  setMusicVolume(beat, volume, width) {
+    const t = this.musicVolumes.find((x) => Math.abs(x.beat - beat) < 1e-6);
+    if (t) { t.volume = volume; t.width = width; } else this.musicVolumes.push({ beat, volume, width });
+    this.musicVolumes.sort((a, b) => a.beat - b.beat);
+  }
+
+  removeMusicVolume(beat) {
+    this.musicVolumes = this.musicVolumes.filter((x) => Math.abs(x.beat - beat) >= 1e-6);
+  }
+
+  // トラック数（RHRE fresh は 5〜10）。減らすときは、はみ出すブロックがあればできない
+  setTrackCount(n) {
+    for (const e of this.entities) {
+      if (e.type === 'endEntity') { e.height = n; e.track = 0; continue; }
+      if (e.track + e.height > n) return false;
+    }
+    this.trackCount = n;
+    return true;
   }
 
   removeTempo(beat) {
@@ -486,6 +572,7 @@ export class Remix {
       entities: this.entities.map((e) => this.entToJSON(e)),
       tempoTrackers: this.tempoTrackers,
       musicVolumes: this.musicVolumes,
+      timeSignatures: this.timeSignatures,
       playbackStart: this.playbackStart,
       musicStartSec: this.musicStartSec,
       defaultTempo: this.defaultTempo,
@@ -498,6 +585,7 @@ export class Remix {
     this.entities = s.entities.map((e) => this.entFromJSON(e));
     this.tempoTrackers = s.tempoTrackers;
     this.musicVolumes = s.musicVolumes;
+    if (s.timeSignatures) this.timeSignatures = s.timeSignatures;
     this.playbackStart = s.playbackStart;
     this.musicStartSec = s.musicStartSec;
     this.defaultTempo = s.defaultTempo;
