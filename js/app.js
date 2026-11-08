@@ -1,9 +1,9 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=6';
-import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=6';
-import { EditorView, fmtTime } from './view.js?v=6';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=7';
+import { EditorView, fmtTime } from './view.js?v=7';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.6';
+const VERSION = '0.7';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -65,6 +65,12 @@ const view = new EditorView($('view'), {
     scheduleAutosave();
   },
   onTempoTap: (beat, marker) => openTempo(beat, marker),
+  onSetMusicStart: (beat) => {
+    if (!remix) return;
+    const sec = Math.round(remix.tempo.b2s(beat) * 1000) / 1000;
+    if (edit(() => { remix.musicStartSec = sec; })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
+  },
+  onFlagTap: () => { setStatus('赤い旗（音楽開始）は、横にドラッグすると動かせます'); },
 });
 
 // ---------------------------------------------------------------- 表示まわり
@@ -813,11 +819,15 @@ function openMusicStart() {
   if (!remix) return;
   $('musicStartInput').value = String(+remix.musicStartSec.toFixed(3));
   $('musicInfo').textContent = musicFile
-    ? `「${musicFile.filename}」が鳴り始める時刻（秒）です。デスクトップ版の赤い旗と同じです。`
+    ? `「${musicFile.filename}」が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。`
     : 'まだ音楽を選んでいません。先にメニューの「音楽を選ぶ」から選んでください。';
   $('musicModal').hidden = false;
 }
 $('musicAlign').addEventListener('click', () => { $('musicStartInput').value = String(+remix.tempo.b2s(remix.playbackStart).toFixed(3)); });
+$('musicAuto').addEventListener('click', () => {
+  if (!musicBuf) { toast('先に音楽を選んでください', 2500, 'info'); return; }
+  $('musicStartInput').value = String(+(remix.tempo.b2s(0) - detectOnset(musicBuf)).toFixed(3));
+});
 $('musicOk').addEventListener('click', () => {
   const v = parseFloat($('musicStartInput').value);
   if (!Number.isFinite(v)) { toast('秒を数で入れてください', 2500); return; }
@@ -839,8 +849,11 @@ $('musicInput').addEventListener('change', async (e) => {
     remix.musicPresent = true;
     view.dirty = true;
     saveMusicToStore();
-    scheduleAutosave();
-    toast(`音楽を読み込みました：${f.name}（${fmtTime(buf.duration)}）`, 3500, 'info');
+    if (mode !== 'stopped') stopPlayback();
+    const onset = detectOnset(buf);
+    const start = Math.round((remix.tempo.b2s(0) - onset) * 1000) / 1000;
+    edit(() => { remix.musicStartSec = start; });
+    toast(`音楽を読み込みました：${f.name}（${fmtTime(buf.duration)}）。曲の始まり（${onset.toFixed(3)} 秒）が 0 拍目に来るよう、音楽開始を ${fmtTime(start)} に合わせました。`, 6000, 'info');
   } catch (_) {
     toast('この音楽ファイルは読み込めませんでした（mp3・wav・m4a などを選んでください）', 4000);
   }

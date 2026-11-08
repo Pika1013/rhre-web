@@ -419,3 +419,19 @@ function encodeWav(buf) {
   }
   return new Blob([data.buffer], { type: 'audio/wav' });
 }
+
+// 曲の頭の無音を飛ばして、音が鳴り始める位置（秒）を返す
+export function detectOnset(buf) {
+  const n = buf.length;
+  const chans = Array.from({ length: buf.numberOfChannels }, (_, i) => buf.getChannelData(i));
+  let peak = 0;
+  for (const d of chans) for (let i = 0; i < n; i += 8) { const v = Math.abs(d[i]); if (v > peak) peak = v; }
+  if (peak <= 0) return 0;
+  const thr = Math.max(0.003, peak * 0.03);
+  for (let i = 0; i < n; i++) {
+    for (const d of chans) {
+      if (Math.abs(d[i]) > thr) return Math.max(0, i - Math.round(buf.sampleRate * 0.003)) / buf.sampleRate;
+    }
+  }
+  return 0;
+}

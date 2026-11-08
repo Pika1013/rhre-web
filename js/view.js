@@ -70,6 +70,7 @@ export class EditorView {
     this.selection = new Set();
     this.armed = null; // 置こうとしている項目 { width, height, name, color }
     this.drop = null; // 一覧からドラッグ中の置き場所 { beat, track, width, height, valid }
+    this.flagDrag = null; // 旗をドラッグ中 { kind: 'music' | 'playback', beat }
     this.hover = null; // マウスで置く位置の目安
     this.moveState = null;
     this.resizeState = null;
@@ -145,6 +146,20 @@ export class EditorView {
 
   trackAt(y, L) { return Math.floor((y - L.tracksTop) / L.rowH); }
 
+  // 旗をつかんだか：上半分の赤い旗＝音楽開始、下半分と目盛りの緑の旗＝再生開始
+  flagAt(x, y, L) {
+    if (!this.remix || y >= L.tracksTop) return null;
+    const R = this.remix;
+    const mx = this.x(R.tempo.s2b(R.musicStartSec));
+    const px = this.x(R.playbackStart);
+    const tol = 22;
+    const upper = y < L.infoH * 0.5;
+    if (upper && Math.abs(x - mx) <= tol) return 'music';
+    if (!upper && Math.abs(x - px) <= tol) return 'playback';
+    if (upper && Math.abs(x - px) <= tol && Math.abs(x - mx) > tol) return 'playback';
+    return null;
+  }
+
   // 選択中で伸ばせるブロックの端に触れたか
   edgeAt(x, y, L) {
     if (this.selection.size !== 1 || !this.h.canEdit?.()) return null;
@@ -169,7 +184,9 @@ export class EditorView {
       if (this.pointers.size === 1) {
         const L = this.remix ? this.layout() : null;
         let mode = 'scroll', edge = null;
-        if (L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom) {
+        const flag = L ? this.flagAt(e.offsetX, e.offsetY, L) : null;
+        if (flag && this.h.canEdit?.()) mode = flag;
+        else if (L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom) {
           edge = this.edgeAt(e.offsetX, e.offsetY, L);
           if (edge) mode = 'resize';
           else {
@@ -217,7 +234,17 @@ export class EditorView {
       if (!d.moved && Math.hypot(dx, dy) > 7) d.moved = true;
       if (!d.moved) return;
       const L = this.layout();
-      if (d.mode === 'move') {
+      if (d.mode === 'music' || d.mode === 'playback') {
+        const R = this.remix;
+        if (d.mode === 'music') {
+          // 音楽開始は「つかんだ位置からのずれ」をスナップで動かす（曲の頭に合わせた細かいずれを保つ）
+          const orig = R.tempo.s2b(R.musicStartSec);
+          this.flagDrag = { kind: 'music', beat: orig + this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0)) };
+        } else {
+          this.flagDrag = { kind: 'playback', beat: this.snapRound(this.beatAt(e.offsetX)) };
+        }
+        this.edgeScroll(e.offsetX);
+      } else if (d.mode === 'move') {
         const dBeat = this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0));
         const dTrack = Math.round(dy / L.rowH);
         if (!this.moveState || this.moveState.dBeat !== dBeat || this.moveState.dTrack !== dTrack) {
@@ -254,16 +281,20 @@ export class EditorView {
       }
       const d = this.drag;
       this.drag = null;
-      const ms = this.moveState, rs = this.resizeState;
+      const ms = this.moveState, rs = this.resizeState, fd = this.flagDrag;
       this.moveState = null;
       this.resizeState = null;
+      this.flagDrag = null;
       this.dirty = true;
       if (!d || e.type === 'pointercancel') return;
       if (!d.moved) {
+        if (d.mode === 'music') { this.h.onFlagTap?.('music'); return; }
         if (performance.now() - d.t0 < 600) this.tap(e.offsetX, e.offsetY, d.shift);
         return;
       }
-      if (d.mode === 'move' && ms && (ms.dBeat || ms.dTrack)) this.h.onMove?.(ms.dBeat, ms.dTrack);
+      if (fd && fd.kind === 'music') this.h.onSetMusicStart?.(fd.beat);
+      else if (fd && fd.kind === 'playback') this.h.onSetPlaybackStart?.(fd.beat);
+      else if (d.mode === 'move' && ms && (ms.dBeat || ms.dTrack)) this.h.onMove?.(ms.dBeat, ms.dTrack);
       else if (d.mode === 'resize' && rs && (rs.beat !== rs.ent.beat || rs.width !== rs.ent.width)) this.h.onResize?.(rs.ent, rs.beat, rs.width);
       else if (d.mode === 'scroll' && Math.abs(d.vx) > 0.15 && performance.now() - d.lt < 80) this.momentum = { v: d.vx, t: performance.now() };
     };
@@ -382,15 +413,23 @@ export class EditorView {
         this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, `rgba(120,230,255,${a})`, `rgba(120,230,255,${Math.min(0.6, a + 0.15)})`);
       }
     }
+    // 拍の線と小節の線は縮小しても消さない（番号だけ間引く）。小節の線は太く
+    const beatAlpha = clamp(this.ppb / 70, 0.2, 0.5);
     for (let b = Math.floor(b0); b <= b1; b++) {
       const { beatInMeasure } = R.measureAt(b);
       const isMeasure = Math.abs(beatInMeasure) < 1e-6;
-      const x = Math.round(this.x(b)) + 0.5;
-      if (step === 1 || b % step === 0 || isMeasure) {
-        g.strokeStyle = isMeasure ? 'rgba(156,199,238,0.95)' : 'rgba(156,199,238,0.5)';
+      if (isMeasure) {
+        const x = Math.round(this.x(b));
+        g.strokeStyle = 'rgba(156,199,238,0.95)';
+        g.lineWidth = 2;
+        g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
+      } else {
+        const x = Math.round(this.x(b)) + 0.5;
+        g.strokeStyle = `rgba(156,199,238,${beatAlpha})`;
         g.lineWidth = 1;
         g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
       }
+      const x = Math.round(this.x(b)) + 0.5;
       if (b % step === 0) {
         g.fillStyle = C.beatNum;
         g.fillText(String(b), x, L.tracksTop - 4);
@@ -455,10 +494,13 @@ export class EditorView {
     }
 
     // 音楽開始（赤）と再生開始（緑）の旗
-    const musicBeat = R.tempo.s2b(R.musicStartSec);
-    this.drawFlag(g, L, musicBeat, C.music, 4, '音楽開始', [fmtTime(R.musicStartSec)], R.musicPresent);
-    const pbSec = R.tempo.b2s(R.playbackStart);
-    this.drawFlag(g, L, R.playbackStart, C.playback, L.infoH * 0.5, '再生開始', [`Beat ${R.playbackStart.toFixed(3)}`, fmtTime(pbSec)], true);
+    const fd = this.flagDrag;
+    const musicBeat = fd?.kind === 'music' ? fd.beat : R.tempo.s2b(R.musicStartSec);
+    const musicSec = fd?.kind === 'music' ? R.tempo.b2s(fd.beat) : R.musicStartSec;
+    this.drawFlag(g, L, musicBeat, C.music, 4, '音楽開始', [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
+    const pbBeat = fd?.kind === 'playback' ? fd.beat : R.playbackStart;
+    const pbSec = R.tempo.b2s(pbBeat);
+    this.drawFlag(g, L, pbBeat, C.playback, L.infoH * 0.5, '再生開始', [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
 
     // 再生位置
     if (this.playhead != null) {
