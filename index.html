@@ -373,25 +373,17 @@
   .popover.list { grid-template-columns: 1fr; min-width: 140px; }
   .popover.list button { text-align: left; padding: 0 14px; font-size: 15px; }
   .popover button:disabled { opacity: 0.35; }
-  /* プレゼンテーションモード */
-  #present {
-    position: fixed; inset: 0; z-index: 35; display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; text-align: center;
-    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-    background: radial-gradient(circle at 50% 35%, #2c3a4a, #101418 70%); color: #fff;
+  /* プレゼンテーションモード：いつもの画面から上下のバー・ゲーム一覧を隠すだけ。終わるボタンは左上 */
+  #presentExit { display: none; }
+  .presenting #topbar, .presenting #panel, .presenting #panelToggle, .presenting #status, .presenting #updateBar { display: none !important; }
+  .presenting #app { grid-template-rows: minmax(0, 1fr); }
+  .presenting #presentExit {
+    display: flex; align-items: center; gap: 6px; position: fixed; z-index: 30; height: 36px; padding: 0 12px 0 10px;
+    top: calc(env(safe-area-inset-top, 0px) + 8px); left: calc(env(safe-area-inset-left, 0px) + 8px);
+    border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 18px; background: rgba(0, 0, 0, 0.55); color: #fff;
+    font: 700 14px var(--font); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
-  #pTitle { font-size: clamp(20px, 5vw, 40px); font-weight: 800; }
-  #pArtist { font-size: clamp(14px, 3vw, 22px); color: #b9c6d6; font-weight: 700; }
-  .p-mid { display: grid; place-content: center; justify-items: center; gap: 10px; }
-  #pIcon { width: clamp(80px, 22vmin, 180px); height: auto; image-rendering: pixelated; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-  #pGameName { font-size: clamp(16px, 4vw, 28px); font-weight: 800; }
-  #pStage { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  #pImg { object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)); }
-  #pSub { min-height: 1.4em; font-size: clamp(18px, 4.5vw, 34px); font-weight: 800; white-space: pre-wrap; text-shadow: 0 2px 8px #000; }
-  .p-bottom { display: grid; gap: 8px; justify-items: center; }
-  #pTime { font-size: clamp(16px, 4vw, 26px); font-weight: 800; font-variant-numeric: tabular-nums; }
-  .p-bar { width: min(640px, 100%); height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
-  #pBar { height: 100%; width: 0; background: var(--play); }
-  .p-ctl { display: flex; gap: 8px; }
+  .presenting #presentExit svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.6; fill: none; stroke-linecap: round; }
   /* テーマ（ライト・ブラック） */
   :root[data-theme="black"] { --chrome: #141414; --chrome-edge: #000; --btn: #262626; --btn-hi: #333; --panel: #050505; --panel-line: #2a2a2a; }
   :root[data-theme="black"] body, :root[data-theme="black"] #editor { background: #000; }
@@ -565,22 +557,13 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.3</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.4</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
 <div class="popover list" id="moreMenu" hidden role="menu"></div>
 
-<div id="present" hidden>
-  <div class="p-top"><div id="pTitle"></div><div id="pArtist"></div></div>
-  <div class="p-mid" id="pGame"><img id="pIcon" alt="" hidden><div id="pGameName"></div></div>
-  <div id="pStage"><img id="pImg" alt="" hidden><div id="pSub"></div></div>
-  <div class="p-bottom">
-    <div id="pTime">00:00 / 00:00</div>
-    <div class="p-bar"><div id="pBar"></div></div>
-    <div class="p-ctl"><button class="btn" id="pPause">⏸ 一時停止</button><button class="btn danger" id="pExit">■ 終わる</button></div>
-  </div>
-</div>
+<button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>終わる</span></button>
 
 <div class="modal" id="menuModal" hidden>
   <div class="card">
@@ -786,6 +769,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=26"></script>
+<script type="module" src="js/app.js?v=27"></script>
 </body>
 </html>

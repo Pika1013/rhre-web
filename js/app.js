@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=11';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=7';
+import { t, setLang, applyStatic } from './i18n.js?v=8';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=15';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '2.3';
+const VERSION = '2.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -56,9 +56,9 @@ let currentTab = 'used';
 let shownGame = null;
 
 const view = new EditorView($('view'), {
-  canEdit: () => !!remix && mode !== 'playing' && !loading,
+  canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting,
   isStretchable: (e) => !!remix && remix.isStretchable(e),
-  onSelect: (ent, additive) => selectEntity(ent, additive),
+  onSelect: (ent, additive) => { if (!presenting) selectEntity(ent, additive); },
   onPlace: (beat, track) => (pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track)),
   validateMove: (dB, dT) => moveValid(dB, dT),
   onMove: (dB, dT) => doMove(dB, dT),
@@ -1311,7 +1311,6 @@ function frame(now) {
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
-    if (presenting) updatePresentation(t, beat);
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
@@ -1763,46 +1762,31 @@ $('tracksOk').addEventListener('click', () => {
 });
 $('tracksCancel').addEventListener('click', () => { $('tracksModal').hidden = true; });
 
-// ---------------------------------------------------------------- プレゼンテーションモード（再生画面だけを大きく）
+// ---------------------------------------------------------------- プレゼンテーションモード（上下のバーを隠して、トラックだけを大きく）
 
 let presenting = false;
 function startPresentation() {
   if (!remix) return;
+  if (armed) setArmed(null);
+  pasteArmed = false;
+  multiSelect = false;
+  view.armed = null;
+  view.selection.clear();
+  updateCtxbar();
   presenting = true;
-  $('present').hidden = false;
-  const titleEnt = remix.entities.find((e) => e.o?.subtitleType === 'songTitle' && e.subtitle);
-  const artistEnt = remix.entities.find((e) => e.o?.subtitleType === 'songArtist' && e.subtitle);
-  $('pTitle').textContent = titleEnt ? titleEnt.subtitle : fileName.replace(/\.[^.]+$/, '');
-  $('pArtist').textContent = artistEnt ? artistEnt.subtitle : '';
+  document.documentElement.classList.add('presenting');
+  view.dirty = true;
   if (mode !== 'playing') play();
-  const sec = mode === 'playing' ? player.time : remix.tempo.b2s(remix.playbackStart);
-  updatePresentation(sec, remix.tempo.s2b(sec));
 }
 function stopPresentation() {
+  if (!presenting) return;
   presenting = false;
-  $('present').hidden = true;
+  document.documentElement.classList.remove('presenting');
   stopPlayback();
+  applyPanel();
+  view.dirty = true;
 }
-function updatePresentation(sec, beat) {
-  const total = Math.max(remix.durationSec, 0.001);
-  $('pTime').textContent = `${fmtTime(Math.max(0, sec)).replace(/\.\d+$/, '')} / ${fmtTime(total).replace(/\.\d+$/, '')}`;
-  $('pBar').style.width = `${clamp(sec / total, 0, 1) * 100}%`;
-  let cur = null;
-  for (const e of remix.entities) { if (e.beat > beat) break; if (e.game && !e.game.id.startsWith('special')) cur = e; }
-  const gid = cur?.game?.id || '';
-  if ($('pGame').dataset.gid !== gid) {
-    $('pGame').dataset.gid = gid;
-    $('pGameName').textContent = cur?.game?.name || '';
-    const img = $('pIcon');
-    if (cur?.game && gid !== CUSTOM_GAME_ID) { img.src = `${remix.db.base}games/${gid}/icon.png`; img.hidden = false; } else img.hidden = true;
-  }
-  const subs = remix.subtitles.filter((s2) => (s2.o?.subtitleType || 'subtitle') === 'subtitle' && beat >= s2.beat && beat < s2.beat + s2.width).map((s2) => s2.subtitle).join('\n');
-  if ($('pSub').textContent !== subs) $('pSub').textContent = subs;
-  showStageImage($('pImg'), activeTexture(beat), window.innerWidth * 0.7, window.innerHeight * 0.3);
-  $('pPause').textContent = mode === 'playing' ? t('⏸ 一時停止') : t('▶ 再生');
-}
-$('pExit').addEventListener('click', stopPresentation);
-$('pPause').addEventListener('click', () => { if (mode === 'playing') pause(); else play(); });
+$('presentExit').addEventListener('click', stopPresentation);
 
 // ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）
 
@@ -1911,7 +1895,6 @@ async function setBackgroundImage(bytes, type) {
   if (bgUrl) URL.revokeObjectURL(bgUrl);
   bgUrl = null;
   view.bgImage = null;
-  $('present').style.backgroundImage = '';
   if (bytes) {
     bgUrl = URL.createObjectURL(new Blob([bytes], { type: type || 'image/png' }));
     const img = new Image();
@@ -1924,13 +1907,6 @@ function applyBackgroundOptions() {
   const fit = settings.bgFit || 'cover';
   const alpha = (Number(settings.bgAlpha) || 60) / 100;
   if (view.bgImage) { view.bgImage.fit = fit; view.bgImage.alpha = alpha; view.bgImage.cacheKey = ''; }
-  // プレゼンテーションの画面にも同じ画像を（濃さの分だけ暗く重ねる）
-  $('present').style.backgroundImage = bgUrl
-    ? `linear-gradient(rgba(16, 20, 24, ${(1 - alpha * 0.85).toFixed(2)}), rgba(16, 20, 24, ${(1 - alpha * 0.85).toFixed(2)})), url("${bgUrl}")`
-    : '';
-  $('present').style.backgroundSize = fit === 'contain' ? 'auto, contain' : 'auto, cover';
-  $('present').style.backgroundPosition = 'center';
-  $('present').style.backgroundRepeat = 'no-repeat';
   $('bgClear').disabled = !bgUrl;
   $('bgFit').value = fit;
   $('bgAlpha').value = String(Math.round(alpha * 100));

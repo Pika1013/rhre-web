@@ -110,7 +110,7 @@ const STATIC_EN = {
   '■ 終わる': '■ Exit', '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play',
   '背景の画像': 'Background image', '画像を選ぶ': 'Choose image', '外す': 'Remove', '表示': 'Fit', '濃さ': 'Strength',
   '画面いっぱい': 'Fill the screen', '全体が見えるように': 'Show the whole image', '背景': 'Background', '線': 'Lines', 'アクセント': 'Accent',
-  '💾 保存': '💾 Save', 'ホーム画面に追加して使ってください': 'Add to your Home Screen to use it', '全画面で使う': 'Use in full screen',
+  '終わる': 'Exit', '💾 保存': '💾 Save', 'ホーム画面に追加して使ってください': 'Add to your Home Screen to use it', '全画面で使う': 'Use in full screen',
   '全画面で始める': 'Start in full screen', '📲 アプリとして追加': '📲 Install as an app', '作業中のリミックスを .rhref で保存': 'Save the current remix as .rhref',
 '名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
   '📄 新規作成': '📄 New', '📂 開く（.rhref）': '📂 Open (.rhref)', '🎵 サンプルを開く': '🎵 Open sample', '💾 保存（.rhref）': '💾 Save (.rhref)',
