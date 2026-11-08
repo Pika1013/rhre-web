@@ -152,11 +152,22 @@
   #ctxbar .tb { background: #24505f; }
   #ctxbar .tb.danger { background: var(--danger); }
   #ctxbar .val { min-width: 44px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; flex: none; }
+  #ctxbar .val small { display: none; }
   #ctxbar .grp { display: inline-flex; align-items: center; gap: 6px; flex: none; padding-right: 8px; margin-right: 2px; border-right: 1px solid #2b6f86; }
   #ctxbar .grp:last-child { border-right: 0; }
   #ctxbar .sep { width: 1px; align-self: stretch; background: #2b6f86; flex: none; margin: 2px 2px; }
   #ctxbar .txtbtn { height: var(--btn-size); padding: 0 12px; border-radius: 4px; border: 0; background: #24505f; font-weight: 700; font-size: 14px; flex: none; }
   #ctxbar .txtbtn.on { background: var(--on); outline: 2px solid var(--accent); }
+  /* 編集バーの右端の 一時停止・再生・停止（横にスクロールしても右端に残る） */
+  #ctxbar .ctx-transport {
+    margin-left: auto; margin-right: 0; position: sticky; right: 0; z-index: 1; padding: 0 0 0 8px;
+    border-right: 0; border-left: 1px solid #2b6f86; background: #16323d; box-shadow: -10px 0 8px -6px #16323d;
+  }
+  #ctxbar .ctx-transport .tb { background: #2e2e2e; width: calc(var(--btn-size) + 4px); }
+  #ctxbar .ctx-transport svg { stroke: none; }
+  #ctxbar .tr-play svg { fill: var(--play); }
+  #ctxbar .tr-pause svg { fill: var(--pause); }
+  #ctxbar .tr-stop svg { fill: var(--stop); }
 
   /* 下段のピッカー */
   #panel {
@@ -274,7 +285,13 @@
 
   .desk { display: grid; }
   @media (min-width: 641px) { #toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } #toolbar::-webkit-scrollbar { display: none; } }
-  @media (max-width: 1000px) { .wide { display: none; } }
+  @media (max-width: 1000px) {
+    .wide { display: none; }
+    /* スマホなど：「音程」「音量」は数字の上に小さく載せて幅を詰める（右端の再生ボタンの分） */
+    #ctxbar .val { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+    #ctxbar .val small { display: block; font-size: 9px; font-weight: 700; color: #9cc; }
+    #ctxbar .hint:not(.long) { display: none; }
+  }
   @media (max-width: 640px) {
     #speedCtl { width: 84px; }
     #speedCtl .sp-label { font-size: 9px; }
@@ -283,6 +300,9 @@
     #ctxbar { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; column-gap: 4px; --btn-size: 34px; }
     #ctxbar .grp { gap: 4px; padding-right: 5px; }
     #ctxbar .val { min-width: 36px; }
+    #ctxbar { padding-inline: 4px; }
+    #ctxbar .ctx-transport { padding: 0 0 0 4px; gap: 3px; margin-right: 0; }
+    #ctxbar .ctx-transport .tb { width: var(--btn-size); }
     #ctxbar .txtbtn { padding: 0 9px; }
     #ctxbar .hint.long { white-space: normal; flex: 1 1 140px; }
     .desk { display: none; }
@@ -366,6 +386,9 @@
   :root[data-theme="light"] .pane-head { border-color: #d6dbe1; }
   :root[data-theme="light"] #ctxbar { background: #cfe7f3; border-color: #8cc4e6; }
   :root[data-theme="light"] #ctxbar .tb, :root[data-theme="light"] #ctxbar .txtbtn { background: #a9d3ea; color: #10222c; }
+  :root[data-theme="light"] #ctxbar .ctx-transport { background: #cfe7f3; box-shadow: -10px 0 8px -6px #cfe7f3; border-left-color: #8cc4e6; }
+  :root[data-theme="light"] #ctxbar .ctx-transport .tb { background: #c9d0d8; }
+  :root[data-theme="light"] #ctxbar .val small { color: #2a4a5a; }
   :root[data-theme="light"] #ctxbar .lbl, :root[data-theme="light"] #ctxbar .hint, :root[data-theme="light"] #ctxbar .val { color: #10222c; }
   :root[data-theme="light"] .popover { background: #fff; border-color: #c3c9d1; }
   /* スナップの選択肢 */
@@ -517,7 +540,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.2</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -727,6 +750,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=24"></script>
+<script type="module" src="js/app.js?v=25"></script>
 </body>
 </html>

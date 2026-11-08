@@ -5,7 +5,7 @@ import { t, setLang, applyStatic } from './i18n.js?v=6';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '2.1';
+const VERSION = '2.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -147,6 +147,11 @@ function updateButtons() {
   $('saveBtn').disabled = !ready;
   $('undoBtn').disabled = !ready || !undoStack.length;
   $('redoBtn').disabled = !ready || !redoStack.length;
+  // 編集バーの再生ボタンも同じ状態に
+  for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn']]) {
+    const b = $('ctxbar').querySelector(`[data-c="${c}"]`);
+    if (b) b.disabled = $(id).disabled;
+  }
 }
 
 function updateTimebox(sec, beat) {
@@ -485,30 +490,35 @@ function updateCtxbar() {
   const bar = $('ctxbar');
   const show = (on) => { bar.hidden = !on; $('toolbar').hidden = on; };
   closeMore();
-  if (!remix || mode === 'playing') { show(false); return; }
+  if (!remix) { show(false); return; }
   const sel = [...view.selection];
   if (!sel.length && !multiSelect && !pasteArmed) { show(false); return; }
   const one = sel.length === 1 ? sel[0] : null;
-  const dis = sel.length ? '' : ' disabled';
+  // 再生中も編集バーは出したまま（右端の再生・一時停止・停止を使えるように）。編集のボタンだけ押せなくする
+  const playing = mode === 'playing';
+  const dis = sel.length && !playing ? '' : ' disabled';
   const grp = (html) => `<span class="grp">${html}</span>`;
   const btn = (c, icon, label, extra = '') => `<button class="tb${extra}" data-c="${c}" title="${esc(t(label))}" aria-label="${esc(t(label))}"${dis}>${icon}</button>`;
   let html = grp(`<button class="tb" data-c="clear" title="${esc(t('選択をやめる'))}" aria-label="${esc(t('選択をやめる'))}">${ICON.close}</button><span class="lbl">${sel.length}${t('個') === '個' ? '個' : ' ' + t('個')}</span>`)
-    + grp(`<button class="tb" data-c="undo" title="${esc(t('元に戻す'))}" aria-label="${esc(t('元に戻す'))}"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
-      + `<button class="tb" data-c="redo" title="${esc(t('やり直す'))}" aria-label="${esc(t('やり直す'))}"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`)
+    + grp(`<button class="tb" data-c="undo" title="${esc(t('元に戻す'))}" aria-label="${esc(t('元に戻す'))}"${undoStack.length && !playing ? '' : ' disabled'}>${ICON.undo}</button>`
+      + `<button class="tb" data-c="redo" title="${esc(t('やり直す'))}" aria-label="${esc(t('やり直す'))}"${redoStack.length && !playing ? '' : ' disabled'}>${ICON.redo}</button>`)
     + grp(btn('del', ICON.trash, '削除', ' danger') + btn('dup', ICON.copy, '複製') + `<button class="tb" data-c="more" title="${esc(t('その他の操作'))}" aria-label="${esc(t('その他の操作'))}">${ICON.more}</button>`)
     + grp(`<button class="txtbtn${multiSelect ? ' on' : ''}" data-c="multi" aria-pressed="${multiSelect}">${esc(t('複数選択'))}</button>`);
   // 字幕・画像を1つ選んでいるときは、それ専用のボタン
-  if (one?.type === 'subtitleEntity') html += grp(`<button class="txtbtn" data-c="text">${esc(t('文字を編集'))}</button>`);
-  if (one?.type === 'textureEntity') html += grp(`<button class="txtbtn" data-c="image">${esc(t('画像を選ぶ'))}</button>`);
+  if (one?.type === 'subtitleEntity') html += grp(`<button class="txtbtn" data-c="text"${playing ? ' disabled' : ''}>${esc(t('文字を編集'))}</button>`);
+  if (one?.type === 'textureEntity') html += grp(`<button class="txtbtn" data-c="image"${playing ? ' disabled' : ''}>${esc(t('画像を選ぶ'))}</button>`);
   // 音程・音量は、変えられるブロックがあるときだけ
   if (!sel.length || sel.some((e) => remix.canRepitch(e))) {
     const semi = one ? (one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`) : '…';
-    html += grp(`<span class="hint">${esc(t('音程'))}</span>${btn('semi-', ICON.minus, '音程')}<span class="val">${semi}</span>${btn('semi+', ICON.plus, '音程')}`);
+    html += grp(`<span class="hint">${esc(t('音程'))}</span>${btn('semi-', ICON.minus, '音程')}<span class="val"><small>${esc(t('音程'))}</small>${semi}</span>${btn('semi+', ICON.plus, '音程')}`);
   }
   if (!sel.length || sel.some((e) => remix.hasVolume(e))) {
     const vol = one ? `${one.volume}%` : '…';
-    html += grp(`<span class="hint">${esc(t('音量'))}</span>${btn('vol-', ICON.minus, '音量')}<span class="val">${vol}</span>${btn('vol+', ICON.plus, '音量')}`);
+    html += grp(`<span class="hint">${esc(t('音量'))}</span>${btn('vol-', ICON.minus, '音量')}<span class="val"><small>${esc(t('音量'))}</small>${vol}</span>${btn('vol+', ICON.plus, '音量')}`);
   }
+  // 右端に、上のツールバーと同じ 一時停止・再生・停止
+  const tr = (c, id, label) => `<button class="tb tr-${c}" data-c="${c}" title="${esc(t(label))}" aria-label="${esc(t(label))}"${$(id).disabled ? ' disabled' : ''}>${$(id).innerHTML}</button>`;
+  html += `<span class="grp ctx-transport">${tr('pause', 'pauseBtn', '一時停止')}${tr('play', 'playBtn', '再生')}${tr('stop', 'stopBtn', '停止')}</span>`;
   bar.innerHTML = html;
   show(true);
 }
@@ -535,6 +545,9 @@ $('ctxbar').addEventListener('click', (e) => {
     case 'disarm': setArmed(null); break;
     case 'undo': undo(); break;
     case 'redo': redo(); break;
+    case 'play': play(); break;
+    case 'pause': pause(); break;
+    case 'stop': stopPlayback(); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
     case 'semi-': changeSemitone(-1); break;
