@@ -3,7 +3,7 @@ import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=6';
 import { EditorView, fmtTime } from './view.js?v=5';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.3';
+const VERSION = '0.4';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -23,6 +23,7 @@ let pausedSec = 0;
 let loading = false;
 let metronome = false;
 let multiSelect = false;
+let armed = null; // 置こうとしているデータモデル（一覧で名前を押したもの）
 const undoStack = [];
 const redoStack = [];
 
@@ -48,6 +49,7 @@ const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading,
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => selectEntity(ent, additive),
+  onPlace: (beat, track) => placeArmed(beat, track),
   validateMove: (dB, dT) => moveValid(dB, dT),
   onMove: (dB, dT) => doMove(dB, dT),
   validateResize: (ent, b, w) => !remix.collides(b, ent.track, w, ent.height, new Set([ent])),
@@ -253,9 +255,9 @@ function selectEntity(ent, additive) {
   if (sel.size === 1) {
     const e = [...sel][0];
     setStatus(describe(e));
-    if (!drag && e.game && !e.game.id.startsWith('special')) showGameList(e.game, e.o);
+    if (!armed && e.game && !e.game.id.startsWith('special')) showGameList(e.game, e.o);
   } else if (sel.size > 1) setStatus(`${sel.size} 個を選択中`);
-  else setStatus(summaryText());
+  else setStatus(armed ? armHint() : summaryText());
 }
 
 function placeAt(o, beat, track) {
@@ -272,108 +274,25 @@ function placeAt(o, beat, track) {
   return true;
 }
 
-// ---------------------------------------------------------------- 右下の一覧からトラックへドラッグして置く
-// 指：左のつまみ（⠿）からはすぐ、名前は長押し（0.3秒）してからドラッグ。マウス：そのままドラッグ。
+// ---------------------------------------------------------------- 一覧で名前を押してから、トラックをタップして置く
 
-let drag = null; // { o, size, x, y, target }
+function armHint() { return `「${cleanName(armed.name)}」を置く：トラックの空いている所をタップ`; }
 
-function dragStart(o, x, y) {
-  if (!remix) return;
-  if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return; }
-  drag = { o, size: { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) }, x, y, target: null };
-  const g = $('dragGhost');
-  g.textContent = cleanName(o.name);
-  g.hidden = false;
-  document.body.classList.add('dragging');
-  engine.loadSounds(remix.soundUrlsOf(o), remix.db);
-  try { navigator.vibrate?.(10); } catch (_) { /* 未対応 */ }
-  dragMove(x, y);
-}
-
-function dragMove(x, y) {
-  if (!drag) return;
-  drag.x = x; drag.y = y;
-  const g = $('dragGhost');
-  g.style.transform = `translate(${Math.round(x)}px, ${Math.round(y - 46)}px) translate(-50%, -100%)`;
-  const t = view.dropTarget(x, y, drag.size.height);
-  drag.target = t;
-  if (t) {
-    view.edgeScroll(t.localX);
-    view.drop = { beat: t.beat, track: t.track, width: drag.size.width, height: drag.size.height,
-      valid: !remix.collides(t.beat, t.track, drag.size.width, drag.size.height) };
-  } else view.drop = null;
-  g.classList.toggle('bad', !t || !view.drop.valid);
+function setArmed(o) {
+  armed = o;
+  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) } : null;
+  view.hover = null;
   view.dirty = true;
+  for (const row of $('list').querySelectorAll('.item')) row.classList.toggle('sel', !!o && row.dataset.id === o.id);
+  updateCtxbar();
+  setStatus(o ? armHint() : summaryText());
+  if (o && remix) engine.loadSounds(remix.soundUrlsOf(o), remix.db);
 }
 
-function dragEnd(cancel) {
-  if (!drag) return;
-  const d = drag;
-  drag = null;
-  $('dragGhost').hidden = true;
-  document.body.classList.remove('dragging');
-  view.drop = null;
-  view.dirty = true;
-  if (!cancel && d.target) placeAt(d.o, d.target.beat, d.target.track);
-  else if (!cancel) setStatus('トラックの上で指を離すと置けます');
-}
-
-// ドラッグ中はページや一覧がスクロールしないようにする（iPhone 対策）
-document.addEventListener('touchmove', (e) => { if (drag) e.preventDefault(); }, { passive: false });
-
-function bindRowDrag(el, o, { immediate }) {
-  // マウス・ペン、またはつまみ（すぐドラッグ）
-  el.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    if (e.pointerType === 'touch' && !immediate) return; // 指で名前を触ったときは長押しで（下の touch 処理）
-    const sx = e.clientX, sy = e.clientY;
-    let started = false;
-    try { el.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
-    const move = (ev) => {
-      if (!started && (immediate || Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6)) { started = true; dragStart(o, ev.clientX, ev.clientY); }
-      if (started) dragMove(ev.clientX, ev.clientY);
-    };
-    const up = (ev) => {
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
-      if (started) { el.dataset.dragged = '1'; setTimeout(() => { delete el.dataset.dragged; }, 50); dragEnd(ev.type === 'pointercancel'); }
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
-  });
-  if (immediate) return;
-  // 指：長押ししてからドラッグ（すぐ動かしたときは一覧のスクロール）
-  el.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const t0 = e.touches[0];
-    const sx = t0.clientX, sy = t0.clientY;
-    let started = false;
-    let lx = sx, ly = sy;
-    const timer = setTimeout(() => { started = true; el.dataset.dragged = '1'; dragStart(o, lx, ly); }, 300);
-    const move = (ev) => {
-      const t = ev.touches[0];
-      lx = t.clientX; ly = t.clientY;
-      if (!started) { if (Math.hypot(lx - sx, ly - sy) > 8) cleanup(); return; }
-      ev.preventDefault();
-      dragMove(lx, ly);
-    };
-    const end = (ev) => {
-      const wasStarted = started;
-      cleanup();
-      if (wasStarted) { dragEnd(ev.type === 'touchcancel'); setTimeout(() => { delete el.dataset.dragged; }, 50); }
-    };
-    function cleanup() {
-      clearTimeout(timer);
-      el.removeEventListener('touchmove', move);
-      el.removeEventListener('touchend', end);
-      el.removeEventListener('touchcancel', end);
-    }
-    el.addEventListener('touchmove', move, { passive: false });
-    el.addEventListener('touchend', end);
-    el.addEventListener('touchcancel', end);
-  }, { passive: true });
+function placeArmed(beat, track) {
+  if (!armed) return;
+  placeAt(armed, beat, track);
+  updateCtxbar();
 }
 
 function moveValid(dB, dT) {
@@ -454,35 +373,52 @@ const ICON = {
   minus: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>',
   close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  undo: '<svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg>',
+  redo: '<svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg>',
 };
 
 function updateCtxbar() {
   const bar = $('ctxbar');
-  if (!remix) { bar.hidden = true; return; }
+  const show = (on) => { bar.hidden = !on; $('toolbar').hidden = on; };
+  if (!remix || mode === 'playing') { show(false); return; }
+  const undoBtns = `<span class="sep"></span>`
+    + `<button class="tb" data-c="undo" title="元に戻す" aria-label="元に戻す"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
+    + `<button class="tb" data-c="redo" title="やり直す" aria-label="やり直す"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`
+    + `<span class="sep"></span>`;
+  if (armed) {
+    bar.innerHTML = `<button class="txtbtn" data-c="disarm">やめる</button>` + undoBtns
+      + `<span class="lbl">置く：</span><span class="lbl" style="color:#fff">${esc(cleanName(armed.name))}</span>`
+      + `<span class="hint long">トラックの空いている所をタップ（続けて置けます）</span>`;
+    show(true);
+    return;
+  }
   const sel = [...view.selection];
-  if (!sel.length && !multiSelect) { bar.hidden = true; return; }
+  if (!sel.length && !multiSelect) { show(false); return; }
   const one = sel.length === 1 ? sel[0] : null;
   const semi = one ? (one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`) : '…';
   const vol = one ? `${one.volume}%` : '…';
   const dis = sel.length ? '' : ' disabled';
-  bar.innerHTML = `<span class="lbl">${sel.length}個</span>`
-    + `<button class="tb danger" data-c="del" title="削除" aria-label="削除"${dis}>${ICON.trash}</button>`
-    + `<button class="tb" data-c="dup" title="複製" aria-label="複製"${dis}>${ICON.copy}</button>`
-    + `<span class="sep"></span><span class="hint">音程</span>`
-    + `<button class="tb" data-c="semi-" aria-label="音程を下げる"${dis}>${ICON.minus}</button><span class="val">${semi}</span>`
-    + `<button class="tb" data-c="semi+" aria-label="音程を上げる"${dis}>${ICON.plus}</button>`
-    + `<span class="sep"></span><span class="hint">音量</span>`
-    + `<button class="tb" data-c="vol-" aria-label="音量を下げる"${dis}>${ICON.minus}</button><span class="val">${vol}</span>`
-    + `<button class="tb" data-c="vol+" aria-label="音量を上げる"${dis}>${ICON.plus}</button>`
-    + `<span class="sep"></span><button class="txtbtn${multiSelect ? ' on' : ''}" data-c="multi" aria-pressed="${multiSelect}">複数選択</button>`
-    + `<button class="tb" data-c="clear" title="選択解除" aria-label="選択解除">${ICON.close}</button>`;
-  bar.hidden = false;
+  const grp = (html) => `<span class="grp">${html}</span>`;
+  bar.innerHTML = grp(`<button class="tb" data-c="clear" title="選択をやめる" aria-label="選択をやめる">${ICON.close}</button><span class="lbl">${sel.length}個</span>`)
+    + grp(`<button class="tb" data-c="undo" title="元に戻す" aria-label="元に戻す"${undoStack.length ? '' : ' disabled'}>${ICON.undo}</button>`
+      + `<button class="tb" data-c="redo" title="やり直す" aria-label="やり直す"${redoStack.length ? '' : ' disabled'}>${ICON.redo}</button>`)
+    + grp(`<button class="tb danger" data-c="del" title="削除" aria-label="削除"${dis}>${ICON.trash}</button>`
+      + `<button class="tb" data-c="dup" title="複製" aria-label="複製"${dis}>${ICON.copy}</button>`)
+    + grp(`<button class="txtbtn${multiSelect ? ' on' : ''}" data-c="multi" aria-pressed="${multiSelect}">複数選択</button>`)
+    + grp(`<span class="hint">音程</span><button class="tb" data-c="semi-" aria-label="音程を下げる"${dis}>${ICON.minus}</button>`
+      + `<span class="val">${semi}</span><button class="tb" data-c="semi+" aria-label="音程を上げる"${dis}>${ICON.plus}</button>`)
+    + grp(`<span class="hint">音量</span><button class="tb" data-c="vol-" aria-label="音量を下げる"${dis}>${ICON.minus}</button>`
+      + `<span class="val">${vol}</span><button class="tb" data-c="vol+" aria-label="音量を上げる"${dis}>${ICON.plus}</button>`);
+  show(true);
 }
 
 $('ctxbar').addEventListener('click', (e) => {
   const c = e.target.closest('[data-c]')?.dataset.c;
   if (!c) return;
   switch (c) {
+    case 'disarm': setArmed(null); break;
+    case 'undo': undo(); break;
+    case 'redo': redo(); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
     case 'semi-': changeSemitone(-1); break;
@@ -614,7 +550,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
   try {
     const game = await remix.db.loadGame(gid);
     showGameList(game, highlightObj);
-    setStatus(`${game.name} ／ ${isTouch ? '名前を長押しするか ⠿ をつまんで' : '名前を'}トラックへドラッグすると置けます`);
+    setStatus(`${game.name} ／ 名前を押してから、トラックの空いている所をタップすると置けます`);
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
     toast(`${gid} を読み込めませんでした`, 3000);
@@ -657,16 +593,11 @@ function showGameList(game, highlightObj, filter) {
   list.textContent = '';
   for (const o of objs) {
     const row = document.createElement('div');
-    row.className = 'item' + (o === highlightObj ? ' sel' : '');
+    row.className = 'item' + ((armed ? armed === o : o === highlightObj) ? ' sel' : '');
     row.dataset.id = o.id;
-    const grip = document.createElement('span');
-    grip.className = 'grip';
-    grip.title = 'ドラッグしてトラックに置く';
-    grip.setAttribute('aria-hidden', 'true');
-    grip.textContent = '⠿';
     const main = document.createElement('button');
     main.className = 'main';
-    main.title = 'トラックへドラッグすると置けます';
+    main.title = '押してからトラックをタップすると置けます';
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     arrow.textContent = '➜';
@@ -684,15 +615,8 @@ function showGameList(game, highlightObj, filter) {
       txt.appendChild(tags);
     }
     main.append(arrow, txt);
-    main.addEventListener('click', () => {
-      if (main.dataset.dragged) return;
-      for (const r of list.children) r.classList?.remove('sel');
-      row.classList.add('sel');
-      setStatus(`「${cleanName(o.name)}」：${isTouch ? '長押しするか ⠿ をつまんで' : ''}トラックへドラッグすると置けます`);
-    });
-    bindRowDrag(main, o, { immediate: false });
-    bindRowDrag(grip, o, { immediate: true });
-    row.append(grip, main);
+    main.addEventListener('click', () => { setArmed(armed === o ? null : o); });
+    row.append(main);
     if (remix.model.hasSound(o)) {
       const pv = document.createElement('button');
       pv.className = 'pv';
@@ -729,13 +653,15 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   undoStack.length = 0;
   redoStack.length = 0;
   multiSelect = false;
+  armed = null;
+  view.armed = null;
   view.setRemix(remix);
   shownGame = null;
   currentTab = 'used';
   $('search').value = '';
   renderGrid();
   $('listHead').textContent = 'パターン';
-  $('list').innerHTML = '<div class="empty">ミニゲームを選ぶと、パターンが並びます。トラックへドラッグすると置けます。🔊で試聴できます。</div>';
+  $('list').innerHTML = '<div class="empty">ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。</div>';
   const sounds = [...remix.allSoundCues().keys()];
   const failed = await engine.loadSounds(sounds, remix.db, (d, t) => showLoading(name, `効果音を読み込み中 ${d} / ${t}`, 0.25 + 0.75 * (d / t)));
   if (musicFile) {
@@ -960,11 +886,13 @@ function startPlayback(fromSec) {
     view.dirty = true;
     engine.stopKeepAlive();
     updateButtons();
+    updateCtxbar();
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   };
   player.start(remix, musicBuf, fromSec);
   mode = 'playing';
   updateButtons();
+  updateCtxbar();
   watchAudio();
 }
 
@@ -983,6 +911,7 @@ function pause() {
   mode = 'paused';
   engine.stopKeepAlive();
   updateButtons();
+  updateCtxbar();
 }
 
 function stopPlayback() {
@@ -999,6 +928,7 @@ function stopPlayback() {
   view.dirty = true;
   $('subtitle').hidden = true;
   updateButtons();
+  updateCtxbar();
 }
 
 function updateSubtitle(beat) {
@@ -1187,7 +1117,7 @@ window.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); }
   else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { if (view.selection.size) { e.preventDefault(); deleteSelection(); } }
-  else if (e.key === 'Escape') { if (drag) dragEnd(true); else { view.selection.clear(); view.dirty = true; updateCtxbar(); } }
+  else if (e.key === 'Escape') { if (armed) setArmed(null); else { multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); } }
 });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', async (e) => {
