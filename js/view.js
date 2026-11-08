@@ -722,9 +722,11 @@ export class EditorView {
       g.globalAlpha = 0.14;
       g.fillStyle = base;
       g.fillRect(bx, by, bw, bh);
-      g.globalAlpha = 0.35;
-      g.fillRect(bx, by + bh - 2, bw, 2);
       g.globalAlpha = 1;
+      // 枠はブロックの外枠と同じ色で、上下左右すべてに
+      g.strokeStyle = shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
+      g.lineWidth = 2;
+      g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
     }
 
     // 中の cue の位置（デスクトップ版と同じく薄い枠）
@@ -739,8 +741,8 @@ export class EditorView {
           g.globalAlpha = 0.22;
           g.fillStyle = base;
           g.fillRect(lx, ly, lw, L.rowH - 6);
-          g.globalAlpha = 0.75;
-          g.strokeStyle = base;
+          g.globalAlpha = 1;
+          g.strokeStyle = shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
         } else {
           g.strokeStyle = 'rgba(0,0,0,0.28)';
         }

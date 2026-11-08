@@ -85,7 +85,7 @@
   #stopBtn svg { fill: var(--stop); }
   #transport .tb:disabled { opacity: 0.3; }
   #timebox {
-    height: var(--btn-size); min-width: 112px; box-sizing: border-box; padding: 0 10px; border-radius: 3px;
+    height: var(--btn-size); width: 116px; flex: none; box-sizing: border-box; padding: 0 10px; border-radius: 3px; overflow: hidden; white-space: nowrap;
     background: #262626; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
     font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15;
   }
@@ -241,7 +241,7 @@
   @media (max-width: 640px) {
     #speedCtl { width: 84px; }
     #speedCtl .sp-label { font-size: 9px; }
-    #timebox { min-width: 88px !important; padding: 0 7px; }
+    #timebox { width: 92px !important; padding: 0 7px; }
     #timebox .t { font-size: 15px; }
     #ctxbar { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; column-gap: 4px; --btn-size: 34px; }
     #ctxbar .grp { gap: 4px; padding-right: 5px; }
@@ -344,7 +344,7 @@
     #toolbar { padding-block: 3px; gap: 4px 8px; }
     #snapBtn { font-size: 14px; padding: 0 8px; }
     #snapBtn span { font-size: 17px; }
-    #timebox { min-width: 96px; }
+    #timebox { width: 100px; }
     #timebox .t { font-size: 15px; }
     #timebox .b { font-size: 10px; }
     #panel { height: 150px; }
@@ -458,7 +458,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 1.2</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -659,6 +659,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=14"></script>
+<script type="module" src="js/app.js?v=15"></script>
 </body>
 </html>
