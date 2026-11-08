@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
-<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="manifest" href="manifest.webmanifest?v=4">
 <script>
   // ブラウザで開いたスマホには案内を出す：iPhone はホーム画面に追加するまで使えない、Android は全画面にしてから
   (function () {
@@ -19,9 +19,9 @@
     else if (/Android/.test(ua)) h.classList.add('gate-android');
   })();
 </script>
-<link rel="apple-touch-icon" href="icons/icon-180.png?v=3">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=3">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=3">
+<link rel="apple-touch-icon" href="icons/icon-180.png?v=4">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=4">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
@@ -499,7 +499,7 @@
 </head>
 <body>
 <div id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
-  <img class="g-icon" src="icons/icon-180.png?v=3" alt="">
+  <img class="g-icon" src="icons/icon-180.png?v=4" alt="">
   <div class="g-col g-ios">
     <h1 id="gateTitle">ホーム画面に追加して使ってください</h1>
     <p>iPhone では、ホーム画面に追加すると全画面で開き、音も安定して鳴ります。</p>
@@ -639,7 +639,7 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.9</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -854,6 +854,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=32"></script>
+<script type="module" src="js/app.js?v=33"></script>
 </body>
 </html>
