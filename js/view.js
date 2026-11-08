@@ -203,7 +203,7 @@ export class EditorView {
       this.lastUser = performance.now();
       if (this.pointers.size === 1) {
         const L = this.remix ? this.layout() : null;
-        let mode = 'scroll', edge = null;
+        let mode = 'scroll', edge = null, anchor = null;
         const flag = L ? this.flagAt(e.offsetX, e.offsetY, L) : null;
         // テンポ・音量の印：指は長押しでつかむ、マウスはそのままドラッグ
         const mark = L && !flag && e.offsetY > L.tracksBottom && e.offsetY <= L.tracksBottom + L.tempoH + 6 && this.h.canEdit?.()
@@ -215,11 +215,11 @@ export class EditorView {
           if (edge) mode = 'resize';
           else {
             const hit = this.hitTest(e.offsetX, e.offsetY, L);
-            if (hit && this.selection.has(hit) && this.h.canEdit?.()) mode = 'move';
+            if (hit && this.selection.has(hit) && this.h.canEdit?.()) { mode = 'move'; anchor = hit; }
             else if (!hit && !this.armed && (e.pointerType === 'mouse' || this.h.isMultiSelect?.())) mode = 'box';
           }
         }
-        this.drag = { mode, edge, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
+        this.drag = { mode, edge, anchor, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
         if (mode === 'box') this.box = { b0: this.beatAt(e.offsetX), y0: e.offsetY, b1: this.beatAt(e.offsetX), y1: e.offsetY };
         this.markerDrag = mode === 'marker' ? { ...mark, beat: mark.from, valid: true } : null;
         // 指で空き地を長押し → 範囲選択を始める
@@ -314,7 +314,10 @@ export class EditorView {
         if (this.box) { this.box.b1 = this.beatAt(e.offsetX); this.box.y1 = e.offsetY; }
         this.edgeScroll(e.offsetX);
       } else if (d.mode === 'move') {
-        const dBeat = this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0));
+        // つかんだブロックの行き先を、目盛りにぴったり合わせる（1/32 で置いたものを 1/8 で動かしても 1/8 の位置へ）
+        const raw = this.beatAt(e.offsetX) - this.beatAt(d.x0);
+        const a = d.anchor ? d.anchor.beat : 0;
+        const dBeat = this.snapRound(a + raw) - a;
         const dTrack = Math.round(dy / L.rowH);
         if (!this.moveState || this.moveState.dBeat !== dBeat || this.moveState.dTrack !== dTrack) {
           this.moveState = { dBeat, dTrack, valid: this.h.validateMove?.(dBeat, dTrack) ?? true };

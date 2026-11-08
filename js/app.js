@@ -2,10 +2,10 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
 import { t, setLang, applyStatic } from './i18n.js?v=3';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=12';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=13';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.4';
+const VERSION = '1.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -425,7 +425,8 @@ function duplicateSelection() {
   const step = view.snap > 0 ? view.snap : 0.25;
   const span = Math.max(step, Math.ceil((maxE - minB) / step - 1e-9) * step);
   for (let k = 1; k <= 32; k++) {
-    const off = span * k;
+    // 複製の置き場所も目盛りにぴったり合わせる
+    const off = Math.round((minB + span * k) / step) * step - minB;
     if (sel.every((e) => !remix.collides(e.beat + off, e.track, e.width, e.height))) {
       const copies = sel.map((e) => { const c = remix.entFromJSON(remix.entToJSON(e)); c.beat += off; return c; });
       if (edit(() => { remix.entities.push(...copies); })) {
