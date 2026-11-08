@@ -5,7 +5,7 @@ import { t, setLang, applyStatic } from './i18n.js?v=3';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.6';
+const VERSION = '1.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -746,7 +746,8 @@ function showGameList(game, highlightObj, filter) {
   list.textContent = '';
   for (const o of objs) {
     const row = document.createElement('div');
-    row.className = 'item' + ((armed ? armed === o : o === highlightObj) ? ' sel' : '');
+    // パターンなどではない、ただのキューは文字を灰色に
+    row.className = 'item' + (o.type === 'cue' ? ' cue' : '') + ((armed ? armed === o : o === highlightObj) ? ' sel' : '');
     row.dataset.id = o.id;
     const main = document.createElement('button');
     main.className = 'main';
