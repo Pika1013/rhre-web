@@ -1,9 +1,9 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=6';
 import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=6';
-import { EditorView, fmtTime } from './view.js?v=5';
+import { EditorView, fmtTime } from './view.js?v=6';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.5';
+const VERSION = '0.6';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1019,6 +1019,7 @@ $('metroBtn').addEventListener('click', () => {
 function setSnap(v) {
   const hit = SNAPS.find(([n]) => n === v) || SNAPS[2];
   view.snap = hit[0];
+  view.dirty = true;
   $('snapVal').textContent = hit[1];
   settings.snap = hit[0];
   saveSettings();

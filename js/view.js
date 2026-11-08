@@ -365,16 +365,22 @@ export class EditorView {
     g.font = `700 ${clamp(L.rulerH - 4, 13, 18)}px ${FONT}`;
     g.textAlign = 'center';
     g.textBaseline = 'alphabetic';
-    if (this.ppb >= 90) {
-      g.strokeStyle = 'rgba(156,199,238,0.16)';
-      g.lineWidth = 1;
-      g.beginPath();
-      for (let b = Math.floor(b0 / 0.25) * 0.25; b <= b1; b += 0.25) {
-        if (Math.abs(b - Math.round(b)) < 1e-6) continue;
-        const x = Math.round(this.x(b)) + 0.5;
-        g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom);
+    // スナップの細かい線：拡大しているほど細かく。縮小して線が詰まるときは 2倍・4倍…の間隔に間引く
+    const snap = this.snap > 0 ? this.snap : 0.25;
+    let gs = snap;
+    while (gs < 1 && gs * this.ppb < 7) gs *= 2;
+    if (gs < 1) this.drawSubLines(g, L, b0, b1, gs, 'rgba(156,199,238,0.16)', 'rgba(156,199,238,0.28)');
+
+    // 編集中のキューがある小節だけは、必ずスナップの間隔で線を出す（うっすら色も付ける）
+    if (snap < 1) {
+      const spacing = snap * this.ppb;
+      const a = clamp(spacing / 16, 0.08, 0.42);
+      for (const [rs, re] of this.editRanges()) {
+        if (re < b0 || rs > b1) continue;
+        g.fillStyle = 'rgba(25,240,255,0.06)';
+        g.fillRect(this.x(rs), L.tracksTop, (re - rs) * this.ppb, L.tracksBottom - L.tracksTop);
+        this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, `rgba(120,230,255,${a})`, `rgba(120,230,255,${Math.min(0.6, a + 0.15)})`);
       }
-      g.stroke();
     }
     for (let b = Math.floor(b0); b <= b1; b++) {
       const { beatInMeasure } = R.measureAt(b);
@@ -461,6 +467,58 @@ export class EditorView {
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
     }
+  }
+
+  // 拍の間の線（拍ちょうどの位置は拍の線に任せる）。半拍の線は少し濃く
+  drawSubLines(g, L, from, to, step, color, halfColor) {
+    const start = Math.ceil(from / step - 1e-6);
+    const end = Math.floor(to / step + 1e-6);
+    if (end - start > 4000) return;
+    const paths = [[color, []], [halfColor, []]];
+    for (let k = start; k <= end; k++) {
+      const b = k * step;
+      if (Math.abs(b - Math.round(b)) < 1e-6) continue;
+      const half = Math.abs(b * 2 - Math.round(b * 2)) < 1e-6;
+      paths[half ? 1 : 0][1].push(Math.round(this.x(b)) + 0.5);
+    }
+    g.lineWidth = 1;
+    for (const [c, xs] of paths) {
+      if (!xs.length) continue;
+      g.strokeStyle = c;
+      g.beginPath();
+      for (const x of xs) { g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); }
+      g.stroke();
+    }
+  }
+
+  // 編集中のキューがある小節の範囲（選択中・移動先・長さ変更中・マウスで置く位置）。重なりはまとめる
+  editRanges() {
+    const R = this.remix;
+    if (!R) return [];
+    const spans = [];
+    const add = (b, w) => spans.push([b, b + Math.max(w, 1e-6)]);
+    const ms = this.moveState;
+    for (const e of this.selection) {
+      add(e.beat, e.width);
+      if (ms) add(e.beat + ms.dBeat, e.width);
+    }
+    if (this.resizeState) add(this.resizeState.beat, this.resizeState.width);
+    if (this.hover && this.armed) add(this.hover.beat, this.armed.width);
+    if (this.drop) add(this.drop.beat, this.drop.width);
+    const out = [];
+    for (const [s, e] of spans) {
+      const m0 = R.measureAt(s);
+      const m1 = R.measureAt(e - 1e-6);
+      out.push([s - m0.beatInMeasure, e - 1e-6 - m1.beatInMeasure + m1.perMeasure]);
+    }
+    out.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const r of out) {
+      const last = merged[merged.length - 1];
+      if (last && r[0] <= last[1] + 1e-6) last[1] = Math.max(last[1], r[1]);
+      else merged.push([...r]);
+    }
+    return merged;
   }
 
   // 移動・長さ変更中の行き先、伸ばせるブロックのつまみ、マウスで置く位置の目安
