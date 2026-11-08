@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=10';
 import { customRegistry } from './db.js?v=6';
 import { t, setLang, applyStatic } from './i18n.js?v=4';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.8';
+const VERSION = '1.9';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -48,6 +48,8 @@ const SETTINGS_KEY = 'rhre-web-settings';
 const settings = (() => {
   try { return { lang: 'ja', ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch (_) { return { lang: 'ja' }; }
 })();
+// この端末で無音の <audio> がないと鳴らなかったことがあれば、次からも使う
+if (settings.keepAlive) engine.useKeepAlive = true;
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) { /* 保存できない環境 */ } }
 let currentTab = 'used';
 let shownGame = null;
@@ -1172,6 +1174,8 @@ function watchAudio() {
       const st = ctx.state;
       stopPlayback();
       engine.stale = true;
+      // 鳴らなかった端末では、次の ▶ から無音の <audio> も使う（覚えておく）
+      if (!engine.useKeepAlive) { engine.useKeepAlive = true; settings.keepAlive = true; saveSettings(); }
       toast(`音を開始できませんでした（状態: ${st}）。もう一度 ▶ を押してください。続くときはアプリを閉じて開き直してください。`, 9000);
     }
   }, 900);
@@ -1458,7 +1462,7 @@ window.addEventListener('drop', async (e) => {
   if (f) openBuffer(await f.arrayBuffer(), f.name);
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { if (mode === 'playing') pause(); }
+  if (document.hidden) { if (mode === 'playing') pause(); engine.releaseKeepAlive(); }
   else if (mode !== 'playing') engine.stale = true; // 戻ってきたら、次の ▶ で音の部品を作り直す
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) engine.stale = true; });
@@ -1801,7 +1805,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, get remix() { return remix; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, get remix() { return remix; } };
 
 applySettings();
 (async () => {

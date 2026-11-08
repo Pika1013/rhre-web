@@ -30,7 +30,8 @@ function decodeNative(ctx, ab) {
   });
 }
 
-// 0.5秒の無音 WAV（iPhone を「メディア再生中」にしておくため、<audio> で流し続ける）
+// 0.5秒の無音 WAV（古い iPhone を「メディア再生中」にしておくため、<audio> で流す）。
+// 流しているあいだはロック画面に再生バーが出るので、新しい iPhone（audioSession がある）では使わない
 function silentWavUrl() {
   const n = 4000;
   const dv = new DataView(new ArrayBuffer(44 + n * 2));
@@ -52,6 +53,8 @@ export class AudioEngine {
     this.usedWasm = false;
     this.stale = false;
     this.keepAlive = null;
+    // iOS 17 以降は navigator.audioSession で消音スイッチを無視できるので、無音の <audio> は要らない
+    this.useKeepAlive = !navigator.audioSession;
   }
 
   // 実際に鳴らす AudioContext。iPhone ではタップの中（unlock）で作るのが確実
@@ -103,6 +106,7 @@ export class AudioEngine {
   }
 
   startKeepAlive() {
+    if (!this.useKeepAlive) return;
     try {
       if (!this.keepAlive) {
         const a = new Audio();
@@ -119,7 +123,26 @@ export class AudioEngine {
 
   stopKeepAlive() {
     clearTimeout(this.keepAliveTimer);
-    this.keepAliveTimer = setTimeout(() => { try { this.keepAlive?.pause(); } catch (_) { /* 無視 */ } }, 1500);
+    this.keepAliveTimer = setTimeout(() => this.releaseKeepAlive(), 1500);
+  }
+
+  // 一時停止だけだとロック画面に再生バーが残るので、<audio> ごと片付ける
+  releaseKeepAlive() {
+    clearTimeout(this.keepAliveTimer);
+    const a = this.keepAlive;
+    this.keepAlive = null;
+    if (a) {
+      try {
+        a.pause();
+        const u = a.src;
+        a.removeAttribute('src');
+        a.load();
+        if (u && u.startsWith('blob:')) URL.revokeObjectURL(u);
+      } catch (_) { /* 無視 */ }
+    }
+    try {
+      if (navigator.mediaSession) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }
+    } catch (_) { /* 未対応 */ }
   }
 
   async decode(ab) {
