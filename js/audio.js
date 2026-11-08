@@ -249,6 +249,64 @@ function scheduleClick(ctx, dest, when, accent) {
   o.stop(when + 0.06);
 }
 
+// RHRE fresh（libGDX＋JLayer）は mp3 の先頭にある情報フレーム（LAME タグ）と、エンコーダ・デコーダの空白を
+// 取り除かずに読むので、ブラウザ（それらを取り除く）より少し遅れて鳴る。同じ .rhref で同じ聞こえ方にするため、
+// その差（秒）を求めて、こちらでも音楽をその分だけ遅らせる。mp3 以外や、タグのない mp3 は差がない
+export function rhreMusicLeadIn(bytes, buf) {
+  try {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    // ogg・wav・flac・m4a は対象外
+    const magic = String.fromCharCode(...b.subarray(0, 4));
+    if (['OggS', 'RIFF', 'fLaC'].includes(magic) || String.fromCharCode(...b.subarray(4, 8)) === 'ftyp') return 0;
+    let i = 0;
+    if (magic.startsWith('ID3')) i = 10 + ((b[6] << 21) | (b[7] << 14) | (b[8] << 7) | b[9]);
+    const i0 = i;
+    const BR1 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+    const BR2 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
+    const SR = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+    let frames = 0, sr = 0, spf = 0, info = false, delay = null, pad = null, guard = 0;
+    while (i + 4 <= b.length && guard++ < 2000000) {
+      if (b[i] !== 0xFF || (b[i + 1] & 0xE0) !== 0xE0) { i++; continue; }
+      const ver = (b[i + 1] >> 3) & 3, layer = (b[i + 1] >> 1) & 3;
+      const bri = b[i + 2] >> 4, sri = (b[i + 2] >> 2) & 3, padb = (b[i + 2] >> 1) & 1;
+      if (layer !== 1 || bri === 0 || bri === 15 || sri === 3 || ver === 1) { i++; continue; }
+      const rate = SR[ver][sri];
+      const len = Math.floor(((ver === 3 ? 144 : 72) * (ver === 3 ? BR1 : BR2)[bri] * 1000) / rate) + padb;
+      if (len < 24) { i++; continue; }
+      if (!frames) {
+        if (i - i0 > 4096) return 0; // 最初のフレームが見つからない：mp3 ではなさそう
+        sr = rate; spf = ver === 3 ? 1152 : 576;
+        const seg = b.subarray(i, Math.min(b.length, i + len));
+        const str = String.fromCharCode(...seg.subarray(0, Math.min(seg.length, 200)));
+        const k = Math.max(str.indexOf('Xing'), str.indexOf('Info'));
+        if (k >= 0) {
+          info = true;
+          const lt = k + 120;
+          const tag = String.fromCharCode(...seg.subarray(lt, lt + 4));
+          if (['LAME', 'Lavf', 'Lavc', 'GOGO'].includes(tag) && seg.length >= lt + 24) {
+            delay = (seg[lt + 21] << 4) | (seg[lt + 22] >> 4);
+            pad = ((seg[lt + 22] & 0x0F) << 8) | seg[lt + 23];
+          }
+        }
+      }
+      frames++;
+      i += len;
+    }
+    if (!frames || !info || !buf) return 0;
+    // ブラウザがどこまで取り除いたかを、読み込んだ長さから見分ける
+    const dec = (buf.length * sr) / buf.sampleRate;
+    const cands = [
+      { len: frames * spf, lead: 0 },                // 何も取り除いていない（RHRE fresh と同じ）
+      { len: (frames - 1) * spf, lead: spf },        // 情報フレームだけ飛ばした
+    ];
+    if (delay != null) cands.push({ len: (frames - 1) * spf - delay - pad, lead: spf + delay + 529 }); // 空白も取り除いた
+    cands.sort((x, y) => Math.abs(x.len - dec) - Math.abs(y.len - dec));
+    return cands[0].lead / sr;
+  } catch (_) {
+    return 0;
+  }
+}
+
 function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1) {
   if (!musicBuf) return null;
   const src = ctx.createBufferSource();
@@ -264,7 +322,8 @@ function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1)
   }
   src.connect(g);
   g.connect(dest);
-  const off = fromSec - remix.musicStartSec;
+  // RHRE fresh と同じ聞こえ方にするための遅れ（mp3 のとき）
+  const off = fromSec - (remix.musicStartSec + (musicBuf.rhreLeadIn || 0));
   if (off >= 0) {
     if (off >= musicBuf.duration) return null;
     src.start(ctxStart, off);

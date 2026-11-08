@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=13';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
 import { t, setLang, applyStatic } from './i18n.js?v=11';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=18';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.1';
+const VERSION = '3.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -858,6 +858,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
     try {
       const b = musicFile.bytes;
       musicBuf = await engine.decode(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+      musicBuf.rhreLeadIn = rhreMusicLeadIn(b, musicBuf);
     } catch (_) {
       failed.push('music');
     }
@@ -1159,7 +1160,7 @@ function openMusicStart() {
 $('musicAlign').addEventListener('click', () => { $('musicStartInput').value = String(+remix.tempo.b2s(remix.playbackStart).toFixed(3)); });
 $('musicAuto').addEventListener('click', () => {
   if (!musicBuf) { toast('先に音楽を選んでください', 2500, 'info'); return; }
-  $('musicStartInput').value = String(+(remix.tempo.b2s(0) - detectOnset(musicBuf)).toFixed(3));
+  $('musicStartInput').value = String(+(remix.tempo.b2s(0) - detectOnset(musicBuf) - (musicBuf.rhreLeadIn || 0)).toFixed(3));
 });
 $('musicOk').addEventListener('click', () => {
   const v = parseFloat($('musicStartInput').value);
@@ -1177,6 +1178,7 @@ $('musicInput').addEventListener('change', async (e) => {
     toast('音楽を読み込んでいます…', 4000, 'info');
     const ab = await f.arrayBuffer();
     const buf = await engine.decode(ab.slice(0));
+    buf.rhreLeadIn = rhreMusicLeadIn(new Uint8Array(ab), buf);
     musicFile = { bytes: new Uint8Array(ab), filename: f.name, extension: (f.name.split('.').pop() || '').toLowerCase() };
     musicBuf = buf;
     remix.musicPresent = true;
@@ -1184,7 +1186,8 @@ $('musicInput').addEventListener('change', async (e) => {
     saveMusicToStore();
     if (mode !== 'stopped') stopPlayback();
     const onset = detectOnset(buf);
-    const start = Math.round((remix.tempo.b2s(0) - onset) * 1000) / 1000;
+    // RHRE fresh で鳴る位置（mp3 の先頭の空白の分だけ遅い）で、曲の始まりが 0 拍目に来るように
+    const start = Math.round((remix.tempo.b2s(0) - onset - (buf.rhreLeadIn || 0)) * 1000) / 1000;
     edit(() => { remix.musicStartSec = start; });
     toast(`音楽を読み込みました：${f.name}（${fmtTime(buf.duration)}）。曲の始まり（${onset.toFixed(3)} 秒）が 0 拍目に来るよう、音楽開始を ${fmtTime(start)} に合わせました。`, 6000, 'info');
   } catch (_) {
@@ -2237,7 +2240,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; } };
 
 applySettings();
 (async () => {
