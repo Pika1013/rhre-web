@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=3';
+import { t, setLang, applyStatic } from './i18n.js?v=4';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.7';
+const VERSION = '1.8';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1288,6 +1288,7 @@ function doAction(act) {
       break;
     case 'help': openHelp(); break;
     case 'tracks': openTracks(); break;
+    case 'rename': openRename(); break;
     case 'present': startPresentation(); break;
   }
 }
@@ -1594,6 +1595,35 @@ $('customInput').addEventListener('change', async (e) => {
 });
 
 // ---------------------------------------------------------------- トラックの数
+
+// .rhref の名前を変える（メニュー、または下のファイル名をタップ）
+function openRename() {
+  if (!remix) return;
+  const inp = $('renameInput');
+  inp.value = (fileName || 'remix.rhref').replace(/\.rhref$/i, '');
+  $('renameModal').hidden = false;
+  inp.focus();
+  try { inp.select(); } catch (_) { /* 選べない環境 */ }
+}
+function commitRename() {
+  // ファイル名に使えない文字は _ に。空なら remix
+  const base = $('renameInput').value.trim().replace(/\.rhref$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120).trim() || 'remix';
+  const next = `${base}.rhref`;
+  $('renameModal').hidden = true;
+  if (next === fileName) return;
+  fileName = next;
+  setStatus(t('名前を「{n}」にしました', { n: next }));
+  scheduleAutosave();
+}
+$('renameOk').addEventListener('click', commitRename);
+$('renameCancel').addEventListener('click', () => { $('renameModal').hidden = true; });
+$('renameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); commitRename(); }
+  else if (e.key === 'Escape') { e.preventDefault(); $('renameModal').hidden = true; }
+});
+// 下のステータスバーの文字をタップしても名前を変えられる
+$('statusText').addEventListener('click', () => { if (remix && !loading) openRename(); });
+$('statusText').title = '押すと .rhref の名前を変えられます';
 
 function openTracks() {
   if (!remix) return;

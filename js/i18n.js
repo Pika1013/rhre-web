@@ -45,6 +45,7 @@ const EN = {
   // キャンバス
   '音楽開始': 'Music start', '再生開始': 'Playback start',
   '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play', 'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
+  '名前を「{n}」にしました': 'Renamed to "{n}".', '押すと .rhref の名前を変えられます': 'Tap to rename the .rhref',
   // 拍子・テンポ・音量の画面
   'テンポの印をつかみました。左右に動かしてください': 'Tempo marker grabbed. Drag it left or right.',
   '音量の印をつかみました。左右に動かしてください': 'Volume marker grabbed. Drag it left or right.',
@@ -101,6 +102,7 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play',
+  '✏️ 名前を変える': '✏️ Rename', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
   '📄 新規作成': '📄 New', '📂 開く（.rhref）': '📂 Open (.rhref)', '🎵 サンプルを開く': '🎵 Open sample', '💾 保存（.rhref）': '💾 Save (.rhref)',
   '⬇️ WAVに書き出す': '⬇️ Export WAV', '🎼 音楽を選ぶ': '🎼 Choose music', '⏱ 音楽の開始位置': '⏱ Music start position', '✖️ 音楽を外す': '✖️ Remove music',
   '☰ トラックの数': '☰ Number of tracks', '🖥 プレゼンテーションモード': '🖥 Presentation mode', '❔ 使い方': '❔ Help',
