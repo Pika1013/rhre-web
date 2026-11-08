@@ -431,7 +431,12 @@
   /* 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド） */
   #touchPad { display: none; position: absolute; inset: 0; z-index: 4; touch-action: none; }
   .pa-playing #touchPad { display: block; }
-  #playModeBtn.on { background: #e05bd0; }
+  /* プレイモードの段の右上：やめるボタン */
+  .playmode #playStage { position: relative; }
+  #psClose {
+    position: absolute; bottom: 100%; right: max(6px, env(safe-area-inset-right, 0px)); z-index: 4; height: 24px; padding: 0 10px;
+    border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font: 700 11px var(--font);
+  }
   /* 縦向き：スコアとズレのバーを上の段に横いっぱい、十字と A・B はその下 */
   @media (max-width: 640px) {
     .playmode #playStage { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; height: auto; row-gap: 8px; }
@@ -552,9 +557,6 @@
       <button class="tb" id="metroBtn" title="メトロノーム" aria-label="メトロノーム" aria-pressed="false">
         <svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M8 15h8"/><path d="M12 15l5-9"/></svg>
       </button>
-      <button class="tb" id="playModeBtn" title="プレイモード（ボタンのキューに合わせて押して遊ぶ）" aria-label="プレイモード" aria-pressed="false">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.6 16.2L12 7.6l3.4 8.6M9.9 13.2h4.2"/></svg>
-      </button>
       <button class="tb" id="snapBtn" title="スナップ（置く・動かす間隔）">Snap: <span id="snapVal">1/4</span></button>
     </div>
     <div class="group" id="transport">
@@ -622,6 +624,7 @@
   </section>
 
   <section id="playStage" aria-label="プレイモード">
+    <button id="psClose" title="プレイモードをやめる">✕ やめる</button>
     <div id="psDpad">
       <button class="pkey up" data-key="UP" aria-label="十字の上"><svg viewBox="0 0 24 24"><path d="M12 6l6 9H6z"/></svg></button>
       <button class="pkey left" data-key="LEFT" aria-label="十字の左"><svg viewBox="0 0 24 24"><path d="M6 12l9-6v12z"/></svg></button>
@@ -639,7 +642,7 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.3</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -663,6 +666,7 @@
       <hr>
       <button class="btn" data-act="tracks">☰ トラックの数</button>
       <button class="btn" data-act="present">🖥 プレゼンテーションモード</button>
+      <button class="btn" data-act="playmode" id="menuPlayMode">🎮 プレイモード</button>
       <hr>
       <button class="btn" data-act="help">❔ 使い方</button>
       <button class="btn" data-act="close">閉じる</button>
@@ -854,6 +858,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=35"></script>
+<script type="module" src="js/app.js?v=36"></script>
 </body>
 </html>

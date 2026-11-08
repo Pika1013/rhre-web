@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=11';
+import { t, setLang, applyStatic } from './i18n.js?v=12';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=18';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.2';
+const VERSION = '3.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -711,7 +711,7 @@ function openPlayalongList() {
   const g = remix.db.games.get(PLAYALONG_GAME_ID);
   if (!g) return;
   showGameList({ id: '__playalong', name: 'Playalong', objects: g.objects });
-  setStatus(t('置くとトラックの一番下に入ります。上のプレイモードのボタンを押すと遊べます'));
+  setStatus(t('置くとトラックの一番下に入ります。左上のメニューの「プレイモード」で遊べます'));
 }
 
 async function openGame(gid, jumpBeat, highlightObj) {
@@ -1369,6 +1369,7 @@ function doAction(act) {
     case 'help': openHelp(); break;
     case 'tracks': openTracks(); break;
     case 'present': startPresentation(); break;
+    case 'playmode': setPlayMode(!playMode); break;
   }
 }
 
@@ -1869,8 +1870,8 @@ function paTime() {
 function setPlayMode(on) {
   playMode = on;
   root.classList.toggle('playmode', on);
-  $('playModeBtn').classList.toggle('on', on);
-  $('playModeBtn').setAttribute('aria-pressed', String(on));
+  // メニューの項目の文字を、今の状態に合わせる
+  $('menuPlayMode').textContent = on ? t('🎮 プレイモードをやめる') : t('🎮 プレイモード');
   view.playMode = on;
   if (on) {
     if (armed) setArmed(null);
@@ -1885,7 +1886,7 @@ function setPlayMode(on) {
   updateButtons();
   view.dirty = true;
 }
-$('playModeBtn').addEventListener('click', () => setPlayMode(!playMode));
+$('psClose').addEventListener('click', () => setPlayMode(false));
 
 function resetJudge() {
   $('psMarks').textContent = '';
