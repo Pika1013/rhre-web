@@ -21,3 +21,7 @@ python3 serve.py 8124 .
 ```
 
 そのあと http://127.0.0.1:8124/ を開きます。
+
+## ライセンス
+
+GPL-3.0（[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) と同じ）。詳しくは [LICENSE](LICENSE) を見てください。
