@@ -549,6 +549,18 @@ export class Remix {
     this.musicVolumes.sort((a, b) => a.beat - b.beat);
   }
 
+  // テンポ・音量の印を別の拍へ動かす（最初のテンポは動かせない・同じ位置に2つは置けない）
+  moveMarker(kind, from, to) {
+    const list = kind === 'tempo' ? this.tempoTrackers : this.musicVolumes;
+    const m = list.find((x) => Math.abs(x.beat - from) < 1e-6);
+    if (!m) return false;
+    if (kind === 'tempo' && (m.isImmutable || Math.abs(m.beat) < 1e-6 || to <= 1e-6)) return false;
+    if (list.some((x) => x !== m && Math.abs(x.beat - to) < 1e-6)) return false;
+    m.beat = to;
+    list.sort((a, b) => a.beat - b.beat);
+    return true;
+  }
+
   removeMusicVolume(beat) {
     this.musicVolumes = this.musicVolumes.filter((x) => Math.abs(x.beat - beat) >= 1e-6);
   }

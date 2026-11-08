@@ -205,7 +205,11 @@ export class EditorView {
         const L = this.remix ? this.layout() : null;
         let mode = 'scroll', edge = null;
         const flag = L ? this.flagAt(e.offsetX, e.offsetY, L) : null;
+        // テンポ・音量の印：指は長押しでつかむ、マウスはそのままドラッグ
+        const mark = L && !flag && e.offsetY > L.tracksBottom && e.offsetY <= L.tracksBottom + L.tempoH + 6 && this.h.canEdit?.()
+          ? this.markerAt(e.offsetX, e.offsetY, L) : null;
         if (flag && this.h.canEdit?.()) mode = flag;
+        else if (mark && e.pointerType === 'mouse') mode = 'marker';
         else if (L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom) {
           edge = this.edgeAt(e.offsetX, e.offsetY, L);
           if (edge) mode = 'resize';
@@ -217,8 +221,21 @@ export class EditorView {
         }
         this.drag = { mode, edge, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
         if (mode === 'box') this.box = { b0: this.beatAt(e.offsetX), y0: e.offsetY, b1: this.beatAt(e.offsetX), y1: e.offsetY };
+        this.markerDrag = mode === 'marker' ? { ...mark, beat: mark.from, valid: true } : null;
         // 指で空き地を長押し → 範囲選択を始める
         clearTimeout(this.longTimer);
+        if (mark && mode === 'scroll') {
+          const d = this.drag;
+          this.longTimer = setTimeout(() => {
+            if (this.drag !== d || d.moved || this.pointers.size !== 1) return;
+            d.mode = 'marker';
+            d.moved = true;
+            this.markerDrag = { ...mark, beat: mark.from, valid: true };
+            this.h.onMarkerGrab?.(mark.kind);
+            try { navigator.vibrate?.(12); } catch (_) { /* 未対応 */ }
+            this.dirty = true;
+          }, 420);
+        }
         if (mode === 'scroll' && e.pointerType !== 'mouse' && L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom && !this.armed
           && !this.hitTest(e.offsetX, e.offsetY, L)) {
           const d = this.drag;
@@ -241,6 +258,7 @@ export class EditorView {
         this.drag = null;
         this.moveState = null;
         this.resizeState = null;
+        this.markerDrag = null;
       }
       this.dirty = true;
     });
@@ -280,6 +298,16 @@ export class EditorView {
           this.flagDrag = { kind: 'music', beat: orig + this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0)) };
         } else {
           this.flagDrag = { kind: 'playback', beat: this.snapRound(this.beatAt(e.offsetX)) };
+        }
+        this.edgeScroll(e.offsetX);
+      } else if (d.mode === 'marker') {
+        const md = this.markerDrag;
+        if (md) {
+          let b = this.snapRound(this.beatAt(e.offsetX));
+          // 最初のテンポ（拍0）より前・同じ位置には動かせない
+          if (md.kind === 'tempo') b = Math.max(b, this.snap > 0 ? this.snap : 0.0625);
+          md.beat = b;
+          md.valid = this.h.validateMarkerMove?.(md.kind, md.from, b) ?? true;
         }
         this.edgeScroll(e.offsetX);
       } else if (d.mode === 'box') {
@@ -330,7 +358,8 @@ export class EditorView {
       const d = this.drag;
       this.drag = null;
       clearTimeout(this.longTimer);
-      const ms = this.moveState, rs = this.resizeState, fd = this.flagDrag, box = this.box;
+      const ms = this.moveState, rs = this.resizeState, fd = this.flagDrag, box = this.box, md = this.markerDrag;
+      this.markerDrag = null;
       this.moveState = null;
       this.resizeState = null;
       this.flagDrag = null;
@@ -353,6 +382,7 @@ export class EditorView {
       }
       if (fd && fd.kind === 'music') this.h.onSetMusicStart?.(fd.beat);
       else if (fd && fd.kind === 'playback') this.h.onSetPlaybackStart?.(fd.beat);
+      else if (d.mode === 'marker' && md && Math.abs(md.beat - md.from) > 1e-6) this.h.onMoveMarker?.(md.kind, md.from, md.beat);
       else if (d.mode === 'move' && ms && (ms.dBeat || ms.dTrack)) this.h.onMove?.(ms.dBeat, ms.dTrack);
       else if (d.mode === 'resize' && rs && (rs.beat !== rs.ent.beat || rs.width !== rs.ent.width)) this.h.onResize?.(rs.ent, rs.beat, rs.width);
       else if (d.mode === 'scroll' && Math.abs(d.vx) > 0.15 && performance.now() - d.lt < 80) this.momentum = { v: d.vx, t: performance.now() };
@@ -402,8 +432,53 @@ export class EditorView {
     const hit = this.hitTest(x, y, L);
     if (hit) this.h.onSelect?.(hit, additive);
     else if (this.armed) this.h.onPlace?.(this.snapFloor(this.beatAt(x)), this.trackAt(y, L));
-    else this.h.onSelect?.(null, additive);
+    else {
+      // 拍子の大きな数字をタップ → その場で数字を入れる
+      const ts = this.h.canEdit?.() ? this.timeSigAt(x, y, L) : null;
+      if (ts) this.h.onTimeSigTap?.(ts);
+      else this.h.onSelect?.(null, additive);
+    }
     this.dirty = true;
+  }
+
+  // つかめるテンポ・音量の印（上半分はテンポ優先、下半分は音量優先）。最初のテンポは動かせない
+  markerAt(x, y, L) {
+    const R = this.remix;
+    const pick = (list) => {
+      let best = null, bd = 16;
+      for (const m of list) { const d = Math.abs(this.x(m.beat) - x); if (d <= bd) { bd = d; best = m; } }
+      return best;
+    };
+    const tempo = pick(R.tempoTrackers.filter((t) => !(t.isImmutable || Math.abs(t.beat) < 1e-6)));
+    const vol = pick(R.musicVolumes);
+    const T = tempo && { kind: 'tempo', from: tempo.beat }, V = vol && { kind: 'vol', from: vol.beat };
+    return (y < L.tracksBottom + 3 + L.tempoH * 0.5 ? T || V : V || T) || null;
+  }
+
+  // 拍子の数字の大きさと縦の位置
+  timeSigGeom(L) {
+    const size = Math.min((L.tracksBottom - L.tracksTop) * 0.56, 150);
+    const mid = (L.tracksTop + L.tracksBottom) / 2;
+    return { size, top: mid - size * 0.42, bottom: mid + size * 0.46 };
+  }
+
+  // 拍子の数字の箱（画面上の位置）。part は 'top'（拍数）か 'bottom'（音符）
+  timeSigBox(ts, part, L = this.layout()) {
+    const G = this.timeSigGeom(L);
+    this.ctx.font = `800 ${G.size}px ${FONT}`;
+    const w = Math.max(this.ctx.measureText(String(part === 'top' ? ts.perMeasure : ts.unit)).width, G.size * 0.5);
+    return { ts, part, x: this.x(ts.beat) + 2, cy: G[part], w, size: G.size };
+  }
+
+  timeSigAt(x, y, L) {
+    const list = this.remix.timeSignatures;
+    for (let i = list.length - 1; i >= 0; i--) {
+      for (const part of ['top', 'bottom']) {
+        const b = this.timeSigBox(list[i], part, L);
+        if (x >= b.x - 8 && x <= b.x + b.w + 8 && Math.abs(y - b.cy) <= b.size * 0.46) return b;
+      }
+    }
+    return null;
   }
 
   hitTest(x, y, L) {
@@ -506,12 +581,14 @@ export class EditorView {
     const tsSize = Math.min((L.tracksBottom - L.tracksTop) * 0.56, 150);
     g.font = `800 ${tsSize}px ${FONT}`;
     g.fillStyle = C.timeSig;
+    const tg = this.timeSigGeom(L);
+    const te = this.tsEditing;
     for (const ts of R.timeSignatures) {
       const x = this.x(ts.beat) + 2;
       if (x > W || x < -tsSize) continue;
-      const mid = (L.tracksTop + L.tracksBottom) / 2;
-      g.fillText(String(ts.perMeasure), x, mid - tsSize * 0.42);
-      g.fillText(String(ts.unit), x, mid + tsSize * 0.46);
+      const editing = te && Math.abs(te.beat - ts.beat) < 1e-6 ? te.part : '';
+      if (editing !== 'top') g.fillText(String(ts.perMeasure), x, tg.top);
+      if (editing !== 'bottom') g.fillText(String(ts.unit), x, tg.bottom);
     }
 
     // エンティティ
@@ -526,8 +603,11 @@ export class EditorView {
     const triH = Math.min(18, L.tempoH - 6);
     g.font = `700 ${Math.min(16, L.tempoH - 8)}px ${FONT}`;
     g.textBaseline = 'top';
+    const md = this.markerDrag;
     for (const t of R.tempo.list) {
-      const x = this.x(t.beat);
+      const dragging = md?.kind === 'tempo' && Math.abs(t.beat - md.from) < 1e-6;
+      const x = this.x(dragging ? md.beat : t.beat);
+      if (dragging) { this.drawMarkerGuide(g, L, x, md, C.tempoText); g.font = `700 ${Math.min(16, L.tempoH - 8)}px ${FONT}`; g.textBaseline = 'top'; }
       if (x < -120 || x > W + 10) continue;
       if (t.width > 0) {
         g.fillStyle = 'rgba(83,97,255,0.35)';
@@ -542,12 +622,15 @@ export class EditorView {
     g.font = `700 ${L.tempoH > 30 ? 12 : 10}px ${FONT}`;
     g.textBaseline = 'bottom';
     for (const mv of R.musicVolumes) {
-      const x = this.x(mv.beat);
+      const dragging = md?.kind === 'vol' && Math.abs(mv.beat - md.from) < 1e-6;
+      const x = this.x(dragging ? md.beat : mv.beat);
+      if (dragging) { this.drawMarkerGuide(g, L, x, md, C.volText); g.font = `700 ${L.tempoH > 30 ? 12 : 10}px ${FONT}`; g.textBaseline = 'bottom'; }
       if (x < -100 || x > W + 10) continue;
       const yb = L.tracksBottom + L.tempoH + 2;
       g.fillStyle = C.volText;
       if (mv.width > 0) { g.globalAlpha = 0.35; g.fillRect(x, yb - 4, mv.width * this.ppb, 3); g.globalAlpha = 1; }
-      g.beginPath(); g.moveTo(x, yb); g.lineTo(x - 5, yb - 8); g.lineTo(x + 5, yb - 8); g.closePath(); g.fill();
+      // 上向きの三角：てっぺんが置いた拍
+      g.beginPath(); g.moveTo(x, yb - 9); g.lineTo(x - 5.5, yb); g.lineTo(x + 5.5, yb); g.closePath(); g.fill();
       g.fillText(`${LABELS.volume} ${mv.volume}%`, x + 7, yb);
     }
 
@@ -567,6 +650,27 @@ export class EditorView {
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
     }
+  }
+
+  // テンポ・音量の印をドラッグ中：トラックを縦に貫く点線と、拍の数字（置けない位置は赤）
+  drawMarkerGuide(g, L, x, md, color) {
+    const c = md.valid ? color : '#ff4d4d';
+    g.save();
+    g.strokeStyle = c;
+    g.lineWidth = 1.5;
+    g.setLineDash([5, 4]);
+    g.beginPath(); g.moveTo(Math.round(x) + 0.5, L.tracksTop); g.lineTo(Math.round(x) + 0.5, L.tracksBottom + L.tempoH); g.stroke();
+    g.setLineDash([]);
+    g.font = `700 12px ${FONT}`;
+    g.textBaseline = 'top';
+    g.textAlign = 'left';
+    const label = `${LABELS.beat || 'Beat'} ${+md.beat.toFixed(3)}`;
+    const w = g.measureText(label).width + 8;
+    g.fillStyle = 'rgba(0,0,0,0.7)';
+    g.fillRect(x + 3, L.tracksTop + 2, w, 16);
+    g.fillStyle = c;
+    g.fillText(label, x + 7, L.tracksTop + 4);
+    g.restore();
   }
 
   // 拍の間の線（拍ちょうどの位置は拍の線に任せる）。半拍の線は少し濃く

@@ -1,11 +1,11 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=8';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=2';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=11';
+import { t, setLang, applyStatic } from './i18n.js?v=3';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=12';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.3';
+const VERSION = '1.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -73,6 +73,11 @@ const view = new EditorView($('view'), {
     scheduleAutosave();
   },
   onMarkerTap: (beat, snapped, tol) => openMarker(beat, snapped, tol),
+  onMarkerGrab: (kind) => setStatus(t(kind === 'tempo' ? 'テンポの印をつかみました。左右に動かしてください' : '音量の印をつかみました。左右に動かしてください')),
+  validateMarkerMove: (kind, from, to) => !!remix && !(kind === 'tempo' ? remix.tempoTrackers : remix.musicVolumes)
+    .some((m) => Math.abs(m.beat - to) < 1e-6 && Math.abs(m.beat - from) > 1e-6),
+  onMoveMarker: (kind, from, to) => moveMarker(kind, from, to),
+  onTimeSigTap: (box) => openTsEditor(box),
   isMultiSelect: () => multiSelect,
   onBoxStart: () => { multiSelect = true; updateCtxbar(); setStatus(t('範囲を指でなぞって選んでください')); },
   onBoxSelect: (hits, additive) => {
@@ -949,6 +954,84 @@ function openMarker(beat, snapped, tol) {
   $('markerModal').hidden = false;
 }
 
+// テンポ・音量の印をドラッグで動かしたとき
+function moveMarker(kind, from, to) {
+  if (!remix) return;
+  const list = kind === 'tempo' ? remix.tempoTrackers : remix.musicVolumes;
+  if (list.some((m) => Math.abs(m.beat - to) < 1e-6)) { toast(t('その位置にはもう印があります'), 2500); return; }
+  const b = +to.toFixed(3);
+  if (edit(() => remix.moveMarker(kind, from, to))) setStatus(t(kind === 'tempo' ? 'テンポを拍 {b} に動かしました' : '音量の変化を拍 {b} に動かしました', { b }));
+}
+
+// 拍子の大きな数字をタップ → 数字の上に入力欄を出して、そのままキーボードで入れる
+let tsEd = null;
+const tsInput = $('tsEdit');
+function placeTsEditor() {
+  if (!tsEd || !remix) return;
+  const ts = remix.timeSignatures.find((x) => Math.abs(x.beat - tsEd.beat) < 1e-6);
+  if (!ts) { closeTsEditor(false); return; }
+  const b = view.timeSigBox(ts, tsEd.part);
+  const r = $('view').getBoundingClientRect();
+  const s = b.size;
+  Object.assign(tsInput.style, {
+    left: `${Math.round(r.left + b.x - 6)}px`,
+    top: `${Math.round(r.top + b.cy - s * 0.55)}px`,
+    width: `${Math.round(Math.max(b.w, s * 1.15) + 14)}px`,
+    height: `${Math.round(s * 1.1)}px`,
+    fontSize: `${Math.round(s)}px`,
+  });
+}
+function openTsEditor(box) {
+  if (!remix || mode === 'playing') return;
+  closeTsEditor(true);
+  tsEd = { beat: box.ts.beat, part: box.part, opened: performance.now() };
+  tsInput.value = String(box.part === 'top' ? box.ts.perMeasure : box.ts.unit);
+  tsInput.hidden = false;
+  placeTsEditor();
+  view.tsEditing = { beat: tsEd.beat, part: tsEd.part };
+  view.dirty = true;
+  tsInput.focus();
+  try { tsInput.setSelectionRange(0, tsInput.value.length); } catch (_) { /* 選べない環境 */ }
+  setStatus(t(box.part === 'top' ? '1小節の拍数を入れてください' : '音符（2・4・8・16）を入れてください'));
+}
+function closeTsEditor(commit) {
+  if (!tsEd) return;
+  const ed = tsEd;
+  tsEd = null;
+  tsInput.hidden = true;
+  view.tsEditing = null;
+  view.dirty = true;
+  if (!commit || !remix) return;
+  const ts = remix.timeSignatures.find((x) => Math.abs(x.beat - ed.beat) < 1e-6);
+  const raw = tsInput.value.trim();
+  if (!ts || !raw) return;
+  const v = parseInt(raw, 10);
+  if (ed.part === 'top') {
+    if (!(v >= 1 && v <= 64)) { toast(t('拍数は 1〜64 の数で入れてください'), 2500); return; }
+    if (v !== ts.perMeasure && edit(() => remix.setTimeSignature(ts.beat, v, ts.unit))) setStatus(t('拍子を {n}/{u} にしました', { n: v, u: ts.unit }));
+  } else {
+    if (![2, 4, 8, 16].includes(v)) { toast(t('音符は 2・4・8・16 のどれかで入れてください'), 2500); return; }
+    if (v !== ts.unit && edit(() => remix.setTimeSignature(ts.beat, ts.perMeasure, v))) setStatus(t('拍子を {n}/{u} にしました', { n: ts.perMeasure, u: v }));
+  }
+}
+tsInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); tsInput.blur(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeTsEditor(false); }
+});
+tsInput.addEventListener('input', () => { tsInput.value = tsInput.value.replace(/[^0-9]/g, '').slice(0, 2); });
+tsInput.addEventListener('blur', () => closeTsEditor(true));
+// iPhone でキーボードを確実に出す：指を離した瞬間にもう一度入力欄へ
+$('view').addEventListener('touchend', (e) => {
+  if (tsEd && performance.now() - tsEd.opened < 800) {
+    e.preventDefault();
+    if (document.activeElement !== tsInput) tsInput.focus();
+  }
+}, { passive: false });
+$('view').addEventListener('pointerdown', () => { if (tsEd && performance.now() - tsEd.opened > 300) tsInput.blur(); });
+$('view').addEventListener('wheel', () => { if (tsEd) tsInput.blur(); }, { passive: true });
+window.addEventListener('resize', placeTsEditor);
+window.visualViewport?.addEventListener('resize', placeTsEditor);
+
 function setMarkerKind(kind) {
   markerCtx.kind = kind;
   for (const b of document.querySelectorAll('#markerModal [data-mt]')) b.classList.toggle('on', b.dataset.mt === kind);
@@ -961,7 +1044,7 @@ function setMarkerKind(kind) {
     existing = markerCtx.tempo;
     first = !!existing && (existing.isImmutable || Math.abs(existing.beat) < 1e-6);
     const b = existing ? existing.beat : markerCtx.beat;
-    $('markerInfo').textContent = existing ? t('拍 {b} のテンポです。', { b: fmtB(b) }) + (first ? t('最初のテンポなので削除はできません。') : '') : t('拍 {b} から、このテンポに変わります。', { b: fmtB(b) });
+    $('markerInfo').textContent = existing ? t('拍 {b} のテンポです。', { b: fmtB(b) }) + (first ? t('最初のテンポなので削除はできません。') : t('印を長押しすると、左右に動かせます。')) : t('拍 {b} から、このテンポに変わります。', { b: fmtB(b) });
     $('tempoInput').value = String(+(existing ? existing.bpm : remix.tempo.tempoAt(b)).toFixed(2));
     $('rampInput').value = String(existing ? existing.width : 0);
     const ratio = existing ? Number(existing.swingRatio) : 50;
@@ -971,14 +1054,14 @@ function setMarkerKind(kind) {
     existing = markerCtx.ts;
     first = !!existing && Math.abs(existing.beat) < 1e-6;
     const b = existing ? existing.beat : Math.round(markerCtx.beat);
-    $('markerInfo').textContent = existing ? t('拍 {b} の拍子です。', { b: fmtB(b) }) + (first ? t('最初の拍子なので削除はできません。') : '') : t('拍 {b} から、この拍子になります。', { b: fmtB(b) });
+    $('markerInfo').textContent = (existing ? t('拍 {b} の拍子です。', { b: fmtB(b) }) + (first ? t('最初の拍子なので削除はできません。') : '') : t('拍 {b} から、この拍子になります。', { b: fmtB(b) })) + t('大きな数字をタップしても変えられます。');
     const cur = existing || remix.measureAt(b);
     $('tsBeats').value = String(existing ? existing.perMeasure : cur.perMeasure || 4);
     $('tsUnit').value = String(existing ? existing.unit : 4);
   } else {
     existing = markerCtx.vol;
     const b = existing ? existing.beat : markerCtx.beat;
-    $('markerInfo').textContent = existing ? t('拍 {b} の音楽の音量です。', { b: fmtB(b) }) : t('拍 {b} から、音楽の音量が変わります。', { b: fmtB(b) });
+    $('markerInfo').textContent = existing ? t('拍 {b} の音楽の音量です。', { b: fmtB(b) }) + t('印を長押しすると、左右に動かせます。') : t('拍 {b} から、音楽の音量が変わります。', { b: fmtB(b) });
     $('volInput').value = String(existing ? existing.volume : Math.round(remix.musicVolumeAt(b + 1e-6) * 100));
     $('volRamp').value = String(existing ? existing.width : 0);
   }
