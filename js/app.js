@@ -3,7 +3,7 @@ import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=6';
 import { EditorView, fmtTime } from './view.js?v=5';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.4';
+const VERSION = '0.5';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -27,8 +27,7 @@ let armed = null; // 置こうとしているデータモデル（一覧で名�
 const undoStack = [];
 const redoStack = [];
 
-const SNAPS = [[0.25, '1/4'], [0.125, '1/8'], [0.5, '1/2'], [1, '1'], [0, '自由']];
-let snapIdx = 0;
+const SNAPS = [[1, '1'], [0.5, '1/2'], [0.25, '1/4'], [0.125, '1/8'], [0.0625, '1/16'], [0.03125, '1/32']];
 
 const SERIES_TABS = [
   ['used', '使用中'], ['tengoku', 'GBA'], ['ds', 'DS'], ['fever', 'Wii'], ['megamix', '3DS'],
@@ -1016,15 +1015,34 @@ $('metroBtn').addEventListener('click', () => {
   $('metroBtn').classList.toggle('on', metronome);
   $('metroBtn').setAttribute('aria-pressed', String(metronome));
 });
-$('snapBtn').addEventListener('click', () => {
-  snapIdx = (snapIdx + 1) % SNAPS.length;
-  view.snap = SNAPS[snapIdx][0];
-  $('snapVal').textContent = SNAPS[snapIdx][1];
+// スナップ：押すと選択肢が出る（1〜1/32）。選んだものは覚えておく
+function setSnap(v) {
+  const hit = SNAPS.find(([n]) => n === v) || SNAPS[2];
+  view.snap = hit[0];
+  $('snapVal').textContent = hit[1];
+  settings.snap = hit[0];
+  saveSettings();
+}
+function closeSnapMenu() { $('snapMenu').hidden = true; }
+$('snapBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const m = $('snapMenu');
+  if (!m.hidden) { closeSnapMenu(); return; }
+  m.innerHTML = SNAPS.map(([v, label]) => `<button data-snap="${v}" class="${v === view.snap ? 'on' : ''}" role="menuitemradio" aria-checked="${v === view.snap}">${label}</button>`).join('');
+  m.hidden = false;
+  const r = $('snapBtn').getBoundingClientRect();
+  const w = m.offsetWidth;
+  m.style.left = `${Math.max(6, Math.min(window.innerWidth - w - 6, r.left + r.width / 2 - w / 2))}px`;
+  m.style.top = `${r.bottom + 6}px`;
 });
-$('zoomIn').addEventListener('click', () => view.zoomBy(1.4));
-$('zoomOut').addEventListener('click', () => view.zoomBy(1 / 1.4));
-$('pageLeft').addEventListener('click', () => { view.scrollBeat -= view.visibleBeats * 0.8; view.lastUser = performance.now(); view.dirty = true; });
-$('pageRight').addEventListener('click', () => { view.scrollBeat += view.visibleBeats * 0.8; view.lastUser = performance.now(); view.dirty = true; });
+$('snapMenu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-snap]');
+  if (!b) return;
+  setSnap(Number(b.dataset.snap));
+  closeSnapMenu();
+});
+document.addEventListener('pointerdown', (e) => { if (!$('snapMenu').hidden && !e.target.closest('#snapMenu, #snapBtn')) closeSnapMenu(); });
+setSnap(Number(settings.snap) || 0.25);
 
 // 下のピッカー：背の低い画面（横向きのスマホ）では最初から畳む。向きごとに押した状態を覚える
 const panelPref = { short: null, tall: null };
@@ -1033,6 +1051,7 @@ function applyPanel() {
   const key = isShort() ? 'short' : 'tall';
   const collapsed = panelPref[key] ?? isShort();
   $('panel').classList.toggle('collapsed', collapsed);
+  $('panelToggle').classList.toggle('collapsed', collapsed);
   $('panelToggle').setAttribute('aria-expanded', String(!collapsed));
 }
 $('panelToggle').addEventListener('click', () => {

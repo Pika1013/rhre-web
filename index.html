@@ -137,15 +137,9 @@
 
   /* 下段のピッカー */
   #panel {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: auto minmax(0, 1fr);
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr);
     height: clamp(180px, 36vh, 320px); background: var(--panel); border-top: 2px solid var(--panel-line);
   }
-  .navrow {
-    grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
-    border-bottom: 1px solid #333; background: #202020;
-  }
-  .navrow .tb { --btn-size: 32px; background: #303030; }
-  .navhint { flex: 1; min-width: 0; text-align: center; font-size: 12px; font-weight: 700; color: #8a8a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   .pane + .pane { border-left: 2px solid var(--panel-line); }
   .pane-head {
@@ -247,10 +241,20 @@
     #timebox { min-width: 100px; }
   }
   /* ピッカーを畳んだとき（横向きのスマホでは最初から畳む） */
-  #panel.collapsed { height: auto; grid-template-rows: auto; }
-  #panel.collapsed .pane { display: none; }
-  #panelToggle svg { transition: transform 0.15s; }
-  #panel.collapsed #panelToggle svg { transform: rotate(180deg); }
+  #panel.collapsed { display: none; }
+  #panelToggle {
+    position: absolute; left: 6px; bottom: 0; z-index: 4; height: 24px; padding: 0 8px 0 4px; display: flex; align-items: center; gap: 2px;
+    border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font-size: 11px; font-weight: 700;
+  }
+  #panelToggle svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.4; fill: none; transition: transform 0.15s; }
+  #panelToggle.collapsed svg { transform: rotate(180deg); }
+  /* スナップの選択肢 */
+  .popover {
+    position: fixed; z-index: 25; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-radius: 8px;
+    background: #2f2f2f; border: 2px solid #555; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  .popover button { height: 38px; min-width: 56px; border-radius: 5px; border: 0; background: var(--btn); font-weight: 800; font-size: 16px; }
+  .popover button.on { background: #ffe14d; color: #1a1a1a; }
 
   @media (max-height: 460px) {
     :root { --btn-size: 32px; }
@@ -262,8 +266,6 @@
     #timebox .b { font-size: 10px; }
     #panel { height: 150px; }
     .pane-head { height: 32px; }
-    .navrow { padding-block: 2px; }
-    .navrow .tb { --btn-size: 28px; }
     .game { width: 40px; height: 40px; }
     .item .main { padding-block: 4px; font-size: 15px; }
     #ctxbar { padding-block: 3px; min-height: calc(var(--btn-size) + 6px); }
@@ -343,6 +345,7 @@
     <canvas id="view" aria-label="トラック"></canvas>
     <div id="subtitle" hidden></div>
     <div id="toast" role="status" hidden></div>
+    <button id="panelToggle" title="ゲーム一覧を隠す／出す" aria-label="ゲーム一覧を隠す／出す" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span>一覧</span></button>
     <div id="loading">
       <div class="card">
         <h2 id="loadTitle">準備中…</h2>
@@ -353,14 +356,6 @@
   </main>
 
   <section id="panel">
-    <div class="navrow">
-      <button class="tb" id="panelToggle" title="ピッカーを畳む／開く" aria-label="ピッカーを畳む／開く" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
-      <button class="tb" id="pageLeft" title="左へ" aria-label="左へスクロール"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <span class="navhint" id="navHint">パターン名を押してから、トラックの空いている所をタップすると置けます</span>
-      <button class="tb" id="pageRight" title="右へ" aria-label="右へスクロール"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-      <button class="tb" id="zoomOut" title="縮小" aria-label="縮小"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
-      <button class="tb" id="zoomIn" title="拡大" aria-label="拡大"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
-    </div>
     <div class="pane">
       <div class="pane-head" id="tabs" role="tablist">
         <input id="search" type="search" placeholder="検索" aria-label="ミニゲームを検索" autocomplete="off" enterkeyhint="search">
@@ -373,8 +368,10 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.4</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.5</span></footer>
 </div>
+
+<div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
 
 <div class="modal" id="menuModal" hidden>
   <div class="card">
@@ -485,7 +482,8 @@
     <ul>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
-      <li>下の ⌄ ボタン：ピッカーを畳む／開く</li>
+      <li>一覧の左上の「⌄ 一覧」：ゲーム一覧を隠す／出す</li>
+      <li>Snap：置く・動かす間隔（1〜1/32）を選ぶ</li>
     </ul>
     <p><b>編集</b></p>
     <ul>
@@ -508,6 +506,6 @@
 
 <input type="file" id="fileInput" hidden>
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
-<script type="module" src="js/app.js?v=7"></script>
+<script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>
