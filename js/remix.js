@@ -1,7 +1,7 @@
 // .rhref（remix.json）の解釈。テンポ・パターン展開・音の鳴らし方は RHRE fresh 本体と同じ規則に合わせてある。
 
 import { readZip } from './zip.js?v=4';
-import { SFXDatabase } from './db.js?v=4';
+import { SFXDatabase } from './db.js?v=5';
 
 // ---------------------------------------------------------------- テンポ（徐々の変化とスウィング込み）
 

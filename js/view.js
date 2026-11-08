@@ -69,6 +69,7 @@ export class EditorView {
     this.playhead = null;
     this.selection = new Set();
     this.armed = null; // 置こうとしている項目 { width, height, name, color }
+    this.drop = null; // 一覧からドラッグ中の置き場所 { beat, track, width, height, valid }
     this.hover = null; // マウスで置く位置の目安
     this.moveState = null;
     this.resizeState = null;
@@ -277,6 +278,18 @@ export class EditorView {
     }, { passive: false });
   }
 
+  // 下の一覧からドラッグしてきた指の位置 → 置く拍とトラック（トラックの外なら null）
+  dropTarget(clientX, clientY, height = 1) {
+    if (!this.remix) return null;
+    const r = this.cv.getBoundingClientRect();
+    const x = clientX - r.left, y = clientY - r.top;
+    if (x < 0 || x > r.width || y < 0 || y > r.height) return null;
+    const L = this.layout();
+    if (y < L.tracksTop || y > L.tracksBottom) return null;
+    const track = clamp(this.trackAt(y, L), 0, Math.max(0, L.tc - height));
+    return { beat: this.snapFloor(this.beatAt(x)), track, localX: x };
+  }
+
   // ドラッグ中に画面の端へ寄せたら、その方向へ少しずつ進む
   edgeScroll(x) {
     const zone = 28;
@@ -471,6 +484,10 @@ export class EditorView {
       const { ent, beat, width, valid } = this.resizeState;
       ghost(beat, ent.track, width, ent.height, valid);
     }
+    if (this.drop) {
+      const d = this.drop;
+      ghost(d.beat, d.track, d.width, d.height, d.valid);
+    }
     if (this.hover && this.armed) {
       const a = this.armed;
       const t = Math.max(0, Math.min(this.hover.track, L.tc - a.height));
@@ -609,61 +626,4 @@ function wrap(g, text, maxW, maxLines) {
   }
   if (line) out.push(line);
   return out;
-}
-
-// 全体の見取り図（デスクトップ版の下段右上にあるスクロールバー）
-export class Minimap {
-  constructor(canvas, view) {
-    this.cv = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.view = view;
-    this.dirty = true;
-    new ResizeObserver(() => { this.dirty = true; }).observe(canvas);
-    const go = (e) => {
-      if (!this.range) return;
-      const r = canvas.getBoundingClientRect();
-      const f = clamp((e.clientX - r.left) / r.width, 0, 1);
-      view.centerOn(this.range[0] + f * (this.range[1] - this.range[0]));
-    };
-    canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); this.down = true; go(e); });
-    canvas.addEventListener('pointermove', (e) => { if (this.down) go(e); });
-    canvas.addEventListener('pointerup', () => { this.down = false; });
-    canvas.addEventListener('pointercancel', () => { this.down = false; });
-  }
-
-  draw() {
-    const R = this.view.remix;
-    const r = this.cv.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    if (this.cv.width !== Math.round(r.width * dpr) || this.cv.height !== Math.round(r.height * dpr)) {
-      this.cv.width = Math.round(r.width * dpr);
-      this.cv.height = Math.round(r.height * dpr);
-    }
-    const g = this.ctx;
-    const W = r.width, H = r.height;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.fillStyle = '#151515';
-    g.fillRect(0, 0, W, H);
-    if (!R) return;
-    const start = Math.min(0, R.playbackStart) - 2;
-    const end = Math.max(R.endBeat, 8) + 2;
-    this.range = [start, end];
-    const sx = W / (end - start);
-    const rh = (H - 4) / R.trackCount;
-    g.strokeStyle = 'rgba(156,199,238,0.35)';
-    g.lineWidth = 1;
-    for (let t = 0; t <= R.trackCount; t++) { const y = Math.round(2 + t * rh) + 0.5; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-    for (const e of R.entities) {
-      g.fillStyle = e.o ? (C.entity[e.type] || C.entity.special) : C.entity.missing;
-      g.fillRect((e.beat - start) * sx, 2 + e.track * rh, Math.max(1, e.width * sx), Math.max(1, e.height * rh - 1));
-    }
-    const v0 = (this.view.scrollBeat - start) * sx, vw = this.view.visibleBeats * sx;
-    g.strokeStyle = '#ffffff';
-    g.lineWidth = 2;
-    g.strokeRect(v0, 1, Math.max(4, vw), H - 2);
-    if (this.view.playhead != null) {
-      g.fillStyle = C.playhead;
-      g.fillRect((this.view.playhead - start) * sx - 1, 0, 2, H);
-    }
-  }
 }

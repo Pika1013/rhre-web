@@ -1,9 +1,9 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=4';
-import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=4';
-import { EditorView, Minimap, fmtTime } from './view.js?v=4';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=6';
+import { AudioEngine, Player, Previewer, renderWav } from './audio.js?v=6';
+import { EditorView, fmtTime } from './view.js?v=5';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '0.2';
+const VERSION = '0.3';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -22,7 +22,6 @@ let mode = 'stopped'; // stopped | playing | paused
 let pausedSec = 0;
 let loading = false;
 let metronome = false;
-let armed = null; // 置こうとしているデータモデル
 let multiSelect = false;
 const undoStack = [];
 const redoStack = [];
@@ -35,6 +34,13 @@ const SERIES_TABS = [
   ['groove', 'Groove'], ['side', 'サイド'], ['other', 'その他'], ['special', '特殊'],
 ];
 let gamesIndex = [];
+
+// 設定（ブラウザに保存）。lang はミニゲームの言語違い（声）をどれで出すか
+const SETTINGS_KEY = 'rhre-web-settings';
+const settings = (() => {
+  try { return { lang: 'ja', ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch (_) { return { lang: 'ja' }; }
+})();
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) { /* 保存できない環境 */ } }
 let currentTab = 'used';
 let shownGame = null;
 
@@ -42,7 +48,6 @@ const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading,
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => selectEntity(ent, additive),
-  onPlace: (beat, track) => placeArmed(beat, track),
   validateMove: (dB, dT) => moveValid(dB, dT),
   onMove: (dB, dT) => doMove(dB, dT),
   validateResize: (ent, b, w) => !remix.collides(b, ent.track, w, ent.height, new Set([ent])),
@@ -60,7 +65,6 @@ const view = new EditorView($('view'), {
   },
   onTempoTap: (beat, marker) => openTempo(beat, marker),
 });
-const mini = new Minimap($('minimap'), view);
 
 // ---------------------------------------------------------------- 表示まわり
 
@@ -249,36 +253,127 @@ function selectEntity(ent, additive) {
   if (sel.size === 1) {
     const e = [...sel][0];
     setStatus(describe(e));
-    if (!armed && e.game && !e.game.id.startsWith('special')) showGameList(e.game, e.o);
+    if (!drag && e.game && !e.game.id.startsWith('special')) showGameList(e.game, e.o);
   } else if (sel.size > 1) setStatus(`${sel.size} 個を選択中`);
-  else setStatus(armed ? armHint() : summaryText());
+  else setStatus(summaryText());
 }
 
-function armHint() { return `「${cleanName(armed.name)}」を置く：トラックの空いている所をタップ`; }
-
-function setArmed(o) {
-  armed = o;
-  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) } : null;
-  view.hover = null;
-  view.dirty = true;
-  for (const row of $('list').querySelectorAll('.item')) row.classList.toggle('sel', !!o && row.dataset.id === o.id);
-  updateCtxbar();
-  setStatus(o ? armHint() : summaryText());
-  if (o && remix) engine.loadSounds(remix.soundUrlsOf(o), remix.db);
-}
-
-function placeArmed(beat, track) {
-  const o = armed;
-  if (!o || !remix) return;
-  if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return; }
+function placeAt(o, beat, track) {
+  if (!o || !remix) return false;
+  if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
   const ent = remix.createEntity(o, beat, track);
-  if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast('ほかのブロックと重なるので置けません', 2200); return; }
-  if (!edit(() => { remix.entities.push(ent); })) return;
+  if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast('ほかのブロックと重なるので置けません', 2200); return false; }
+  if (!edit(() => { remix.entities.push(ent); })) return false;
   view.selection.clear();
   view.selection.add(ent);
   updateCtxbar();
   setStatus(`置きました：${describe(ent)}`);
   engine.loadSounds(remix.soundUrlsOf(o), remix.db);
+  return true;
+}
+
+// ---------------------------------------------------------------- 右下の一覧からトラックへドラッグして置く
+// 指：左のつまみ（⠿）からはすぐ、名前は長押し（0.3秒）してからドラッグ。マウス：そのままドラッグ。
+
+let drag = null; // { o, size, x, y, target }
+
+function dragStart(o, x, y) {
+  if (!remix) return;
+  if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return; }
+  drag = { o, size: { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) }, x, y, target: null };
+  const g = $('dragGhost');
+  g.textContent = cleanName(o.name);
+  g.hidden = false;
+  document.body.classList.add('dragging');
+  engine.loadSounds(remix.soundUrlsOf(o), remix.db);
+  try { navigator.vibrate?.(10); } catch (_) { /* 未対応 */ }
+  dragMove(x, y);
+}
+
+function dragMove(x, y) {
+  if (!drag) return;
+  drag.x = x; drag.y = y;
+  const g = $('dragGhost');
+  g.style.transform = `translate(${Math.round(x)}px, ${Math.round(y - 46)}px) translate(-50%, -100%)`;
+  const t = view.dropTarget(x, y, drag.size.height);
+  drag.target = t;
+  if (t) {
+    view.edgeScroll(t.localX);
+    view.drop = { beat: t.beat, track: t.track, width: drag.size.width, height: drag.size.height,
+      valid: !remix.collides(t.beat, t.track, drag.size.width, drag.size.height) };
+  } else view.drop = null;
+  g.classList.toggle('bad', !t || !view.drop.valid);
+  view.dirty = true;
+}
+
+function dragEnd(cancel) {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  $('dragGhost').hidden = true;
+  document.body.classList.remove('dragging');
+  view.drop = null;
+  view.dirty = true;
+  if (!cancel && d.target) placeAt(d.o, d.target.beat, d.target.track);
+  else if (!cancel) setStatus('トラックの上で指を離すと置けます');
+}
+
+// ドラッグ中はページや一覧がスクロールしないようにする（iPhone 対策）
+document.addEventListener('touchmove', (e) => { if (drag) e.preventDefault(); }, { passive: false });
+
+function bindRowDrag(el, o, { immediate }) {
+  // マウス・ペン、またはつまみ（すぐドラッグ）
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    if (e.pointerType === 'touch' && !immediate) return; // 指で名前を触ったときは長押しで（下の touch 処理）
+    const sx = e.clientX, sy = e.clientY;
+    let started = false;
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
+    const move = (ev) => {
+      if (!started && (immediate || Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6)) { started = true; dragStart(o, ev.clientX, ev.clientY); }
+      if (started) dragMove(ev.clientX, ev.clientY);
+    };
+    const up = (ev) => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      if (started) { el.dataset.dragged = '1'; setTimeout(() => { delete el.dataset.dragged; }, 50); dragEnd(ev.type === 'pointercancel'); }
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  });
+  if (immediate) return;
+  // 指：長押ししてからドラッグ（すぐ動かしたときは一覧のスクロール）
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const t0 = e.touches[0];
+    const sx = t0.clientX, sy = t0.clientY;
+    let started = false;
+    let lx = sx, ly = sy;
+    const timer = setTimeout(() => { started = true; el.dataset.dragged = '1'; dragStart(o, lx, ly); }, 300);
+    const move = (ev) => {
+      const t = ev.touches[0];
+      lx = t.clientX; ly = t.clientY;
+      if (!started) { if (Math.hypot(lx - sx, ly - sy) > 8) cleanup(); return; }
+      ev.preventDefault();
+      dragMove(lx, ly);
+    };
+    const end = (ev) => {
+      const wasStarted = started;
+      cleanup();
+      if (wasStarted) { dragEnd(ev.type === 'touchcancel'); setTimeout(() => { delete el.dataset.dragged; }, 50); }
+    };
+    function cleanup() {
+      clearTimeout(timer);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', end);
+    }
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+  }, { passive: true });
 }
 
 function moveValid(dB, dT) {
@@ -364,12 +459,6 @@ const ICON = {
 function updateCtxbar() {
   const bar = $('ctxbar');
   if (!remix) { bar.hidden = true; return; }
-  if (armed) {
-    bar.innerHTML = `<button class="txtbtn" data-c="disarm">やめる</button><span class="lbl">置く：</span><span class="lbl" style="color:#fff">${esc(cleanName(armed.name))}</span>`
-      + `<span class="hint">トラックの空いている所をタップ（続けて置けます）</span>`;
-    bar.hidden = false;
-    return;
-  }
   const sel = [...view.selection];
   if (!sel.length && !multiSelect) { bar.hidden = true; return; }
   const one = sel.length === 1 ? sel[0] : null;
@@ -394,7 +483,6 @@ $('ctxbar').addEventListener('click', (e) => {
   const c = e.target.closest('[data-c]')?.dataset.c;
   if (!c) return;
   switch (c) {
-    case 'disarm': setArmed(null); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
     case 'semi-': changeSemitone(-1); break;
@@ -432,6 +520,41 @@ function usedGames() {
   return [...seen.values()];
 }
 
+// 同じミニゲームの言語違い（Air Rally の EN / JA など）は1つのアイコンにまとめる（デスクトップ版の group と同じ）
+const LANG_LABEL = { ja: '日本語', en: 'English', ko: '한국어', es: 'Español', fr: 'Français', it: 'Italiano', de: 'Deutsch' };
+const groupKey = (g) => `${g.series}|${g.group}`;
+
+function groupsOf(list) {
+  const map = new Map();
+  for (const g of list) {
+    const k = groupKey(g);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(g);
+  }
+  return [...map.values()].map((variants) => ({ variants, rep: pickVariant(variants) }));
+}
+
+function pickVariant(variants) {
+  return variants.find((v) => v.language === settings.lang)
+    || variants.find((v) => v.groupDefault)
+    || variants.find((v) => !v.language)
+    || variants[0];
+}
+
+function variantsOf(gid) {
+  const me = gamesIndex.find((g) => g.id === gid);
+  if (!me) return [];
+  const k = groupKey(me);
+  return gamesIndex.filter((g) => groupKey(g) === k);
+}
+
+function variantLabel(v, all) {
+  if (v.language) return LANG_LABEL[v.language] || v.language.toUpperCase();
+  const base = all.find((x) => x.groupDefault) || all[0];
+  const extra = v.name.replace(base?.group || '', '').replace(/[()（）]/g, '').trim();
+  return extra || '標準';
+}
+
 function renderGrid() {
   const grid = $('gameGrid');
   grid.textContent = '';
@@ -439,13 +562,11 @@ function renderGrid() {
   for (const t of $('tabs').querySelectorAll('.tab')) t.classList.toggle('on', !q && t.dataset.tab === currentTab);
   if (!remix) return;
   const used = new Set(usedGames().map((g) => g.id));
-  let list;
-  if (q) {
-    list = gamesIndex.filter((g) => !g.id.startsWith('special') && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.hints.some((h) => String(h).toLowerCase().includes(q)))).slice(0, 80);
-  } else if (currentTab === 'used') {
-    list = usedGames();
-    if (!list.length) { grid.innerHTML = '<div class="empty">まだ何も置いていません。上のタブからミニゲームを選んでください。</div>'; return; }
-  } else if (currentTab === 'special') {
+  let tiles; // [{ id, name, first?, variants? }]
+  if (!q && currentTab === 'used') {
+    tiles = usedGames();
+    if (!tiles.length) { grid.innerHTML = '<div class="empty">まだ何も置いていません。上のタブからミニゲームを選んでください。</div>'; return; }
+  } else if (!q && currentTab === 'special') {
     const b = document.createElement('button');
     b.className = 'game txt';
     b.textContent = 'End Remix';
@@ -456,36 +577,44 @@ function renderGrid() {
     });
     grid.appendChild(b);
     return;
-  } else if (currentTab === 'other') {
-    list = gamesIndex.filter((g) => (g.series === 'other' || g.noDisplay) && !g.id.startsWith('special'));
   } else {
-    list = gamesIndex.filter((g) => g.series === currentTab && !g.noDisplay);
+    let list;
+    if (q) list = gamesIndex.filter((g) => !g.id.startsWith('special') && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.hints.some((h) => String(h).toLowerCase().includes(q))));
+    else if (currentTab === 'other') list = gamesIndex.filter((g) => (g.series === 'other' || g.noDisplay) && !g.id.startsWith('special'));
+    else list = gamesIndex.filter((g) => g.series === currentTab && !g.noDisplay);
+    tiles = groupsOf(list)
+      .map(({ variants, rep }) => ({ id: rep.id, name: rep.group || rep.name, order: rep.order, variants }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
+      .slice(0, q ? 80 : 400);
   }
-  if (currentTab !== 'used' || q) list = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
-  if (!list.length) { grid.innerHTML = '<div class="empty">見つかりませんでした。</div>'; return; }
-  for (const g of list) {
+  if (!tiles.length) { grid.innerHTML = '<div class="empty">見つかりませんでした。</div>'; return; }
+  const shownKey = shownGame ? variantsOf(shownGame.id).map((v) => v.id) : [];
+  for (const t of tiles) {
+    const ids = t.variants ? t.variants.map((v) => v.id) : [t.id];
     const b = document.createElement('button');
-    b.className = 'game' + (shownGame?.id === g.id ? ' sel' : '');
-    b.title = g.name;
-    b.setAttribute('aria-label', g.name);
-    b.dataset.gid = g.id;
+    b.className = 'game' + (ids.some((id) => shownKey.includes(id) || shownGame?.id === id) ? ' sel' : '');
+    b.title = t.name;
+    b.setAttribute('aria-label', t.name);
+    b.dataset.gids = ids.join(' ');
     const img = document.createElement('img');
     img.alt = '';
     img.loading = 'lazy';
-    img.src = `${remix.db.base}games/${g.id}/icon.png`;
+    img.src = `${remix.db.base}games/${t.id}/icon.png`;
+    img.onerror = () => { if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = remix.db.rawUrl(img.src); } };
     b.appendChild(img);
-    if (used.has(g.id) && currentTab !== 'used') { const m = document.createElement('span'); m.className = 'mark'; b.appendChild(m); }
-    b.addEventListener('click', () => openGame(g.id, currentTab === 'used' && !q ? g.first : null));
+    if (currentTab !== 'used' && ids.some((id) => used.has(id))) { const m = document.createElement('span'); m.className = 'mark'; b.appendChild(m); }
+    if (t.variants && t.variants.length > 1) { const n = document.createElement('span'); n.className = 'vcount'; n.textContent = t.variants.length; b.appendChild(n); }
+    b.addEventListener('click', () => openGame(t.id, !q && currentTab === 'used' ? t.first : null));
     grid.appendChild(b);
   }
 }
 
-async function openGame(gid, jumpBeat) {
+async function openGame(gid, jumpBeat, highlightObj) {
   setStatus('読み込み中…');
   try {
     const game = await remix.db.loadGame(gid);
-    showGameList(game);
-    setStatus(game.name);
+    showGameList(game, highlightObj);
+    setStatus(`${game.name} ／ ${isTouch ? '名前を長押しするか ⠿ をつまんで' : '名前を'}トラックへドラッグすると置けます`);
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
     toast(`${gid} を読み込めませんでした`, 3000);
@@ -495,10 +624,31 @@ async function openGame(gid, jumpBeat) {
 const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり' };
 const PV_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
 
+function renderListHead(game) {
+  const head = $('listHead');
+  head.textContent = '';
+  const title = document.createElement('span');
+  title.className = 'lh-title';
+  title.textContent = game.name;
+  head.appendChild(title);
+  const vs = variantsOf(game.id);
+  if (vs.length > 1) {
+    for (const v of [...vs].sort((a, b) => (a.language ? 0 : 1) - (b.language ? 0 : 1) || String(a.language).localeCompare(String(b.language)))) {
+      const c = document.createElement('button');
+      c.className = 'chip' + (v.id === game.id ? ' on' : '');
+      c.textContent = variantLabel(v, vs);
+      c.title = v.name;
+      c.addEventListener('click', () => openGame(v.id));
+      head.appendChild(c);
+    }
+  }
+}
+
 function showGameList(game, highlightObj, filter) {
   shownGame = game;
-  $('listHead').textContent = game.name;
-  for (const b of $('gameGrid').children) b.classList?.toggle('sel', b.dataset?.gid === game.id);
+  renderListHead(game);
+  const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
+  for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
   let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || o.type === 'endEntity'));
   if (filter) objs = objs.filter(filter);
@@ -507,11 +657,16 @@ function showGameList(game, highlightObj, filter) {
   list.textContent = '';
   for (const o of objs) {
     const row = document.createElement('div');
-    row.className = 'item' + ((armed ? armed === o : o === highlightObj) ? ' sel' : '');
+    row.className = 'item' + (o === highlightObj ? ' sel' : '');
     row.dataset.id = o.id;
+    const grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.title = 'ドラッグしてトラックに置く';
+    grip.setAttribute('aria-hidden', 'true');
+    grip.textContent = '⠿';
     const main = document.createElement('button');
     main.className = 'main';
-    main.title = '押してからトラックをタップすると置けます';
+    main.title = 'トラックへドラッグすると置けます';
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     arrow.textContent = '➜';
@@ -529,8 +684,15 @@ function showGameList(game, highlightObj, filter) {
       txt.appendChild(tags);
     }
     main.append(arrow, txt);
-    main.addEventListener('click', () => { setArmed(armed === o ? null : o); });
-    row.appendChild(main);
+    main.addEventListener('click', () => {
+      if (main.dataset.dragged) return;
+      for (const r of list.children) r.classList?.remove('sel');
+      row.classList.add('sel');
+      setStatus(`「${cleanName(o.name)}」：${isTouch ? '長押しするか ⠿ をつまんで' : ''}トラックへドラッグすると置けます`);
+    });
+    bindRowDrag(main, o, { immediate: false });
+    bindRowDrag(grip, o, { immediate: true });
+    row.append(grip, main);
     if (remix.model.hasSound(o)) {
       const pv = document.createElement('button');
       pv.className = 'pv';
@@ -566,16 +728,14 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   remix.musicPresent = !!musicFile;
   undoStack.length = 0;
   redoStack.length = 0;
-  armed = null;
   multiSelect = false;
-  view.armed = null;
   view.setRemix(remix);
   shownGame = null;
   currentTab = 'used';
   $('search').value = '';
   renderGrid();
   $('listHead').textContent = 'パターン';
-  $('list').innerHTML = '<div class="empty">ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックをタップすると置けます。🔊で試聴できます。</div>';
+  $('list').innerHTML = '<div class="empty">ミニゲームを選ぶと、パターンが並びます。トラックへドラッグすると置けます。🔊で試聴できます。</div>';
   const sounds = [...remix.allSoundCues().keys()];
   const failed = await engine.loadSounds(sounds, remix.db, (d, t) => showLoading(name, `効果音を読み込み中 ${d} / ${t}`, 0.25 + 0.75 * (d / t)));
   if (musicFile) {
@@ -866,7 +1026,6 @@ function frame(now) {
   if (view.dirty) {
     view.dirty = false;
     view.draw(now);
-    mini.draw();
   }
   requestAnimationFrame(frame);
 }
@@ -973,6 +1132,22 @@ function openHelp() {
   $('helpModal').hidden = false;
 }
 $('helpBtn').addEventListener('click', openHelp);
+
+// 設定画面
+$('settingsBtn').addEventListener('click', () => {
+  $('langSelect').value = settings.lang;
+  $('settingsModal').hidden = false;
+});
+$('langSelect').addEventListener('change', () => {
+  settings.lang = $('langSelect').value;
+  saveSettings();
+  renderGrid();
+  if (shownGame) {
+    const vs = variantsOf(shownGame.id);
+    if (vs.length > 1) { const v = pickVariant(vs); if (v.id !== shownGame.id) openGame(v.id); }
+  }
+});
+$('settingsClose').addEventListener('click', () => { $('settingsModal').hidden = true; });
 $('helpClose').addEventListener('click', () => { $('helpModal').hidden = true; });
 
 let exportUrl = null;
@@ -1012,7 +1187,7 @@ window.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); }
   else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { if (view.selection.size) { e.preventDefault(); deleteSelection(); } }
-  else if (e.key === 'Escape') { if (armed) setArmed(null); else { view.selection.clear(); view.dirty = true; updateCtxbar(); } }
+  else if (e.key === 'Escape') { if (drag) dragEnd(true); else { view.selection.clear(); view.dirty = true; updateCtxbar(); } }
 });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', async (e) => {

@@ -1,7 +1,7 @@
 // Web Audio による再生・試聴・WAV書き出し。
 // 発音は少し先まで予約していく方式（ルックアヘッド）なので、タイマーが多少遅れても音の時刻はずれない。
 
-import { mapLimit } from './db.js?v=4';
+import { mapLimit } from './db.js?v=5';
 
 const OGG_DECODER_URL = 'https://cdn.jsdelivr.net/npm/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js';
 const LOOKAHEAD = 0.6; // 秒
@@ -269,7 +269,8 @@ export class Player {
     this.out.connect(this.engine.master);
     this.ctxT0 = ctx.currentTime + 0.08;
     this.t0 = fromSec;
-    this.endSec = remix.durationSec;
+    // End Remix を置いていなければ、止めるまでずっと進む（デスクトップ版と同じ）
+    this.endSec = remix.hasEndEntity ? remix.durationSec : Infinity;
     this.sources = [];
     this.visual = [];
     for (const ev of this.events) {

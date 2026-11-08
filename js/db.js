@@ -47,6 +47,8 @@ export class SFXDatabase {
   constructor(commit) {
     this.commit = (commit || 'master').trim();
     this.base = `${CDN}${DB_REPO}@${this.commit}/`;
+    // jsDelivr が混んでいる・断られたときの予備（GitHub から直接）
+    this.rawBase = `https://raw.githubusercontent.com/${DB_REPO}/${this.commit}/`;
     this.cacheName = `rhre-db-${this.commit}`;
     this.games = new Map();
     this.objects = new Map();
@@ -58,8 +60,23 @@ export class SFXDatabase {
     return id.split(/[_/]/)[0];
   }
 
+  // まず jsDelivr、だめなら GitHub から直接
+  async fetchWithFallback(url) {
+    let res = null;
+    try { res = await cachedFetch(url, this.cacheName); } catch (_) { /* 下で予備へ */ }
+    if ((!res || !res.ok) && url.startsWith(this.base)) {
+      try { res = await fetch(this.rawBase + url.slice(this.base.length)); } catch (_) { /* そのまま */ }
+    }
+    if (!res) throw new Error(`${url} を取得できません`);
+    return res;
+  }
+
+  rawUrl(url) {
+    return url.startsWith(this.base) ? this.rawBase + url.slice(this.base.length) : url;
+  }
+
   async fetchText(path) {
-    let res = await cachedFetch(this.base + path, this.cacheName);
+    let res = await this.fetchWithFallback(this.base + path);
     if (!res.ok && this.commit !== 'master') {
       // コミットが見つからないときは最新版で再挑戦
       res = await fetch(`${CDN}${DB_REPO}@master/${path}`);
@@ -138,7 +155,7 @@ export class SFXDatabase {
   }
 
   async fetchBinary(url) {
-    const res = await cachedFetch(url, this.cacheName);
+    const res = await this.fetchWithFallback(url);
     if (!res.ok) throw new Error(`${url} を取得できません (${res.status})`);
     return res.arrayBuffer();
   }

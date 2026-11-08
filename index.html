@@ -142,8 +142,7 @@
     border-bottom: 1px solid #333; background: #202020;
   }
   .navrow .tb { --btn-size: 32px; background: #303030; }
-  .mini-wrap { position: relative; flex: 1; min-width: 0; height: 30px; }
-  #minimap { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid #5b5b5b; touch-action: none; display: block; }
+  .navhint { flex: 1; min-width: 0; text-align: center; font-size: 12px; font-weight: 700; color: #8a8a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   .pane + .pane { border-left: 2px solid var(--panel-line); }
   .pane-head {
@@ -185,10 +184,38 @@
   .item .pv { flex: none; width: 44px; border: 0; background: none; display: grid; place-items: center; }
   .item .pv svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 2; opacity: 0.85; }
   .empty { padding: 14px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  #listHead { overflow-x: auto; scrollbar-width: none; }
+  #listHead::-webkit-scrollbar { display: none; }
+  .lh-title { flex: none; color: #ddd; margin-right: 2px; }
+  .chip {
+    flex: none; height: 26px; padding: 0 9px; border-radius: 13px; border: 1px solid #4a4a4a; background: #262626;
+    font-weight: 700; font-size: 12px; color: #cfcfcf;
+  }
+  .chip.on { background: var(--accent); color: #102028; border-color: var(--accent); }
+  .game .vcount {
+    position: absolute; left: -3px; top: -3px; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 7px;
+    background: #444; color: #fff; font-size: 10px; font-weight: 800; line-height: 14px; text-align: center;
+  }
+  .item .grip {
+    flex: none; width: 26px; display: grid; place-items: center; color: #7d7d7d; font-size: 18px; touch-action: none; cursor: grab;
+  }
+  .item .main { touch-action: pan-y; }
+  #dragGhost {
+    position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; padding: 6px 12px; border-radius: 6px;
+    background: rgba(25, 240, 255, 0.92); color: #06262c; font-weight: 800; font-size: 15px; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+  #dragGhost.bad { background: rgba(255, 90, 90, 0.92); color: #2a0606; }
+  body.dragging, body.dragging * { cursor: grabbing !important; }
+  .field select {
+    flex: 1; min-width: 0; height: 40px; border-radius: 5px; border: 1px solid #555; background: #161616; color: var(--text);
+    font: 700 16px var(--font); padding: 0 8px;
+  }
 
   #status {
     display: flex; justify-content: space-between; gap: 12px; align-items: center;
-    padding: 3px max(8px, env(safe-area-inset-left, 0px)) calc(3px + env(safe-area-inset-bottom, 0px));
+    /* 下の余白はホームバーにかぶらない最小限だけ */
+    padding: 3px max(8px, env(safe-area-inset-left, 0px)) calc(2px + env(safe-area-inset-bottom, 0px) * 0.3);
     background: #0e0e0e; font-size: 13px; font-weight: 500; min-height: 18px;
   }
   #statusText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -234,17 +261,15 @@
     #timebox .t { font-size: 15px; }
     #timebox .b { font-size: 10px; }
     #panel { height: 150px; }
-    #listHead { display: none; }
     .pane-head { height: 32px; }
     .navrow { padding-block: 2px; }
     .navrow .tb { --btn-size: 28px; }
-    .mini-wrap { height: 26px; }
     .game { width: 40px; height: 40px; }
     .item .main { padding-block: 4px; font-size: 15px; }
     #ctxbar { padding-block: 3px; }
     #ctxbar .tb { --btn-size: 32px; }
     #ctxbar .txtbtn { height: 32px; }
-    #status { font-size: 11px; padding-block: 1px calc(1px + env(safe-area-inset-bottom, 0px)); min-height: 0; }
+    #status { font-size: 11px; padding-block: 1px calc(1px + env(safe-area-inset-bottom, 0px) * 0.25); min-height: 0; }
     .card { padding: 10px 14px; }
     .card h2 { font-size: 15px; margin-bottom: 4px; }
     .card p { font-size: 13px; margin-bottom: 4px; }
@@ -304,8 +329,11 @@
       <button class="tb" id="fsBtn" title="全画面" aria-label="全画面" hidden>
         <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
       </button>
-      <button class="tb" id="helpBtn" title="使い方" aria-label="使い方">
+      <button class="tb desk" id="helpBtn" title="使い方" aria-label="使い方">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17.5v.01"/></svg>
+      </button>
+      <button class="tb" id="settingsBtn" title="設定" aria-label="設定">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
     </div>
   </header>
@@ -329,7 +357,7 @@
     <div class="navrow">
       <button class="tb" id="panelToggle" title="ピッカーを畳む／開く" aria-label="ピッカーを畳む／開く" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
       <button class="tb" id="pageLeft" title="左へ" aria-label="左へスクロール"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <div class="mini-wrap"><canvas id="minimap" aria-label="全体図（タップで移動）"></canvas></div>
+      <span class="navhint" id="navHint">右下のパターンをトラックへドラッグして置けます</span>
       <button class="tb" id="pageRight" title="右へ" aria-label="右へスクロール"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
       <button class="tb" id="zoomOut" title="縮小" aria-label="縮小"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
       <button class="tb" id="zoomIn" title="拡大" aria-label="拡大"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
@@ -342,11 +370,11 @@
     </div>
     <div class="pane">
       <div class="pane-head" id="listHead">パターン</div>
-      <div id="list"><div class="empty">ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックをタップすると置けます。🔊で試聴できます。</div></div>
+      <div id="list"><div class="empty">ミニゲームを選ぶと、パターンが並びます。トラックへドラッグすると置けます。🔊で試聴できます。</div></div>
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.3</span></footer>
 </div>
 
 <div class="modal" id="menuModal" hidden>
@@ -431,6 +459,25 @@
   </div>
 </div>
 
+<div class="modal" id="settingsModal" hidden>
+  <div class="card">
+    <h2>設定</h2>
+    <div class="field"><label for="langSelect">ミニゲームの言語</label>
+      <select id="langSelect">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+        <option value="ko">한국어</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="it">Italiano</option>
+        <option value="de">Deutsch</option>
+      </select>
+    </div>
+    <p>同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
+    <div class="row"><button class="btn" id="settingsClose">閉じる</button></div>
+  </div>
+</div>
+
 <div class="modal" id="helpModal" hidden>
   <div class="card">
     <h2>RHRE Web（試作）</h2>
@@ -439,11 +486,11 @@
     <ul>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
-      <li>全体図の左の ⌄ ボタン：下のピッカーを畳む／開く</li>
+      <li>下の ⌄ ボタン：ピッカーを畳む／開く</li>
     </ul>
     <p><b>編集</b></p>
     <ul>
-      <li>置く：下でミニゲーム → パターン名を押す → トラックの空いている所をタップ（続けて置けます）</li>
+      <li>置く：下でミニゲームを選び、右下のパターンをトラックへドラッグ（指は ⠿ をつまむか、名前を長押ししてから）</li>
       <li>選ぶ：ブロックをタップ。「複数選択」を押すと、タップで追加・解除できます</li>
       <li>動かす：選んだブロックをドラッグ（重なる所には置けません）</li>
       <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
@@ -460,8 +507,9 @@
   </div>
 </div>
 
+<div id="dragGhost" hidden></div>
 <input type="file" id="fileInput" hidden>
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
-<script type="module" src="js/app.js?v=4"></script>
+<script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
