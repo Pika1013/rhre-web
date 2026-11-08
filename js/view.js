@@ -606,6 +606,7 @@ export class EditorView {
       this.drawEntity(g, e, L, now);
     }
     this.drawEditOverlay(g, L);
+    if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
     // テンポ変更・音量変更
     const ty = L.tracksBottom + 3;
@@ -658,6 +659,34 @@ export class EditorView {
       g.strokeStyle = C.playhead;
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
+    }
+  }
+
+  // プレイモード：ボタンのキューの位置に、トラックの高さの真ん中で大きな白い丸（A・B・十字・Tap など）
+  drawPlayalongInputs(g, L, b0, b1) {
+    const ents = this.remix.entities.filter((e) => e.type === 'playalongEntity' && e.beat + e.width >= b0 - 2 && e.beat <= b1 + 2);
+    if (!ents.length) return;
+    const cy = (L.tracksTop + L.tracksBottom) / 2;
+    const r = clamp(Math.min((L.tracksBottom - L.tracksTop) * 0.2, this.ppb * 0.42), 10, 72);
+    const release = (m) => m === 'RELEASE' || m === 'RELEASE_AND_HOLD';
+    for (const e of ents) {
+      const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
+      const instant = e.o.method === 'PRESS' || e.o.method === 'RELEASE';
+      g.save();
+      if (e.judge) g.globalAlpha = 0.45;
+      // 押しっぱなしなどは、終わりまで白い帯でつなぐ
+      if (!instant) {
+        g.fillStyle = '#1a1a1a';
+        g.fillRect(x0, cy - r * 0.32, x1 - x0, r * 0.64);
+        g.fillStyle = '#ffffff';
+        g.fillRect(x0, cy - r * 0.2, x1 - x0, r * 0.4);
+        // 終わり：離すときは縁だけの丸、押すときは白い丸
+        drawBigInput(g, e.o.input, x1, cy, r * 0.62, e.o.method === 'RELEASE_AND_HOLD' ? false : e.o.method !== 'LONG_PRESS');
+      }
+      g.fillStyle = 'rgba(26, 26, 26, 0.9)';
+      g.fillRect(x0 - r * 1.18, cy - r * 1.18, r * 2.36, r * 2.36);
+      drawBigInput(g, e.o.input, x0, cy, r, release(e.o.method));
+      g.restore();
     }
   }
 
@@ -797,7 +826,7 @@ export class EditorView {
     }
     if (this.hover && this.armed) {
       const a = this.armed;
-      const t = Math.max(0, Math.min(this.hover.track, L.tc - a.height));
+      const t = a.bottom ? L.tc - 1 : Math.max(0, Math.min(this.hover.track, L.tc - a.height));
       ghost(this.hover.beat, t, a.width, a.height, true);
     }
     // つまみ（1つだけ選んでいて、伸ばせるとき）
@@ -924,10 +953,10 @@ export class EditorView {
     g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
     const iconSize = Math.min(L.rowH - 8, 30);
     let tx = x + 4;
-    // プレイアロング：ゲームのアイコンの代わりに、押すボタンの記号
+    // プレイアロング：小さいアイコン（水色の四角に白い丸）
     if (e.type === 'playalongEntity' && w > iconSize + 2) {
-      const gw = drawInputGlyph(g, e.o.input, x + 3, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize);
-      tx += gw + 3;
+      drawPlayalongIcon(g, x + 4, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize);
+      tx += iconSize + 3;
     }
     const icon = e.game && e.type !== 'playalongEntity' ? getIcon(e.game.icon, () => { this.dirty = true; }) : null;
     if (icon && w > iconSize + 6) {
@@ -941,23 +970,11 @@ export class EditorView {
     g.textAlign = 'left';
     g.textBaseline = 'top';
     const maxW = x + w - 4 - tx;
-    // プレイアロングは記号だけで分かるので、狭いときは名前を出さない
-    if (maxW > (e.type === 'playalongEntity' ? 36 : 8)) {
-      const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}` : e.name;
+    if (maxW > 8) {
+      const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}`
+        : e.type === 'playalongEntity' ? `Playalong ${e.name}` : e.name;
       const lines = wrap(g, label, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
       lines.forEach((ln, i) => g.fillText(ln, tx, y + 3 + i * (fs + 2)));
-    }
-    // プレイアロングの判定の印（右上）
-    if (e.judge) {
-      const J = { ACE: ['◎', '#2fd16a'], GOOD: ['○', '#8fdc4a'], BARELY: ['△', '#f2c230'], MISS: ['×', '#ff4d4d'] }[e.judge] || ['?', '#999'];
-      const s = Math.min(18, h - 4);
-      g.fillStyle = J[1];
-      g.beginPath(); g.arc(x + w - s / 2 - 3, y + s / 2 + 2, s / 2, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#111';
-      g.font = `800 ${Math.round(s * 0.72)}px ${FONT}`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(J[0], x + w - s / 2 - 3, y + s / 2 + 2.5);
     }
     if (e.semitone || e.volume !== 100) {
       const tag = [e.semitone ? (e.semitone > 0 ? `+${e.semitone}` : `${e.semitone}`) : '', e.volume !== 100 ? `${e.volume}%` : ''].filter(Boolean).join(' ');
@@ -969,6 +986,56 @@ export class EditorView {
     }
     g.restore();
   }
+}
+
+// プレイモードの大きな丸。hollow＝離すとき（黒い丸に白い文字）
+function drawBigInput(g, input, cx, cy, r, hollow) {
+  const ink = hollow ? '#ffffff' : '#111111';
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fillStyle = hollow ? '#1a1a1a' : '#ffffff'; g.fill();
+  g.lineWidth = Math.max(2, r * 0.09); g.strokeStyle = hollow ? '#ffffff' : '#000000'; g.stroke();
+  g.fillStyle = ink;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const cross = (size, dir) => {
+    const a = size * 0.34, b = size / 2;
+    g.fillRect(cx - a / 2, cy - b, a, size); g.fillRect(cx - b, cy - a / 2, size, a);
+    if (dir != null) {
+      g.save(); g.translate(cx, cy); g.rotate(dir);
+      g.fillStyle = hollow ? '#1a1a1a' : '#ffffff';
+      g.beginPath(); g.moveTo(b * 0.92, 0); g.lineTo(b * 0.42, -a * 0.36); g.lineTo(b * 0.42, a * 0.36); g.closePath(); g.fill();
+      g.restore();
+    }
+  };
+  if (input === 'BUTTON_A' || input === 'BUTTON_B') {
+    g.font = `800 ${Math.round(r * 1.15)}px ${FONT}`;
+    g.fillText(input === 'BUTTON_A' ? 'A' : 'B', cx, cy + r * 0.05);
+  } else if (input === 'BUTTON_A_OR_DPAD') {
+    g.font = `800 ${Math.round(r * 0.72)}px ${FONT}`;
+    g.fillText('A/+', cx, cy + r * 0.04);
+  } else if (input && input.startsWith('BUTTON_DPAD')) {
+    cross(r * 1.25, ARROW[input]);
+  } else {
+    const label = { TOUCH_TAP: 'Tap', TOUCH_FLICK: 'Flick', TOUCH_RELEASE: 'Release', TOUCH_QUICK_TAP: 'Quick\nTap', TOUCH_SLIDE: 'Slide' }[input] || 'Tap';
+    const lines = label.split('\n');
+    const fs = Math.round(r * (lines.length > 1 ? 0.4 : 0.48));
+    g.font = `800 ${fs}px ${FONT}`;
+    lines.forEach((ln, i) => g.fillText(ln, cx, cy + (i - (lines.length - 1) / 2) * fs * 1.05));
+  }
+}
+
+// ブロックの小さいアイコン（プレイアロング）
+function drawPlayalongIcon(g, x, y, s) {
+  g.save();
+  g.fillStyle = '#3fb7c9';
+  g.fillRect(x, y, s, s);
+  g.fillStyle = '#ffffff';
+  g.beginPath(); g.arc(x + s / 2, y + s / 2, s * 0.36, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3fb7c9';
+  g.font = `800 ${Math.round(s * 0.46)}px ${FONT}`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('A', x + s / 2, y + s / 2 + s * 0.03);
+  g.restore();
 }
 
 // プレイアロングの記号（A＝赤い丸、B＝黄色い丸、十字＝灰色の十字と矢印、タッチ＝指の丸）。描いた幅を返す

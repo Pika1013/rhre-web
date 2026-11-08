@@ -1,12 +1,12 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=10';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=12';
-import { customRegistry } from './db.js?v=7';
-import { t, setLang, applyStatic } from './i18n.js?v=10';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=17';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=13';
+import { customRegistry } from './db.js?v=8';
+import { t, setLang, applyStatic } from './i18n.js?v=11';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=18';
 import { makeZip } from './zip.js?v=4';
-import { PLAYALONG_GAME_ID, PlayalongJudge, hasPlayalong, INPUT } from './playalong.js?v=1';
+import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '2.6';
+const VERSION = '2.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -54,6 +54,8 @@ const settings = (() => {
 if (settings.keepAlive) engine.useKeepAlive = true;
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) { /* 保存できない環境 */ } }
 let currentTab = 'used';
+let playMode = false; // プレイモード（ボタンのキューに合わせて押して遊ぶ）
+let judge = null;
 let shownGame = null;
 
 const view = new EditorView($('view'), {
@@ -148,6 +150,7 @@ function updateButtons() {
   $('saveBtn').disabled = !ready;
   $('undoBtn').disabled = !ready || !undoStack.length;
   $('redoBtn').disabled = !ready || !redoStack.length;
+  document.documentElement.classList.toggle('pa-playing', playMode && mode === 'playing');
   // 編集バーの再生ボタンも同じ状態に
   for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn']]) {
     const b = $('ctxbar').querySelector(`[data-c="${c}"]`);
@@ -302,7 +305,7 @@ function selectEntity(ent, additive) {
 function placeAt(o, beat, track) {
   if (!o || !remix) return false;
   if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
-  const ent = remix.createEntity(o, beat, track);
+  const ent = remix.createEntity(o, beat, o.type === 'playalongEntity' ? remix.trackCount - 1 : track);
   if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   if (!edit(() => { remix.entities.push(ent); })) return false;
@@ -327,7 +330,7 @@ function armHint() { return t('「{name}」を置く：トラックの空いて�
 function setArmed(o) {
   armed = o;
   if (o) pasteArmed = false;
-  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) } : null;
+  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount), bottom: o.type === 'playalongEntity' } : null;
   view.hover = null;
   view.dirty = true;
   for (const row of $('list').querySelectorAll('.item')) row.classList.toggle('sel', !!o && row.dataset.id === o.id);
@@ -649,7 +652,7 @@ function renderGrid() {
     // ボタンを押して遊ぶキュー（プレゼンテーションモードで遊べる）
     const pb = document.createElement('button');
     pb.className = 'game txt';
-    pb.textContent = t('🎮 プレイアロング');
+    pb.textContent = t('プレイアロング');
     pb.addEventListener('click', () => openPlayalongList());
     grid.appendChild(pb);
     openSpecial();
@@ -707,8 +710,8 @@ async function openSpecial() {
 function openPlayalongList() {
   const g = remix.db.games.get(PLAYALONG_GAME_ID);
   if (!g) return;
-  showGameList({ id: '__playalong', name: t('プレイアロング（プレゼンテーションモードで遊べる）'), objects: g.objects });
-  setStatus(t('置いたら、メニューの「プレゼンテーションモード」で遊べます'));
+  showGameList({ id: '__playalong', name: 'Playalong', objects: g.objects });
+  setStatus(t('置くとトラックの一番下に入ります。上のプレイモードのボタンを押すと遊べます'));
 }
 
 async function openGame(gid, jumpBeat, highlightObj) {
@@ -1225,7 +1228,6 @@ function startPlayback(fromSec) {
   previewer.stop();
   player.metronome = metronome;
   player.onEnd = () => {
-    if (judge && presenting && !paEnded) { finishPlayalong(); return; }
     mode = 'stopped';
     view.playhead = null;
     view.dirty = true;
@@ -1245,8 +1247,10 @@ function play() {
   if (!remix || loading || mode === 'playing') return;
   engine.unlock(); // iPhone ではタップの中で音を有効にする必要がある（await より前に呼ぶ）
   $('toast').hidden = true;
-  const from = mode === 'paused' ? pausedSec : remix.tempo.b2s(remix.playbackStart);
+  const fresh = mode !== 'paused';
+  const from = fresh ? remix.tempo.b2s(remix.playbackStart) : pausedSec;
   startPlayback(from);
+  if (playMode && fresh) { resetJudge(); judge?.skipBefore(from - 0.05); }
 }
 
 function pause() {
@@ -1264,8 +1268,7 @@ function stopPlayback() {
   previewer.stop();
   engine.stopKeepAlive();
   if (mode !== 'stopped' && remix) {
-    // デスクトップ版と同じく、停止したら再生開始位置へ戻る
-    view.scrollBeat = remix.playbackStart - (view.W * 0.3) / view.ppb;
+    // 停止したら時間の表示は再生開始位置に戻すが、画面のスクロールはそのまま
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   }
   mode = 'stopped';
@@ -1326,11 +1329,7 @@ function frame(now) {
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
-    if (judge && !paEnded) {
-      const pt = paTime();
-      judge.update(pt);
-      if (judge.allDone && pt > judge.lastEnd + 1.2) finishPlayalong();
-    }
+    if (playMode && judge) judge.update(paTime());
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
@@ -1843,102 +1842,86 @@ function startPresentation() {
   document.documentElement.classList.add('presenting');
   view.dirty = true;
   if (mode !== 'playing') play();
-  // ボタンのキューがあれば、そのまま遊べる
-  if (hasPlayalong(remix)) startPlayalong();
 }
 function stopPresentation() {
   if (!presenting) return;
   presenting = false;
   document.documentElement.classList.remove('presenting');
-  endPlayalong();
   stopPlayback();
   applyPanel();
   view.dirty = true;
 }
 $('presentExit').addEventListener('click', stopPresentation);
 
-// ---------------------------------------------------------------- プレイアロング（ボタンのキューに合わせて押して遊ぶ）
+// ---------------------------------------------------------------- プレイモード（RHRE fresh の Playalong）
+// 上の Ⓐ ボタンで切り替え。下のゲーム一覧の代わりにスコアとズレのバーを出し、▶ で再生してボタンのキューに合わせて押す
 
-let judge = null;
-let paEnded = false;
 // 聞こえている音の時刻（スピーカーやイヤホンの遅れと、設定の「タイミング調整」を引く）
 function paTime() {
   const ctx = engine.ctx;
   const lat = (ctx?.outputLatency || 0) + (ctx?.baseLatency || 0) + (Number(settings.paOffset) || 0) / 1000;
   return player.time - lat * (player.speed || 1);
 }
-const BADNESS = { ACE: 0, GOOD: 1, BARELY: 2, MISS: 3 };
-const JUDGE_TEXT = { ACE: ['ACE!', '#4dff8a'], GOOD: ['GOOD', '#b6ff6a'], BARELY: ['BARELY', '#ffd84d'], MISS: ['MISS', '#ff5b5b'] };
 
-function startPlayalong() {
-  for (const e of remix.entities) e.judge = null;
-  judge = new PlayalongJudge(remix, player.speed || 1);
-  judge.skipBefore(remix.tempo.b2s(remix.playbackStart) - 0.05);
-  paEnded = false;
-  judge.onJudge = (a, timing) => {
-    if (!a.ent.judge || BADNESS[timing] > BADNESS[a.ent.judge]) a.ent.judge = timing;
-    const el = $('playJudge');
-    el.textContent = JUDGE_TEXT[timing][0];
-    el.style.color = JUDGE_TEXT[timing][1];
-    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-    if (timing === 'MISS') { try { navigator.vibrate?.(40); } catch (_) { /* 未対応 */ } }
-    updatePlayHud();
-    view.dirty = true;
-  };
-  const keys = judge.neededKeys();
-  const dpad = ['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k));
-  $('padDpad').hidden = !dpad;
-  $('padAB').hidden = !keys.has('A') && !keys.has('B');
-  $('padAB').querySelector('.akey').hidden = !keys.has('A');
-  $('padAB').querySelector('.bkey').hidden = !keys.has('B');
-  const touch = keys.has('TOUCH') || keys.has('FLICK') || keys.has('SLIDE');
-  $('playHint').textContent = touch ? t('画面をタップ') : '';
-  $('playResult').hidden = true;
-  $('playUI').hidden = false;
-  updatePlayHud();
-}
-function updatePlayHud() {
-  if (!judge) return;
-  $('playScore').textContent = judge.score.toFixed(1);
-  const any = judge.actions.some((a) => a.results.length);
-  $('playPerfect').hidden = !(judge.perfect && any);
-}
-function finishPlayalong() {
-  if (!judge || paEnded) return;
-  paEnded = true;
-  judge.update(Infinity);
-  stopPlayback();
-  const sc = judge.score;
-  const c = judge.counts;
-  $('prRank').textContent = sc >= 80 ? t('すばらしい！') : sc >= 60 ? t('OK') : t('もう少し…');
-  $('prRank').style.color = sc >= 80 ? '#ff8ad8' : sc >= 60 ? '#7fd0ff' : '#c9c9c9';
-  $('prScore').textContent = `${t('スコア')} ${sc.toFixed(1)}`;
-  $('prPerfect').hidden = !judge.perfect || !judge.expected;
-  $('prCounts').innerHTML = `<span style="color:#4dff8a">ACE ${c.ACE}</span>　<span style="color:#b6ff6a">GOOD ${c.GOOD}</span><br><span style="color:#ffd84d">BARELY ${c.BARELY}</span>　<span style="color:#ff5b5b">MISS ${c.MISS}</span>`;
-  $('playResult').hidden = false;
-}
-function endPlayalong() {
-  judge = null;
-  paEnded = false;
-  $('playUI').hidden = true;
-  $('playResult').hidden = true;
-  for (const e of remix?.entities || []) e.judge = null;
-  for (const b of document.querySelectorAll('.pkey.down-now')) b.classList.remove('down-now');
+function setPlayMode(on) {
+  playMode = on;
+  root.classList.toggle('playmode', on);
+  $('playModeBtn').classList.toggle('on', on);
+  $('playModeBtn').setAttribute('aria-pressed', String(on));
+  view.playMode = on;
+  if (on) {
+    if (armed) setArmed(null);
+    resetJudge();
+    setStatus(t('プレイモード：▶ で再生して、キューに合わせて押してください'));
+  } else {
+    judge = null;
+    for (const e of remix?.entities || []) e.judge = null;
+    $('psMarks').textContent = '';
+    setStatus(summaryText());
+  }
+  updateButtons();
   view.dirty = true;
 }
-$('prRetry').addEventListener('click', () => {
-  $('playResult').hidden = true;
-  stopPlayback();
-  play();
-  startPlayalong();
-});
-$('prExit').addEventListener('click', stopPresentation);
+$('playModeBtn').addEventListener('click', () => setPlayMode(!playMode));
 
-function paPress(key) { if (judge && !paEnded && mode === 'playing') judge.press(key, paTime()); }
-function paRelease(key) { if (judge && !paEnded && mode === 'playing') judge.release(key, paTime()); }
+function resetJudge() {
+  $('psMarks').textContent = '';
+  for (const e of remix?.entities || []) e.judge = null;
+  if (!remix) { judge = null; updatePlayStage(); return; }
+  judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
+  judge.onJudge = (a, timing, isEnd, off, forced) => {
+    a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
+    // 押したときだけ、ズレのバーに印をつける（左が早い、右が遅い）
+    if (!forced) addTimingMark(off / (judge.speed || 1), timing);
+    updatePlayStage();
+    view.dirty = true;
+  };
+  // 要るボタンだけ出す
+  const keys = judge.neededKeys();
+  $('psDpad').classList.toggle('off', !['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k)));
+  $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A'));
+  $('psAB').querySelector('.bkey').classList.toggle('off', !keys.has('B'));
+  updatePlayStage();
+}
+function updatePlayStage() {
+  const n = judge ? judge.actions.filter((a) => !a.skipped).length : 0;
+  const aces = judge ? judge.counts.ACE : 0;
+  $('psScore').textContent = String(judge ? Math.floor(judge.score) : 0);
+  $('psAces').textContent = `${aces} Aces / ${n} Inputs`;
+}
+function addTimingMark(off, timing) {
+  const m = document.createElement('div');
+  m.className = `ps-mark ${timing.toLowerCase()}`;
+  m.style.left = `${50 + clamp(off / WINDOW.MAX, -1, 1) * 50}%`;
+  $('psMarks').appendChild(m);
+  setTimeout(() => m.remove(), 3000);
+}
+
+function paPress(key) { if (playMode && judge && mode === 'playing') judge.press(key, paTime()); }
+function paRelease(key) { if (playMode && judge && mode === 'playing') judge.release(key, paTime()); }
 
 // 画面のボタン（A・B・十字）
-for (const b of document.querySelectorAll('#playUI .pkey')) {
+for (const b of document.querySelectorAll('#playStage .pkey')) {
   const key = b.dataset.key;
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -1952,7 +1935,7 @@ for (const b of document.querySelectorAll('#playUI .pkey')) {
   b.addEventListener('pointercancel', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-// 画面のどこでもタッチ（タップ・フリック・スライド）
+// 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド）
 {
   const pad = $('touchPad');
   const touches = new Map();
@@ -1974,18 +1957,20 @@ for (const b of document.querySelectorAll('#playUI .pkey')) {
   pad.addEventListener('pointerup', end);
   pad.addEventListener('pointercancel', end);
 }
-// キーボード（パソコン）：A＝J・スペース、B＝K、十字＝矢印・WASD
-const PA_KEYS = { KeyJ: 'A', Space: 'A', Enter: 'A', KeyK: 'B', ArrowUp: 'UP', KeyW: 'UP', ArrowDown: 'DOWN', KeyS: 'DOWN', ArrowLeft: 'LEFT', KeyA: 'LEFT', ArrowRight: 'RIGHT', KeyD: 'RIGHT' };
+// キーボード（パソコン）：A＝J、B＝K、十字＝WASD・矢印
+const PA_KEYS = { KeyJ: 'A', KeyK: 'B', ArrowUp: 'UP', KeyW: 'UP', ArrowDown: 'DOWN', KeyS: 'DOWN', ArrowLeft: 'LEFT', KeyA: 'LEFT', ArrowRight: 'RIGHT', KeyD: 'RIGHT' };
 window.addEventListener('keydown', (e) => {
-  if (!judge || !presenting) return;
+  if (!playMode || mode !== 'playing') return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   const k = PA_KEYS[e.code];
-  if (!k) return;
+  if (!k || e.ctrlKey || e.metaKey) return;
   e.preventDefault();
   e.stopImmediatePropagation();
   if (!e.repeat) paPress(k);
 }, true);
 window.addEventListener('keyup', (e) => {
-  if (!judge || !presenting) return;
+  if (!playMode || mode !== 'playing') return;
   const k = PA_KEYS[e.code];
   if (!k) return;
   e.preventDefault();

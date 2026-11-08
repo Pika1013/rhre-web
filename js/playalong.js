@@ -23,48 +23,48 @@ export const INPUT = {
   BUTTON_DPAD_DOWN: { keys: ['DOWN'], glyph: '+↓' },
   BUTTON_DPAD_LEFT: { keys: ['LEFT'], glyph: '+←' },
   BUTTON_DPAD_RIGHT: { keys: ['RIGHT'], glyph: '+→' },
-  TOUCH_TAP: { keys: ['TOUCH'], glyph: 'タップ', touch: true },
-  TOUCH_FLICK: { keys: ['FLICK'], glyph: 'フリック', touch: true },
-  TOUCH_RELEASE: { keys: ['TOUCH'], glyph: '離す', touch: true },
-  TOUCH_QUICK_TAP: { keys: ['TOUCH'], glyph: 'クイック', touch: true },
-  TOUCH_SLIDE: { keys: ['SLIDE'], glyph: 'スライド', touch: true },
+  TOUCH_TAP: { keys: ['TOUCH'], glyph: 'Tap', touch: true },
+  TOUCH_FLICK: { keys: ['FLICK'], glyph: 'Flick', touch: true },
+  TOUCH_RELEASE: { keys: ['TOUCH'], glyph: 'Release', touch: true },
+  TOUCH_QUICK_TAP: { keys: ['TOUCH'], glyph: 'Quick\nTap', touch: true },
+  TOUCH_SLIDE: { keys: ['SLIDE'], glyph: 'Slide', touch: true },
 };
 
 // [ID の後ろ, 名前, 入力, 押し方, 伸ばせるか]
 const DEFS = [
-  ['press_A', 'A を押す', 'BUTTON_A', 'PRESS', false],
-  ['press_B', 'B を押す', 'BUTTON_B', 'PRESS', false],
-  ['press_A_or_Dpad', 'A か十字を押す', 'BUTTON_A_OR_DPAD', 'PRESS', false],
-  ['press_Dpad', '十字を押す', 'BUTTON_DPAD', 'PRESS', false],
-  ['press_Dpad_up', '十字↑を押す', 'BUTTON_DPAD_UP', 'PRESS', false],
-  ['press_Dpad_down', '十字↓を押す', 'BUTTON_DPAD_DOWN', 'PRESS', false],
-  ['press_Dpad_left', '十字←を押す', 'BUTTON_DPAD_LEFT', 'PRESS', false],
-  ['press_Dpad_right', '十字→を押す', 'BUTTON_DPAD_RIGHT', 'PRESS', false],
-  ['hold_A', 'A を押して、終わりで離す', 'BUTTON_A', 'PRESS_AND_HOLD', true],
-  ['hold_B', 'B を押して、終わりで離す', 'BUTTON_B', 'PRESS_AND_HOLD', true],
-  ['hold_Dpad', '十字を押して、終わりで離す', 'BUTTON_DPAD', 'PRESS_AND_HOLD', true],
-  ['releaseAndHold_A', 'A を離して、終わりで押す', 'BUTTON_A', 'RELEASE_AND_HOLD', true],
-  ['releaseAndHold_Dpad', '十字を離して、終わりで押す', 'BUTTON_DPAD', 'RELEASE_AND_HOLD', true],
-  ['longPress_A', 'A を長押し', 'BUTTON_A', 'LONG_PRESS', true],
-  ['longPress_B', 'B を長押し', 'BUTTON_B', 'LONG_PRESS', true],
-  ['longPress_A_or_Dpad', 'A か十字を長押し', 'BUTTON_A_OR_DPAD', 'LONG_PRESS', true],
-  ['longPress_Dpad', '十字を長押し', 'BUTTON_DPAD', 'LONG_PRESS', true],
-  ['longPress_Dpad_up', '十字↑を長押し', 'BUTTON_DPAD_UP', 'LONG_PRESS', true],
-  ['longPress_Dpad_down', '十字↓を長押し', 'BUTTON_DPAD_DOWN', 'LONG_PRESS', true],
-  ['longPress_Dpad_left', '十字←を長押し', 'BUTTON_DPAD_LEFT', 'LONG_PRESS', true],
-  ['longPress_Dpad_right', '十字→を長押し', 'BUTTON_DPAD_RIGHT', 'LONG_PRESS', true],
-  ['touch_tap', 'タップ', 'TOUCH_TAP', 'PRESS', false],
-  ['touch_flick', 'フリック', 'TOUCH_FLICK', 'PRESS', false],
-  ['touch_slide', 'スライド', 'TOUCH_SLIDE', 'PRESS', false],
-  ['touch_quick_tap', 'クイックタップ（離す瞬間）', 'TOUCH_QUICK_TAP', 'RELEASE', false],
-  ['touch_tap_and_hold', 'タップして、終わりで離す', 'TOUCH_TAP', 'PRESS_AND_HOLD', true],
-  ['touch_release_and_tap', '離して、終わりでタップ', 'TOUCH_RELEASE', 'RELEASE_AND_HOLD', true],
-  ['longTap', 'タップを長押し', 'TOUCH_TAP', 'LONG_PRESS', true],
+  ['press_A', 'Press A', 'BUTTON_A', 'PRESS', false],
+  ['press_B', 'Press B', 'BUTTON_B', 'PRESS', false],
+  ['press_A_or_Dpad', 'Press A/+', 'BUTTON_A_OR_DPAD', 'PRESS', false],
+  ['press_Dpad', 'Press +', 'BUTTON_DPAD', 'PRESS', false],
+  ['press_Dpad_up', 'Press + Up', 'BUTTON_DPAD_UP', 'PRESS', false],
+  ['press_Dpad_down', 'Press + Down', 'BUTTON_DPAD_DOWN', 'PRESS', false],
+  ['press_Dpad_left', 'Press + Left', 'BUTTON_DPAD_LEFT', 'PRESS', false],
+  ['press_Dpad_right', 'Press + Right', 'BUTTON_DPAD_RIGHT', 'PRESS', false],
+  ['hold_A', 'Hold A', 'BUTTON_A', 'PRESS_AND_HOLD', true],
+  ['hold_B', 'Hold B', 'BUTTON_B', 'PRESS_AND_HOLD', true],
+  ['hold_Dpad', 'Hold +', 'BUTTON_DPAD', 'PRESS_AND_HOLD', true],
+  ['releaseAndHold_A', 'Release and Hold A', 'BUTTON_A', 'RELEASE_AND_HOLD', true],
+  ['releaseAndHold_Dpad', 'Release and Hold +', 'BUTTON_DPAD', 'RELEASE_AND_HOLD', true],
+  ['longPress_A', 'Long Press A', 'BUTTON_A', 'LONG_PRESS', true],
+  ['longPress_B', 'Long Press B', 'BUTTON_B', 'LONG_PRESS', true],
+  ['longPress_A_or_Dpad', 'Long Press A/+', 'BUTTON_A_OR_DPAD', 'LONG_PRESS', true],
+  ['longPress_Dpad', 'Long Press +', 'BUTTON_DPAD', 'LONG_PRESS', true],
+  ['longPress_Dpad_up', 'Long Press + Up', 'BUTTON_DPAD_UP', 'LONG_PRESS', true],
+  ['longPress_Dpad_down', 'Long Press + Down', 'BUTTON_DPAD_DOWN', 'LONG_PRESS', true],
+  ['longPress_Dpad_left', 'Long Press + Left', 'BUTTON_DPAD_LEFT', 'LONG_PRESS', true],
+  ['longPress_Dpad_right', 'Long Press + Right', 'BUTTON_DPAD_RIGHT', 'LONG_PRESS', true],
+  ['touch_tap', 'Tap', 'TOUCH_TAP', 'PRESS', false],
+  ['touch_flick', 'Flick', 'TOUCH_FLICK', 'PRESS', false],
+  ['touch_slide', 'Slide', 'TOUCH_SLIDE', 'PRESS', false],
+  ['touch_quick_tap', 'Quick Tap', 'TOUCH_QUICK_TAP', 'RELEASE', false],
+  ['touch_tap_and_hold', 'Tap and Hold', 'TOUCH_TAP', 'PRESS_AND_HOLD', true],
+  ['touch_release_and_tap', 'Release and Tap', 'TOUCH_RELEASE', 'RELEASE_AND_HOLD', true],
+  ['longTap', 'Long Tap and Hold', 'TOUCH_TAP', 'LONG_PRESS', true],
 ];
 
 // データベースに足す「プレイアロング」のゲーム（どのコミットのデータベースにも入っていない、エディタ側のもの）
 export function makePlayalongGame() {
-  const game = { id: PLAYALONG_GAME_ID, name: 'プレイアロング', series: 'other', icon: null, objects: [], builtin: true };
+  const game = { id: PLAYALONG_GAME_ID, name: 'Playalong', series: 'other', icon: null, objects: [], builtin: true };
   for (const [suffix, name, input, method, stretchable] of DEFS) {
     game.objects.push({
       id: `${PLAYALONG_GAME_ID}_${suffix}`,
@@ -135,7 +135,7 @@ export class PlayalongJudge {
     a.results.push({ timing, off, isEnd });
     this.counts[timing]++;
     if (timing === 'MISS') this.perfect = false;
-    this.onJudge?.(a, timing, isEnd);
+    this.onJudge?.(a, timing, isEnd, off, !!forced);
   }
 
   find(t, key, wantRelease) {
