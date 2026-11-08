@@ -459,6 +459,29 @@
   }
   /* スマホではキーボードの説明はいらない */
   @media (pointer: coarse) { #psKeys { display: none; } }
+  /* チュートリアル：説明する所だけを明るく照らし、その近くに説明を出す */
+  #tour { position: fixed; inset: 0; z-index: 50; }
+  #tour[hidden] { display: none; }
+  #tourHole {
+    position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62); outline: 3px solid var(--accent);
+    transition: left 0.28s ease, top 0.28s ease, width 0.28s ease, height 0.28s ease; pointer-events: none;
+  }
+  #tourHole.center { outline: none; }
+  #tourCard {
+    position: fixed; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 14px 16px 12px; border-radius: 12px;
+    background: #2f2f2f; border: 2px solid #4a4a4a; color: var(--text); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+    transition: left 0.28s ease, top 0.28s ease;
+  }
+  #tourStep { padding-left: 38px; min-height: 18px; margin-top: -4px; font: 700 12px var(--font); color: var(--muted); }
+  #tourTitle { padding-left: 38px; font: 800 17px var(--font); margin: 2px 0 8px; }
+  #tourText { font-size: 14px; line-height: 1.6; color: #ddd; }
+  .tour-btns { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .tour-btns .btn { min-width: 76px; }
+  #tourDots { flex: 1; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+  #tourDots span { width: 6px; height: 6px; border-radius: 50%; background: #666; }
+  #tourDots span.on { background: var(--accent); }
+  :root[data-theme="light"] #tourCard { background: #fff; border-color: #c3c9d1; }
+  :root[data-theme="light"] #tourText { color: #2b3644; }
   /* テーマ（ライト・ブラック） */
   :root[data-theme="black"] { --chrome: #141414; --chrome-edge: #000; --btn: #262626; --btn-hi: #333; --panel: #050505; --panel-line: #2a2a2a; }
   :root[data-theme="black"] body, :root[data-theme="black"] #editor { background: #000; }
@@ -653,12 +676,22 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.4</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.5</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
 <div class="popover list" id="moreMenu" hidden role="menu"></div>
 
+<div id="tour" hidden>
+  <div id="tourHole"></div>
+  <div id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+    <button class="card-x" id="tourX" type="button" title="チュートリアルをやめる" aria-label="チュートリアルをやめる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div id="tourStep"></div>
+    <div id="tourTitle"></div>
+    <div id="tourText"></div>
+    <div class="tour-btns"><button class="btn" id="tourPrev" type="button">戻る</button><div id="tourDots"></div><button class="btn primary" id="tourNext" type="button">次へ</button></div>
+  </div>
+</div>
 <button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>終わる</span></button>
 
 <div class="modal" id="menuModal" hidden>
@@ -679,6 +712,7 @@
       <button class="btn" data-act="present">🖥 プレゼンテーションモード</button>
       <button class="btn" data-act="playmode" id="menuPlayMode">🎮 プレイモード</button>
       <hr>
+      <button class="btn" data-act="tour">📖 チュートリアル</button>
       <button class="btn" data-act="help">❔ 使い方</button>
       <button class="btn" data-act="close">閉じる</button>
     </div>
@@ -869,6 +903,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=37"></script>
+<script type="module" src="js/app.js?v=38"></script>
 </body>
 </html>

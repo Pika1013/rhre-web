@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=12';
+import { t, setLang, applyStatic } from './i18n.js?v=13';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=18';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.4';
+const VERSION = '3.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1370,6 +1370,7 @@ function doAction(act) {
     case 'tracks': openTracks(); break;
     case 'present': startPresentation(); break;
     case 'playmode': setPlayMode(!playMode); break;
+    case 'tour': startTour(); break;
   }
 }
 
@@ -1509,6 +1510,7 @@ let gateFsFailed = false;
 function enterFullscreen() {
   // 全画面にできなくても（断られた・対応していない）、案内は閉じてそのまま使えるようにする
   root.classList.remove('gate-android');
+  setTimeout(maybeStartTour, 300);
   try {
     const req = root.requestFullscreen || root.webkitRequestFullscreen;
     const p = req ? req.call(root, { navigationUI: 'hide' }) : null;
@@ -1982,6 +1984,116 @@ window.addEventListener('keyup', (e) => {
   paRelease(k);
 }, true);
 
+// ---------------------------------------------------------------- チュートリアル（初回起動時。メニューからもう一度見られる）
+
+const tour = { i: 0, on: false };
+const visibleRect = (el) => {
+  if (!el || el.hidden) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 2 && r.height > 2 && r.bottom > 0 && r.top < window.innerHeight ? r : null;
+};
+// トラックの絵の中の一部（旗の欄・テンポの段）
+const viewPart = (part) => {
+  const cr = $('view').getBoundingClientRect();
+  const L = view.layout();
+  const top = part === 'flags' ? L.top : L.tracksBottom;
+  const h = part === 'flags' ? L.infoH + L.rulerH : L.tempoH + 4;
+  const y0 = Math.max(cr.top, cr.top + top), y1 = Math.min(cr.bottom, cr.top + top + h);
+  return y1 - y0 > 8 ? { left: cr.left, top: y0, width: cr.width, height: y1 - y0 } : null;
+};
+const panelOpen = () => !$('panel').classList.contains('collapsed') && !playMode;
+const TOUR_STEPS = [
+  { title: 'RHRE Web へようこそ！', text: 'リズム天国のリミックスを、スマホやブラウザで作れるエディタです。基本の使い方を順番に紹介します。左上の ✕ でいつでもやめられます。' },
+  { title: 'トラック', text: 'ここにブロック（キュー）を並べてリミックスを作ります。指で左右になぞるとスクロール、2 本指で広げたりつまんだりすると拡大・縮小です。', target: () => visibleRect($('view')) },
+  { title: 'ゲームを選ぶ', text: '下のタブ（GBA・DS・Wii など）からミニゲームを選ぶと、右にパターンが並びます。お気に入り・最近使ったもの・検索もここです。',
+    target: () => (panelOpen() ? visibleRect($('tabsRow').parentElement) : visibleRect($('panelToggle'))),
+    alt: '一覧が閉じているときは、左下の「ゲームを選ぶ」を押すと開きます。' },
+  { title: '置き方', text: 'パターンの名前を押して選んでから、トラックの空いている所をタップすると置けます。🔊 を押すと音を確かめられます。',
+    target: () => (panelOpen() ? visibleRect($('list').parentElement) : visibleRect($('view'))) },
+  { title: '編集バー', text: '置いたブロックをタップすると、上に編集バーが出ます。ブロックはドラッグで移動、端をドラッグで長さを変更。削除・複製・音程・音量もここで変えられます。空いている所を長押しすると、範囲でまとめて選べます。', target: () => visibleRect($('topbar')) },
+  { title: '再生', text: '▶ で再生、⏸ で一時停止、■ で停止です。再生中は黄色い線が今の位置を示します。横の数字は時間と拍、虹色のつまみは再生速度です。', target: () => visibleRect($('transport')) || visibleRect($('topbar')) },
+  { title: '音楽と再生の旗', text: '赤い旗は音楽が始まる位置、緑の旗は再生を始める位置です。どちらも横にドラッグして動かせます。上の目盛りをタップしても、再生を始める位置を変えられます。', target: () => viewPart('flags') },
+  { title: 'テンポ・拍子・音量', text: 'トラックの下の段をタップすると、テンポ・拍子・音楽の音量を変えられます。印は長押ししてからドラッグで動かせます。大きな拍子の数字をタップすると、その場で書きかえられます。', target: () => viewPart('tempo') },
+  { title: 'スナップ', text: 'ブロックを置く・動かすときの目盛りの細かさです。1 拍から 1/32 拍まで選べます。', target: () => visibleRect($('snapBtn')) },
+  { title: 'メニュー', text: '保存・開く・音楽を選ぶ・WAV に書き出す・トラックの数・プレゼンテーション・プレイモードなどはここです。このチュートリアルも、ここからもう一度見られます。', target: () => visibleRect($('menuBtn')) },
+  { title: '設定', text: 'ミニゲームの声の言語、テーマの色、背景の画像、画面の言語などを変えられます。', target: () => visibleRect($('settingsBtn')) },
+  { title: '準備完了！', text: '作ったリミックスは自動で端末に保存されます。RHRE fresh で開ける .rhref にも保存できます。さっそく作ってみましょう！' },
+];
+
+function startTour() {
+  if (presenting) stopPresentation();
+  if (playMode) setPlayMode(false);
+  if (mode === 'playing') stopPlayback();
+  for (const m of document.querySelectorAll('.modal:not([hidden])')) m.hidden = true;
+  tour.on = true;
+  tour.i = 0;
+  $('tour').hidden = false;
+  $('tourDots').innerHTML = TOUR_STEPS.map(() => '<span></span>').join('');
+  showTourStep();
+}
+function endTour() {
+  if (!tour.on) return;
+  tour.on = false;
+  $('tour').hidden = true;
+  settings.tutorialDone = true;
+  saveSettings();
+}
+function showTourStep() {
+  const st = TOUR_STEPS[tour.i];
+  const n = TOUR_STEPS.length;
+  $('tourStep').textContent = `${tour.i + 1} / ${n}`;
+  $('tourTitle').textContent = t(st.title);
+  const r = st.target?.() || null;
+  $('tourText').textContent = t(st.text) + (st.alt && !panelOpen() ? ' ' + t(st.alt) : '');
+  [...$('tourDots').children].forEach((d, k) => d.classList.toggle('on', k === tour.i));
+  $('tourPrev').style.visibility = tour.i === 0 ? 'hidden' : 'visible';
+  $('tourNext').textContent = tour.i === n - 1 ? t('はじめる') : t('次へ');
+  // 照らす所（なければ真ん中に説明だけ）
+  const hole = $('tourHole');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const pad = 6;
+  if (r) {
+    const x = Math.max(4, r.left - pad), y = Math.max(4, r.top - pad);
+    const w = Math.min(vw - 8, r.left + r.width + pad) - x, h = Math.min(vh - 8, r.top + r.height + pad) - y;
+    Object.assign(hole.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+    hole.classList.remove('center');
+  } else {
+    Object.assign(hole.style, { left: `${vw / 2}px`, top: `${vh / 2}px`, width: '0px', height: '0px' });
+    hole.classList.add('center');
+  }
+  // 説明は照らした所の下か上（入らなければ、画面の中で一番空いている所）
+  const card = $('tourCard');
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  let left = (vw - cw) / 2, top = (vh - ch) / 2;
+  if (r) {
+    left = Math.min(vw - cw - 12, Math.max(12, r.left + r.width / 2 - cw / 2));
+    if (r.top + r.height + pad + 12 + ch <= vh - 8) top = r.top + r.height + pad + 12;
+    else if (r.top - pad - 12 - ch >= 8) top = r.top - pad - 12 - ch;
+    else top = Math.max(8, Math.min(vh - ch - 8, r.top + r.height / 2 - ch / 2));
+  }
+  Object.assign(card.style, { left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
+}
+$('tourNext').addEventListener('click', () => {
+  if (tour.i >= TOUR_STEPS.length - 1) { endTour(); return; }
+  tour.i++;
+  showTourStep();
+});
+$('tourPrev').addEventListener('click', () => { if (tour.i > 0) { tour.i--; showTourStep(); } });
+$('tourX').addEventListener('click', endTour);
+window.addEventListener('resize', () => { if (tour.on) requestAnimationFrame(showTourStep); });
+window.addEventListener('keydown', (e) => {
+  if (!tour.on) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); endTour(); }
+  else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); $('tourNext').click(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopImmediatePropagation(); $('tourPrev').click(); }
+}, true);
+// 初めて開いたときだけ自動で始める（スマホのブラウザの案内画面が出ている間は待つ）
+function maybeStartTour() {
+  if (settings.tutorialDone || tour.on) return;
+  if (root.classList.contains('gate-ios') || root.classList.contains('gate-android')) return;
+  setTimeout(() => { if (!settings.tutorialDone && !tour.on) startTour(); }, 400);
+}
+
 // ---------------------------------------------------------------- ウィンドウの閉じるボタン
 // 「閉じる」「やめる」のボタンは、ウィンドウの左上の × にまとめる（押すと、もとのボタンと同じ動き）
 {
@@ -2278,4 +2390,5 @@ applySettings();
   await restoreCustomSounds().catch(() => {});
   const restored = await openAutosave().catch(() => false);
   if (!restored) await openSample();
+  maybeStartTour();
 })();
