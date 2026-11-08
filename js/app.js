@@ -2,10 +2,10 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
 import { t, setLang, applyStatic } from './i18n.js?v=2';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=10';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=11';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.2';
+const VERSION = '1.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);

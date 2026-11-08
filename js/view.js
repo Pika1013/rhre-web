@@ -719,11 +719,9 @@ export class EditorView {
       const t1 = Math.max(e.track + e.height - 1, ...e.leaves.map((l) => l.track));
       const bx = this.x(e.minBeat), bw = (e.maxBeat - e.minBeat) * this.ppb;
       const by = L.tracksTop + t0 * L.rowH + 2, bh = (t1 - t0 + 1) * L.rowH - 4;
-      g.globalAlpha = 0.14;
+      // 背景はブロックと同じ色、枠はブロックの外枠と同じ色で上下左右すべてに
       g.fillStyle = base;
       g.fillRect(bx, by, bw, bh);
-      g.globalAlpha = 1;
-      // 枠はブロックの外枠と同じ色で、上下左右すべてに
       g.strokeStyle = shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
       g.lineWidth = 2;
       g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
@@ -735,17 +733,8 @@ export class EditorView {
       for (const lf of e.leaves) {
         const lx = this.x(lf.beat), lw = Math.max(2, lf.width * this.ppb);
         const ly = L.tracksTop + lf.track * L.rowH + 3;
-        const inside = lf.beat >= e.beat - 1e-6 && lf.beat + lf.width <= e.beat + e.width + 1e-6;
-        if (!inside) {
-          // 枠の外で鳴る音（パターンの前に鳴る準備音など）は、エンティティの色で示す
-          g.globalAlpha = 0.22;
-          g.fillStyle = base;
-          g.fillRect(lx, ly, lw, L.rowH - 6);
-          g.globalAlpha = 1;
-          g.strokeStyle = shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
-        } else {
-          g.strokeStyle = 'rgba(0,0,0,0.28)';
-        }
+        // 枠の外の音も帯（ブロックと同じ色）の上なので、中と同じ控えめな線で区切る
+        g.strokeStyle = 'rgba(0,0,0,0.28)';
         g.strokeRect(Math.round(lx) + 0.5, Math.round(ly) + 0.5, Math.round(lw) - 1, Math.round(L.rowH - 6));
         g.globalAlpha = 1;
       }
