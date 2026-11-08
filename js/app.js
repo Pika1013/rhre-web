@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=18';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.3';
+const VERSION = '3.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1981,6 +1981,36 @@ window.addEventListener('keyup', (e) => {
   e.stopImmediatePropagation();
   paRelease(k);
 }, true);
+
+// ---------------------------------------------------------------- ウィンドウの閉じるボタン
+// 「閉じる」「やめる」のボタンは、ウィンドウの左上の × にまとめる（押すと、もとのボタンと同じ動き）
+{
+  const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const CLOSERS = {
+    menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
+    tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
+    saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose',
+  };
+  for (const [mid, sel] of Object.entries(CLOSERS)) {
+    const card = $(mid)?.querySelector('.card');
+    const closer = card?.querySelector(sel);
+    if (!card || !closer) continue;
+    const x = document.createElement('button');
+    x.className = 'card-x';
+    x.type = 'button';
+    x.title = '閉じる';
+    x.setAttribute('aria-label', '閉じる');
+    x.innerHTML = X_SVG;
+    x.addEventListener('click', () => closer.click());
+    card.prepend(x);
+    card.classList.add('has-x');
+    if (!card.querySelector('h2')) card.classList.add('no-title');
+    closer.hidden = true;
+    // ほかにボタンがない段は、段ごと隠す
+    const row = closer.parentElement;
+    if (row?.classList.contains('row') && ![...row.children].some((c) => !c.hidden)) row.hidden = true;
+  }
+}
 
 // ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）
 
