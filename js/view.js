@@ -293,9 +293,9 @@ export class EditorView {
       if (d.mode === 'music' || d.mode === 'playback') {
         const R = this.remix;
         if (d.mode === 'music') {
-          // 音楽開始は「つかんだ位置からのずれ」をスナップで動かす（曲の頭に合わせた細かいずれを保つ）
+          // 音楽開始も、行き先を目盛りにぴったり合わせる
           const orig = R.tempo.s2b(R.musicStartSec);
-          this.flagDrag = { kind: 'music', beat: orig + this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0)) };
+          this.flagDrag = { kind: 'music', beat: this.snapRound(orig + this.beatAt(e.offsetX) - this.beatAt(d.x0)) };
         } else {
           this.flagDrag = { kind: 'playback', beat: this.snapRound(this.beatAt(e.offsetX)) };
         }

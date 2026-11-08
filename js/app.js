@@ -2,10 +2,10 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=9';
 import { customRegistry } from './db.js?v=6';
 import { t, setLang, applyStatic } from './i18n.js?v=3';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=13';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=14';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '1.5';
+const VERSION = '1.6';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -91,7 +91,8 @@ const view = new EditorView($('view'), {
   textureImage: (ent) => textureImages.get(ent.extra?.texHash) || null,
   onSetMusicStart: (beat) => {
     if (!remix) return;
-    const sec = Math.round(remix.tempo.b2s(beat) * 1000) / 1000;
+    // 秒を丸めると目盛りから少しずれるので、そのままの値で持つ
+    const sec = remix.tempo.b2s(beat);
     if (edit(() => { remix.musicStartSec = sec; })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
   },
   onFlagTap: () => { setStatus('赤い旗（音楽開始）は、横にドラッグすると動かせます'); },
