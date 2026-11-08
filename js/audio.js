@@ -1,0 +1,359 @@
+// Web Audio による再生・試聴・WAV書き出し。
+// 発音は少し先まで予約していく方式（ルックアヘッド）なので、タイマーが多少遅れても音の時刻はずれない。
+
+import { mapLimit } from './db.js';
+
+const OGG_DECODER_URL = 'https://cdn.jsdelivr.net/npm/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js';
+const LOOKAHEAD = 0.6; // 秒
+const TICK_MS = 50;
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.charset = 'UTF-8';
+    s.onload = res;
+    s.onerror = () => rej(new Error('音声デコーダを読み込めませんでした'));
+    document.head.appendChild(s);
+  });
+}
+
+const isOgg = (ab) => {
+  const b = new Uint8Array(ab, 0, Math.min(4, ab.byteLength));
+  return b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53; // "OggS"
+};
+
+function decodeNative(ctx, ab) {
+  return new Promise((res, rej) => {
+    const p = ctx.decodeAudioData(ab, res, rej);
+    if (p && typeof p.then === 'function') p.then(res, rej);
+  });
+}
+
+export class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.buffers = new Map();
+    this.forceWasm = /[?&]wasm\b/.test(location.search);
+    this.nativeOggFailed = false;
+    this.usedWasm = false;
+  }
+
+  get context() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC({ latencyHint: 'interactive' });
+      this.master = this.ctx.createGain();
+      this.master.connect(this.ctx.destination);
+    }
+    return this.ctx;
+  }
+
+  // iPhone ではタップの中で呼ぶ必要がある
+  async unlock() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) { /* 未対応 */ }
+    const ctx = this.context;
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource();
+    s.buffer = b;
+    s.connect(ctx.destination);
+    s.start(0);
+    if (ctx.state !== 'running') await ctx.resume();
+  }
+
+  async decode(ab) {
+    const ogg = isOgg(ab);
+    if (!ogg || (!this.forceWasm && !this.nativeOggFailed)) {
+      try {
+        return await decodeNative(this.context, ab.slice(0));
+      } catch (e) {
+        if (!ogg) throw e;
+        this.nativeOggFailed = true; // 古い iOS は .ogg を読めない → WASM デコーダへ
+      }
+    }
+    return this.decodeOggWasm(ab);
+  }
+
+  async decodeOggWasm(ab) {
+    this.usedWasm = true;
+    if (!this.wasm) {
+      this.wasm = (async () => {
+        await loadScript(OGG_DECODER_URL);
+        const d = new window['ogg-vorbis-decoder'].OggVorbisDecoder();
+        await d.ready;
+        return d;
+      })();
+    }
+    const dec = await this.wasm;
+    const job = (this.wasmQueue || Promise.resolve()).then(async () => {
+      const r = await dec.decodeFile(new Uint8Array(ab));
+      await dec.reset();
+      return r;
+    });
+    this.wasmQueue = job.catch(() => {});
+    const r = await job;
+    const len = Math.max(1, r.samplesDecoded);
+    const buf = this.context.createBuffer(Math.max(1, r.channelData.length), len, r.sampleRate);
+    r.channelData.forEach((ch, i) => buf.getChannelData(i).set(ch.subarray(0, len)));
+    return buf;
+  }
+
+  async loadSounds(urls, db, onProgress) {
+    const failed = [];
+    let done = 0;
+    await mapLimit(urls, 8, async (url) => {
+      if (!this.buffers.has(url)) {
+        try {
+          this.buffers.set(url, await this.decode(await db.fetchBinary(url)));
+        } catch (e) {
+          failed.push(url);
+        }
+      }
+      onProgress?.(++done, urls.length);
+    });
+    return failed;
+  }
+}
+
+// 1つの発音イベントを予約する（リアルタイム／オフライン共通）
+export function scheduleEvent(ctx, dest, buffers, ev, when, off) {
+  const buf = buffers.get(ev.url);
+  if (!buf) return null;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  let bufOff = Math.max(0, off) * ev.rate;
+  if (ev.loop) {
+    src.loop = true;
+    const ls = Math.min(ev.loop.start, buf.duration);
+    const le = ev.loop.end > 0 ? Math.min(ev.loop.end, buf.duration) : buf.duration;
+    src.loopStart = ls;
+    src.loopEnd = le;
+    if (bufOff > le) bufOff = le - ls > 0 ? ls + ((bufOff - ls) % (le - ls)) : 0;
+  } else if (bufOff >= buf.duration) {
+    return null;
+  }
+  const span = Math.max(0, ev.end - ev.start - Math.max(0, off));
+  src.playbackRate.value = ev.rate;
+  if (ev.rateEnd != null && span > 0) {
+    src.playbackRate.setValueAtTime(ev.rate, when);
+    src.playbackRate.linearRampToValueAtTime(ev.rateEnd, when + span);
+  }
+  const g = ctx.createGain();
+  g.gain.value = ev.vol;
+  src.connect(g);
+  g.connect(dest);
+  src.start(when, bufOff);
+  if (ev.stops) src.stop(when + span);
+  src.onended = () => { try { g.disconnect(); } catch (_) { /* 済み */ } };
+  return src;
+}
+
+function scheduleClick(ctx, dest, when, accent) {
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.frequency.value = accent ? 1760 : 1320;
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.35, when + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+  o.connect(g);
+  g.connect(dest);
+  o.start(when);
+  o.stop(when + 0.06);
+}
+
+function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec) {
+  if (!musicBuf) return null;
+  const src = ctx.createBufferSource();
+  src.buffer = musicBuf;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(remix.musicVolumeAt(remix.tempo.s2b(fromSec)), ctxStart);
+  for (const p of remix.musicVolumeAutomation()) {
+    if (p.t <= fromSec) continue;
+    const at = ctxStart + (p.t - fromSec);
+    if (p.ramp) g.gain.linearRampToValueAtTime(p.v, at);
+    else g.gain.setValueAtTime(p.v, at);
+  }
+  src.connect(g);
+  g.connect(dest);
+  const off = fromSec - remix.musicStartSec;
+  if (off >= 0) {
+    if (off >= musicBuf.duration) return null;
+    src.start(ctxStart, off);
+  } else {
+    src.start(ctxStart - off, 0);
+  }
+  return src;
+}
+
+export class Player {
+  constructor(engine) {
+    this.engine = engine;
+    this.playing = false;
+    this.metronome = false;
+    this.visual = [];
+    this.onEnd = null;
+  }
+
+  get time() {
+    if (!this.playing) return this.pausedAt ?? 0;
+    return this.t0 + (this.engine.context.currentTime - this.ctxT0);
+  }
+
+  start(remix, musicBuf, fromSec) {
+    this.stop();
+    const ctx = this.engine.context;
+    this.remix = remix;
+    this.events = remix.buildSoundEvents();
+    this.out = ctx.createGain();
+    this.out.connect(this.engine.master);
+    this.ctxT0 = ctx.currentTime + 0.08;
+    this.t0 = fromSec;
+    this.endSec = remix.durationSec;
+    this.sources = [];
+    this.visual = [];
+    for (const ev of this.events) {
+      if (ev.start < fromSec && ev.end > fromSec) {
+        const s = scheduleEvent(ctx, this.out, this.engine.buffers, ev, this.ctxT0, fromSec - ev.start);
+        if (s) this.sources.push(s);
+      }
+    }
+    let lo = 0, hi = this.events.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (this.events[m].start < fromSec) lo = m + 1; else hi = m; }
+    this.idx = lo;
+    this.metroBeat = Math.ceil(remix.tempo.s2b(fromSec) - 1e-6);
+    const m = scheduleMusic(ctx, this.out, remix, musicBuf, this.ctxT0, fromSec);
+    if (m) this.sources.push(m);
+    this.playing = true;
+    this.pausedAt = null;
+    this.tick();
+    this.timer = setInterval(() => this.tick(), TICK_MS);
+  }
+
+  tick() {
+    if (!this.playing) return;
+    const ctx = this.engine.context;
+    const now = this.time;
+    const horizon = now + LOOKAHEAD;
+    const ev = this.events;
+    while (this.idx < ev.length && ev[this.idx].start < horizon) {
+      const e = ev[this.idx++];
+      if (e.start > this.endSec) continue;
+      const when = this.ctxT0 + (e.start - this.t0);
+      const s = scheduleEvent(ctx, this.out, this.engine.buffers, e, when, 0);
+      if (s) this.sources.push(s);
+      if (e.ent) this.visual.push({ t: e.start, ent: e.ent });
+    }
+    if (this.metronome) {
+      const T = this.remix.tempo;
+      while (T.b2s(this.metroBeat) < horizon) {
+        const b = this.metroBeat++;
+        const at = T.b2s(b);
+        if (at < this.t0 - 1e-6) continue;
+        const { beatInMeasure } = this.remix.measureAt(b);
+        scheduleClick(ctx, this.out, this.ctxT0 + (at - this.t0), Math.abs(beatInMeasure) < 1e-6);
+      }
+    } else {
+      this.metroBeat = Math.ceil(this.remix.tempo.s2b(horizon) - 1e-6);
+    }
+    if (this.sources.length > 400) this.sources = this.sources.slice(-200);
+    if (now >= this.endSec + 0.05) {
+      const cb = this.onEnd;
+      this.stop();
+      cb?.();
+    }
+  }
+
+  // 発音した瞬間のエンティティを返す（画面の点滅用）
+  takeVisual(now) {
+    const hit = [];
+    while (this.visual.length && this.visual[0].t <= now) hit.push(this.visual.shift().ent);
+    return hit;
+  }
+
+  stop() {
+    if (!this.playing && !this.out) return;
+    clearInterval(this.timer);
+    const now = this.engine.ctx ? this.engine.ctx.currentTime : 0;
+    if (this.out) {
+      try {
+        this.out.gain.setValueAtTime(this.out.gain.value, now);
+        this.out.gain.linearRampToValueAtTime(0, now + 0.03);
+      } catch (_) { /* 済み */ }
+      const out = this.out;
+      const srcs = this.sources || [];
+      setTimeout(() => {
+        for (const s of srcs) { try { s.stop(); } catch (_) { /* 済み */ } }
+        try { out.disconnect(); } catch (_) { /* 済み */ }
+      }, 60);
+    }
+    this.out = null;
+    this.sources = [];
+    this.playing = false;
+  }
+
+  pause() {
+    const t = this.time;
+    this.stop();
+    this.pausedAt = t;
+  }
+}
+
+// ピッカーの試聴（同時に1つだけ）
+export class Previewer {
+  constructor(engine) { this.engine = engine; this.out = null; }
+  play(events) {
+    this.stop();
+    const ctx = this.engine.context;
+    this.out = ctx.createGain();
+    this.out.connect(this.engine.master);
+    const t0 = ctx.currentTime + 0.05;
+    for (const e of events) scheduleEvent(ctx, this.out, this.engine.buffers, e, t0 + e.start, 0);
+  }
+  stop() {
+    if (this.out) { try { this.out.disconnect(); } catch (_) { /* 済み */ } }
+    this.out = null;
+  }
+}
+
+// 再生開始位置から最後までを WAV に書き出す
+export async function renderWav(engine, remix, musicBuf, fromSec) {
+  const sr = 44100;
+  const toSec = remix.durationSec + 1.0;
+  const length = Math.max(1, Math.ceil((toSec - fromSec) * sr));
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const octx = new OAC(2, length, sr);
+  const events = remix.buildSoundEvents();
+  for (const ev of events) {
+    if (ev.start > remix.durationSec) continue;
+    if (ev.start < fromSec) {
+      if (ev.end > fromSec) scheduleEvent(octx, octx.destination, engine.buffers, ev, 0, fromSec - ev.start);
+    } else {
+      scheduleEvent(octx, octx.destination, engine.buffers, ev, ev.start - fromSec, 0);
+    }
+  }
+  scheduleMusic(octx, octx.destination, remix, musicBuf, 0, fromSec);
+  const rendered = await octx.startRendering();
+  return encodeWav(rendered);
+}
+
+function encodeWav(buf) {
+  const ch = Math.min(2, buf.numberOfChannels);
+  const n = buf.length;
+  const data = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) data.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); data.setUint32(4, 36 + n * ch * 2, true); w(8, 'WAVE');
+  w(12, 'fmt '); data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, ch, true);
+  data.setUint32(24, buf.sampleRate, true); data.setUint32(28, buf.sampleRate * ch * 2, true);
+  data.setUint16(32, ch * 2, true); data.setUint16(34, 16, true);
+  w(36, 'data'); data.setUint32(40, n * ch * 2, true);
+  const chans = Array.from({ length: ch }, (_, i) => buf.getChannelData(i));
+  let o = 44;
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < ch; c++) {
+      const v = Math.max(-1, Math.min(1, chans[c][i]));
+      data.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+      o += 2;
+    }
+  }
+  return new Blob([data.buffer], { type: 'audio/wav' });
+}

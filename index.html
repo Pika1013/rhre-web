@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#3b3b3b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>RHRE Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+  /* デスクトップ版 RHRE fresh の配置：上にツールバー、中央にトラック、下にピッカー、最下段にステータス */
+  :root {
+    color-scheme: dark;
+    --font: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+    --chrome: #3b3b3b;
+    --chrome-edge: #262626;
+    --btn: #4c4c4c;
+    --btn-hi: #5d5d5d;
+    --panel: #191919;
+    --panel-line: #474747;
+    --text: #f3f3f3;
+    --muted: #a9a9a9;
+    --accent: #5fd3ff;
+    --play: #1ccf1c;
+    --pause: #c9b51e;
+    --stop: #cf2626;
+    --on: #2d6c9a;
+    --btn-size: 40px;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: #1b1b1b;
+    color: var(--text);
+    font-family: var(--font);
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    height: 100%;
+    height: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+    box-sizing: border-box;
+  }
+  button { font-family: var(--font); color: var(--text); cursor: pointer; touch-action: manipulation; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ツールバー */
+  #toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+    padding: 5px 6px; background: var(--chrome); border-bottom: 2px solid var(--chrome-edge);
+  }
+  .group { display: flex; align-items: center; gap: 4px; }
+  .tb {
+    width: var(--btn-size); height: var(--btn-size); padding: 0; border: 0; border-radius: 3px;
+    background: var(--btn); display: grid; place-items: center; flex: none;
+  }
+  .tb:active { background: var(--btn-hi); }
+  .tb svg { width: 72%; height: 72%; stroke: #fff; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .tb:disabled { opacity: 0.32; cursor: default; }
+  .tb.on { background: var(--on); }
+  #snapBtn { width: auto; padding: 0 10px; font-weight: 700; font-size: 16px; background: #2e2e2e; gap: 6px; display: flex; align-items: center; }
+  #snapBtn span { font-size: 20px; }
+  #transport { gap: 6px; }
+  #transport .tb { background: #2e2e2e; width: calc(var(--btn-size) + 4px); }
+  #transport svg { stroke: none; }
+  #playBtn svg { fill: var(--play); }
+  #pauseBtn svg { fill: var(--pause); }
+  #stopBtn svg { fill: var(--stop); }
+  #transport .tb:disabled { opacity: 0.3; }
+  .spacer { flex: 1; }
+  #timebox {
+    height: var(--btn-size); min-width: 112px; box-sizing: border-box; padding: 0 10px; border-radius: 3px;
+    background: #262626; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+    font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15;
+  }
+  #timebox .t { font-size: 17px; }
+  #timebox .b { font-size: 12px; color: var(--muted); }
+
+  /* エディタ */
+  #editor { position: relative; min-height: 0; overflow: hidden; background: #242424; }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #subtitle {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); max-width: 88%;
+    padding: 4px 14px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); font-weight: 700; font-size: 18px;
+    text-align: center; pointer-events: none; white-space: pre-wrap;
+  }
+  #loading {
+    position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72);
+  }
+  .card {
+    width: min(360px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
+    border: 2px solid #4a4a4a; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+  .card h2 { margin: 0 0 8px; font-size: 17px; }
+  .card p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: #ddd; -webkit-user-select: text; user-select: text; }
+  .bar { height: 8px; border-radius: 4px; background: #1d1d1d; overflow: hidden; margin-top: 10px; }
+  .bar > div { height: 100%; width: 0; background: var(--play); transition: width 0.15s; }
+  .err { color: #ff8a8a !important; }
+
+  /* 下段のピッカー */
+  #panel {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: auto minmax(0, 1fr);
+    height: clamp(170px, 34vh, 300px); background: var(--panel); border-top: 2px solid var(--panel-line);
+  }
+  .navrow {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
+    border-bottom: 1px solid #333; background: #202020;
+  }
+  .navrow .tb { --btn-size: 32px; background: #303030; }
+  .mini-wrap { position: relative; flex: 1; min-width: 0; height: 30px; }
+  .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .pane + .pane { border-left: 2px solid var(--panel-line); }
+  .pane-head {
+    height: 40px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    border-bottom: 1px solid #333; font-weight: 700; font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  }
+  .pane-head .tb { --btn-size: 32px; background: #303030; }
+  #gameGrid { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; }
+  .game { width: 50px; height: 50px; padding: 0; border: 3px solid transparent; border-radius: 4px; background: #0e0e0e; }
+  .game img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  .game.sel { border-color: #ffe14d; }
+  #minimap { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid #5b5b5b; touch-action: none; display: block; }
+  #list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .item {
+    width: 100%; display: flex; align-items: center; gap: 6px; padding: 7px 10px 7px 6px; border: 0; background: none;
+    text-align: left; font-size: 17px; font-weight: 700; line-height: 1.25;
+  }
+  .item .arrow { width: 22px; flex: none; color: var(--accent); visibility: hidden; font-size: 18px; }
+  .item.sel .arrow { visibility: visible; }
+  .item .arrow { align-self: flex-start; }
+  .item .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .item .nm { overflow-wrap: break-word; }
+  .item .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .item .kind { font-size: 11px; color: var(--muted); border: 1px solid #555; border-radius: 3px; padding: 0 4px; }
+  .item .used { font-size: 11px; color: #121212; background: var(--accent); border-radius: 3px; padding: 0 4px; }
+  .item svg { width: 22px; height: 22px; flex: none; stroke: var(--accent); fill: none; stroke-width: 2; opacity: 0.8; }
+  .empty { padding: 14px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  #status {
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+    padding: 3px max(8px, env(safe-area-inset-left, 0px)) calc(3px + env(safe-area-inset-bottom, 0px));
+    background: #0e0e0e; font-size: 13px; font-weight: 500; min-height: 18px;
+  }
+  #statusText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #version { color: var(--muted); white-space: nowrap; }
+
+  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
+  .modal .card { max-height: 80vh; overflow-y: auto; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px;
+    border-radius: 5px; border: 0; background: var(--btn); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text);
+  }
+  .btn.primary { background: #1f8f1f; }
+  .card ul { margin: 0 0 8px; padding-left: 18px; font-size: 14px; line-height: 1.6; color: #ddd; }
+
+  .desk { display: grid; }
+  @media (max-width: 640px) {
+    .desk { display: none; }
+    #toolbar { justify-content: space-between; }
+    #timebox { min-width: 100px; }
+  }
+  @media (max-height: 460px) {
+    :root { --btn-size: 34px; }
+    #panel { height: 128px; }
+    .pane-head { display: none; }
+    .navrow { padding-block: 2px; }
+    .navrow .tb { --btn-size: 28px; }
+    .mini-wrap { height: 26px; }
+    .game { width: 40px; height: 40px; }
+    .item { padding-block: 4px; font-size: 15px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="toolbar">
+    <div class="group">
+      <button class="tb" id="openBtn" title="開く（.rhref）" aria-label="開く">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H7.5a2 2 0 0 0-1.9 1.4L3 19z"/><path d="M3 19l2.6-7.6A2 2 0 0 1 7.5 10H22l-2.8 8.1a1.5 1.5 0 0 1-1.4.9H3z"/></svg>
+      </button>
+      <button class="tb" id="sampleBtn" title="サンプルを開く" aria-label="サンプルを開く">
+        <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><circle cx="10.5" cy="16.5" r="1.8"/><path d="M12.3 16.5V10l3 1"/></svg>
+      </button>
+      <button class="tb desk" disabled title="保存（試作では未対応）" aria-label="保存">
+        <svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z"/><path d="M8 4v5h8V4"/><path d="M7 20v-6h10v6"/></svg>
+      </button>
+      <button class="tb" id="exportBtn" title="WAVに書き出す" aria-label="WAVに書き出す">
+        <svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V8z"/><path d="M14 3v5h4"/><path d="M12 11v6"/><path d="M9 14l3 3 3-3"/></svg>
+      </button>
+      <button class="tb desk" disabled title="元に戻す（試作では未対応）" aria-label="元に戻す">
+        <svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg>
+      </button>
+      <button class="tb desk" disabled title="やり直す（試作では未対応）" aria-label="やり直す">
+        <svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg>
+      </button>
+    </div>
+    <div class="group">
+      <button class="tb" id="metroBtn" title="メトロノーム" aria-label="メトロノーム" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M8 15h8"/><path d="M12 15l5-9"/></svg>
+      </button>
+      <button class="tb" id="snapBtn" title="スナップ（再生開始位置を置く間隔）">Snap: <span id="snapVal">1/4</span></button>
+    </div>
+    <div class="group" id="transport">
+      <button class="tb" id="pauseBtn" title="一時停止" aria-label="一時停止" disabled>
+        <svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg>
+      </button>
+      <button class="tb" id="playBtn" title="再生（スペース）" aria-label="再生">
+        <svg viewBox="0 0 24 24"><path d="M6 3.5l14 8.5-14 8.5z"/></svg>
+      </button>
+      <button class="tb" id="stopBtn" title="停止" aria-label="停止" disabled>
+        <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>
+      </button>
+    </div>
+    <div class="group">
+      <div id="timebox" aria-live="off"><span class="t" id="timeText">00:00.000</span><span class="b" id="beatText">Beat 0.000</span></div>
+      <button class="tb" id="helpBtn" title="使い方" aria-label="使い方">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17.5v.01"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="editor">
+    <canvas id="view" aria-label="トラック"></canvas>
+    <div id="subtitle" hidden></div>
+    <div id="loading">
+      <div class="card">
+        <h2 id="loadTitle">準備中…</h2>
+        <p id="loadMsg">サンプルのリミックスを読み込んでいます。</p>
+        <div class="bar"><div id="loadBar"></div></div>
+      </div>
+    </div>
+  </main>
+
+  <section id="panel">
+    <div class="navrow">
+      <button class="tb" id="pageLeft" title="左へ" aria-label="左へスクロール"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="mini-wrap"><canvas id="minimap" aria-label="全体図（タップで移動）"></canvas></div>
+      <button class="tb" id="pageRight" title="右へ" aria-label="右へスクロール"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button class="tb" id="zoomOut" title="縮小" aria-label="縮小"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button class="tb" id="zoomIn" title="拡大" aria-label="拡大"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+    </div>
+    <div class="pane">
+      <div class="pane-head" id="gamesHead">ミニゲーム</div>
+      <div id="gameGrid"></div>
+    </div>
+    <div class="pane">
+      <div class="pane-head" id="listHead">パターン</div>
+      <div id="list"><div class="empty">左のアイコンを押すと、そのミニゲームのパターンが並びます。名前を押すと試聴できます。</div></div>
+    </div>
+  </section>
+
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.1</span></footer>
+</div>
+
+<div class="modal" id="exportModal" hidden>
+  <div class="card">
+    <h2>WAVに書き出す</h2>
+    <p id="exportMsg">再生開始位置（緑の旗）から最後までを書き出します。</p>
+    <div class="bar"><div id="exportBar"></div></div>
+    <div class="row">
+      <a class="btn primary" id="exportSave" hidden>WAVを保存</a>
+      <button class="btn" id="exportClose">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="card">
+    <h2>RHRE Web（再生専用の試作）</h2>
+    <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
+    <ul>
+      <li>1本指で左右にドラッグ：スクロール</li>
+      <li>2本指でつまむ：拡大・縮小</li>
+      <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
+      <li>ブロックをタップ：選択して下に詳細を表示</li>
+      <li>下のアイコン：そのミニゲームへ移動、名前を押すと試聴</li>
+      <li>iPhone で音が出ないときは、消音スイッチと音量を確認</li>
+    </ul>
+    <p>編集・保存はまだできません。字幕は表示しますが、プレイアロングや画面揺れなどの演出は再生しません。</p>
+    <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
+    <div class="row"><button class="btn" id="helpClose">閉じる</button></div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" hidden>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
