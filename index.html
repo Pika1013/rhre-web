@@ -6,7 +6,11 @@
 <meta name="theme-color" content="#3b3b3b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
@@ -172,15 +176,33 @@
     #toolbar { justify-content: space-between; }
     #timebox { min-width: 100px; }
   }
+  /* ピッカーを畳んだとき（横向きのスマホでは最初から畳む） */
+  #panel.collapsed { height: auto; grid-template-rows: auto; }
+  #panel.collapsed .pane { display: none; }
+  #panelToggle svg { transition: transform 0.15s; }
+  #panel.collapsed #panelToggle svg { transform: rotate(180deg); }
+  #fsBtn[hidden] { display: none !important; }
+
   @media (max-height: 460px) {
-    :root { --btn-size: 34px; }
-    #panel { height: 128px; }
+    :root { --btn-size: 32px; }
+    #toolbar { padding-block: 3px; gap: 4px 8px; }
+    #snapBtn { font-size: 14px; padding: 0 8px; }
+    #snapBtn span { font-size: 17px; }
+    #timebox { min-width: 96px; }
+    #timebox .t { font-size: 15px; }
+    #timebox .b { font-size: 10px; }
+    #panel { height: 132px; }
     .pane-head { display: none; }
     .navrow { padding-block: 2px; }
     .navrow .tb { --btn-size: 28px; }
     .mini-wrap { height: 26px; }
     .game { width: 40px; height: 40px; }
     .item { padding-block: 4px; font-size: 15px; }
+    #status { font-size: 11px; padding-block: 1px calc(1px + env(safe-area-inset-bottom, 0px)); min-height: 0; }
+    .card { padding: 10px 14px; }
+    .card h2 { font-size: 15px; margin-bottom: 4px; }
+    .card p { font-size: 13px; margin-bottom: 4px; }
+    .bar { margin-top: 6px; }
   }
   @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
 </style>
@@ -227,6 +249,9 @@
     </div>
     <div class="group">
       <div id="timebox" aria-live="off"><span class="t" id="timeText">00:00.000</span><span class="b" id="beatText">Beat 0.000</span></div>
+      <button class="tb" id="fsBtn" title="全画面" aria-label="全画面" hidden>
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
       <button class="tb" id="helpBtn" title="使い方" aria-label="使い方">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17.5v.01"/></svg>
       </button>
@@ -247,6 +272,7 @@
 
   <section id="panel">
     <div class="navrow">
+      <button class="tb" id="panelToggle" title="ピッカーを畳む／開く" aria-label="ピッカーを畳む／開く" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
       <button class="tb" id="pageLeft" title="左へ" aria-label="左へスクロール"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
       <div class="mini-wrap"><canvas id="minimap" aria-label="全体図（タップで移動）"></canvas></div>
       <button class="tb" id="pageRight" title="右へ" aria-label="右へスクロール"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
@@ -289,7 +315,9 @@
       <li>ブロックをタップ：選択して下に詳細を表示</li>
       <li>下のアイコン：そのミニゲームへ移動、名前を押すと試聴</li>
       <li>iPhone で音が出ないときは、消音スイッチと音量を確認</li>
+      <li>全体図の左の ⌄ ボタン：下のピッカーを畳む／開く（横向きでは最初から畳んであります）</li>
     </ul>
+    <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。ホーム画面のアイコンから開くと、Safari のバーなしで使えます。</p>
     <p>編集・保存はまだできません。字幕は表示しますが、プレイアロングや画面揺れなどの演出は再生しません。</p>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
     <div class="row"><button class="btn" id="helpClose">閉じる</button></div>

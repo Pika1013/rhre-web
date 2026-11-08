@@ -353,6 +353,37 @@ $('zoomIn').addEventListener('click', () => view.zoomBy(1.4));
 $('zoomOut').addEventListener('click', () => view.zoomBy(1 / 1.4));
 $('pageLeft').addEventListener('click', () => { view.scrollBeat -= view.visibleBeats * 0.8; view.lastUser = performance.now(); view.dirty = true; });
 $('pageRight').addEventListener('click', () => { view.scrollBeat += view.visibleBeats * 0.8; view.lastUser = performance.now(); view.dirty = true; });
+// 下のピッカー：背の低い画面（横向きのスマホ）では最初から畳む。向きごとに押した状態を覚える
+const panelPref = { short: null, tall: null };
+const isShort = () => window.innerHeight < 430;
+function applyPanel() {
+  const key = isShort() ? 'short' : 'tall';
+  const collapsed = panelPref[key] ?? isShort();
+  $('panel').classList.toggle('collapsed', collapsed);
+  $('panelToggle').setAttribute('aria-expanded', String(!collapsed));
+}
+$('panelToggle').addEventListener('click', () => {
+  panelPref[isShort() ? 'short' : 'tall'] = !$('panel').classList.contains('collapsed');
+  applyPanel();
+});
+window.addEventListener('resize', applyPanel);
+applyPanel();
+
+// 全画面（iPad・Android・PC など対応している環境だけボタンを出す。iPhone はホーム画面に追加で全画面になる）
+const root = document.documentElement;
+const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const inStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+$('fsBtn').hidden = !fsSupported || inStandalone;
+$('fsBtn').addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      await (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+    }
+  } catch (_) { /* 断られたらそのまま */ }
+});
+
 $('helpBtn').addEventListener('click', () => { $('helpModal').hidden = false; });
 $('helpClose').addEventListener('click', () => { $('helpModal').hidden = true; });
 
