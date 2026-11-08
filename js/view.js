@@ -122,8 +122,10 @@ export class EditorView {
   layout() {
     const tc = this.remix ? this.remix.trackCount : 5;
     const compact = this.H < 260;
-    const infoH = compact ? 36 : clamp(this.H * 0.16, 46, 74);
-    const rulerH = compact ? 18 : 22;
+    // ゲーム一覧を開いているあいだは、上の旗の欄と目盛りを小さくしてトラックを上に詰める（下のテンポの段はそのまま）
+    const tight = compact || this.compactTop;
+    const infoH = tight ? 36 : clamp(this.H * 0.16, 46, 74);
+    const rulerH = tight ? 18 : 22;
     const tempoH = compact ? 24 : 38;
     const avail = this.H - infoH - rulerH - tempoH - 6;
     const rowH = clamp(avail / tc, 18, 64);

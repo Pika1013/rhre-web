@@ -1,11 +1,11 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=9';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset } from './audio.js?v=11';
 import { customRegistry } from './db.js?v=6';
-import { t, setLang, applyStatic } from './i18n.js?v=8';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=15';
+import { t, setLang, applyStatic } from './i18n.js?v=9';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=16';
 import { makeZip } from './zip.js?v=4';
 
-const VERSION = '2.4';
+const VERSION = '2.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1419,6 +1419,50 @@ function applyPanel() {
   $('panel').classList.toggle('collapsed', collapsed);
   $('panelToggle').classList.toggle('collapsed', collapsed);
   $('panelToggle').setAttribute('aria-expanded', String(!collapsed));
+  // ドラッグで決めた高さ（縦向き・横向きそれぞれ）
+  const saved = settings.panelH?.[key];
+  if (!collapsed && saved) setPanelHeight(saved); else $('panel').style.height = '';
+  view.compactTop = !collapsed;
+  view.dirty = true;
+}
+
+// ゲーム一覧の高さ：境目のつまみを上下にドラッグ。ダブルタップで元の高さに
+function panelMaxH() {
+  const top = $('topbar').getBoundingClientRect().bottom;
+  return Math.max(110, window.innerHeight - top - $('status').offsetHeight - 120);
+}
+function setPanelHeight(h) { $('panel').style.height = `${Math.round(clamp(h, 100, panelMaxH()))}px`; }
+{
+  const grip = $('panelGrip');
+  let lastDown = 0;
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const key = isShort() ? 'short' : 'tall';
+    const now = performance.now();
+    if (now - lastDown < 320) {
+      lastDown = 0;
+      if (settings.panelH) delete settings.panelH[key];
+      saveSettings();
+      applyPanel();
+      return;
+    }
+    lastDown = now;
+    try { grip.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    const y0 = e.clientY, h0 = $('panel').getBoundingClientRect().height;
+    grip.classList.add('dragging');
+    const move = (ev) => setPanelHeight(h0 - (ev.clientY - y0));
+    const up = () => {
+      grip.classList.remove('dragging');
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+      const h = $('panel').getBoundingClientRect().height;
+      if (Math.abs(h - h0) > 2) { settings.panelH = { ...(settings.panelH || {}), [key]: Math.round(h) }; saveSettings(); }
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+  });
 }
 $('panelToggle').addEventListener('click', () => {
   panelPref[isShort() ? 'short' : 'tall'] = !$('panel').classList.contains('collapsed');

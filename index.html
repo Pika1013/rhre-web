@@ -177,6 +177,7 @@
 
   /* 下段のピッカー */
   #panel {
+    position: relative;
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr);
     height: clamp(180px, 36vh, 320px); background: var(--panel); border-top: 2px solid var(--panel-line);
   }
@@ -334,6 +335,14 @@
   }
   /* ピッカーを畳んだとき（横向きのスマホでは最初から畳む） */
   #panel.collapsed { display: none; }
+  /* ゲーム一覧と中央の境目：ドラッグで高さを変えるつまみ（左の「ゲームを選ぶ」とは重ならないように） */
+  #panelGrip {
+    position: absolute; left: 150px; right: 0; top: -9px; height: 18px; z-index: 6; display: grid; place-items: center;
+    touch-action: none; cursor: ns-resize;
+  }
+  #panelGrip span { width: 46px; height: 5px; border-radius: 3px; background: #8c8c8c; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: translateX(-75px); }
+  #panelGrip:hover span, #panelGrip.dragging span { background: var(--accent); }
+  #panel.collapsed #panelGrip { display: none; }
   #panelToggle {
     position: absolute; left: 6px; bottom: 0; z-index: 4; height: 24px; padding: 0 9px 0 5px; display: flex; align-items: center; gap: 3px;
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font-size: 11px; font-weight: 700;
@@ -544,6 +553,7 @@
   </main>
 
   <section id="panel">
+    <div id="panelGrip" role="separator" aria-orientation="horizontal" aria-label="ゲーム一覧の高さ" title="ドラッグで高さを変える（ダブルタップで元に戻す）"><span></span></div>
     <div class="pane">
       <div class="pane-head" id="tabsRow">
         <div id="tabs" role="tablist"></div>
@@ -557,7 +567,7 @@
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.4</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 2.5</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -769,6 +779,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=27"></script>
+<script type="module" src="js/app.js?v=28"></script>
 </body>
 </html>
