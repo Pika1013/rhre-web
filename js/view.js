@@ -67,7 +67,11 @@ export class EditorView {
     this.ppb = 48;
     this.scrollBeat = -2;
     this.playhead = null;
-    this.selected = null;
+    this.selection = new Set();
+    this.armed = null; // 置こうとしている項目 { width, height, name, color }
+    this.hover = null; // マウスで置く位置の目安
+    this.moveState = null;
+    this.resizeState = null;
     this.snap = 0.25;
     this.dirty = true;
     this.lastUser = 0;
@@ -80,7 +84,7 @@ export class EditorView {
 
   setRemix(remix) {
     this.remix = remix;
-    this.selected = null;
+    this.selection.clear();
     this.ppb = clamp(this.W / 14, 26, 90);
     this.scrollBeat = remix.playbackStart - (this.W * 0.3) / this.ppb;
     this.dirty = true;
@@ -132,6 +136,27 @@ export class EditorView {
   }
 
   // ---------------------------------------------------------------- 入力
+  // 1本指: 選択中のブロックの上から → 移動 ／ 選択中の伸ばせるブロックの端 → 長さ変更 ／ それ以外 → スクロール
+  // タップ: ブロック → 選択、空き → 置く（置く項目を選んでいるとき）か選択解除、上の目盛り → 再生開始位置、テンポの段 → テンポ
+
+  snapFloor(b) { return this.snap > 0 ? Math.floor(b / this.snap + 1e-6) * this.snap : b; }
+  snapRound(b) { return this.snap > 0 ? Math.round(b / this.snap) * this.snap : b; }
+
+  trackAt(y, L) { return Math.floor((y - L.tracksTop) / L.rowH); }
+
+  // 選択中で伸ばせるブロックの端に触れたか
+  edgeAt(x, y, L) {
+    if (this.selection.size !== 1 || !this.h.canEdit?.()) return null;
+    const e = [...this.selection][0];
+    if (!this.h.isStretchable?.(e)) return null;
+    const top = L.tracksTop + e.track * L.rowH;
+    if (y < top - 4 || y > top + e.height * L.rowH + 4) return null;
+    const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
+    const grip = Math.min(18, Math.max(8, (x1 - x0) / 3));
+    if (x >= x1 - grip && x <= x1 + 10) return { ent: e, side: 'R' };
+    if (x >= x0 - 10 && x <= x0 + grip) return { ent: e, side: 'L' };
+    return null;
+  }
 
   bindInput() {
     const cv = this.cv;
@@ -141,18 +166,40 @@ export class EditorView {
       this.momentum = null;
       this.lastUser = performance.now();
       if (this.pointers.size === 1) {
-        this.drag = { x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now() };
+        const L = this.remix ? this.layout() : null;
+        let mode = 'scroll', edge = null;
+        if (L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom) {
+          edge = this.edgeAt(e.offsetX, e.offsetY, L);
+          if (edge) mode = 'resize';
+          else {
+            const hit = this.hitTest(e.offsetX, e.offsetY, L);
+            if (hit && this.selection.has(hit) && this.h.canEdit?.()) mode = 'move';
+          }
+        }
+        this.drag = { mode, edge, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
         this.pinch = null;
       } else if (this.pointers.size === 2) {
         const [a, b] = [...this.pointers.values()];
         const mid = (a.x + b.x) / 2;
         this.pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, ppb0: this.ppb, midBeat: this.beatAt(mid) };
         this.drag = null;
+        this.moveState = null;
+        this.resizeState = null;
       }
+      this.dirty = true;
     });
     cv.addEventListener('pointermove', (e) => {
       const p = this.pointers.get(e.pointerId);
-      if (!p) return;
+      if (!p) {
+        // マウスのホバー：置く位置の目安を出す
+        if (e.pointerType === 'mouse' && this.armed && this.remix) {
+          const L = this.layout();
+          const t = this.trackAt(e.offsetY, L);
+          this.hover = t >= 0 && t < L.tc ? { beat: this.snapFloor(this.beatAt(e.offsetX)), track: t } : null;
+          this.dirty = true;
+        }
+        return;
+      }
       p.x = e.offsetX; p.y = e.offsetY;
       this.lastUser = performance.now();
       if (this.pinch && this.pointers.size >= 2) {
@@ -161,18 +208,38 @@ export class EditorView {
         this.ppb = clamp(this.pinch.ppb0 * (d / this.pinch.d0), 6, 600);
         this.scrollBeat = this.pinch.midBeat - ((a.x + b.x) / 2) / this.ppb;
         this.dirty = true;
-      } else if (this.drag) {
-        const dx = e.offsetX - this.drag.x0, dy = e.offsetY - this.drag.y0;
-        if (!this.drag.moved && Math.hypot(dx, dy) > 7) this.drag.moved = true;
-        if (this.drag.moved) {
-          this.scrollBeat = this.drag.s0 - dx / this.ppb;
-          const t = performance.now();
-          const dt = Math.max(1, t - this.drag.lt);
-          this.drag.vx = 0.8 * ((e.offsetX - this.drag.lx) / dt) + 0.2 * this.drag.vx;
-          this.drag.lx = e.offsetX; this.drag.lt = t;
-          this.dirty = true;
-        }
+        return;
       }
+      const d = this.drag;
+      if (!d) return;
+      const dx = e.offsetX - d.x0, dy = e.offsetY - d.y0;
+      if (!d.moved && Math.hypot(dx, dy) > 7) d.moved = true;
+      if (!d.moved) return;
+      const L = this.layout();
+      if (d.mode === 'move') {
+        const dBeat = this.snapRound(this.beatAt(e.offsetX) - this.beatAt(d.x0));
+        const dTrack = Math.round(dy / L.rowH);
+        if (!this.moveState || this.moveState.dBeat !== dBeat || this.moveState.dTrack !== dTrack) {
+          this.moveState = { dBeat, dTrack, valid: this.h.validateMove?.(dBeat, dTrack) ?? true };
+        }
+        this.edgeScroll(e.offsetX);
+      } else if (d.mode === 'resize') {
+        const ent = d.edge.ent;
+        const minW = Math.max(this.snap || 0.0625, 0.0625);
+        const pos = this.snapRound(this.beatAt(e.offsetX));
+        let beat = ent.beat, width = ent.width;
+        if (d.edge.side === 'R') width = Math.max(minW, pos - ent.beat);
+        else { const end = ent.beat + ent.width; beat = Math.min(pos, end - minW); width = end - beat; }
+        this.resizeState = { ent, beat, width, valid: this.h.validateResize?.(ent, beat, width) ?? true };
+        this.edgeScroll(e.offsetX);
+      } else {
+        this.scrollBeat = d.s0 - dx / this.ppb;
+        const t = performance.now();
+        const dt = Math.max(1, t - d.lt);
+        d.vx = 0.8 * ((e.offsetX - d.lx) / dt) + 0.2 * d.vx;
+        d.lx = e.offsetX; d.lt = t;
+      }
+      this.dirty = true;
     });
     const up = (e) => {
       if (!this.pointers.has(e.pointerId)) return;
@@ -181,17 +248,27 @@ export class EditorView {
       if (this.pinch) {
         this.pinch = null;
         const rest = [...this.pointers.values()][0];
-        this.drag = rest ? { x0: rest.x, y0: rest.y, s0: this.scrollBeat, t0: 0, moved: true, vx: 0, lx: rest.x, lt: performance.now() } : null;
+        this.drag = rest ? { mode: 'scroll', x0: rest.x, y0: rest.y, s0: this.scrollBeat, t0: 0, moved: true, vx: 0, lx: rest.x, lt: performance.now() } : null;
         return;
       }
       const d = this.drag;
       this.drag = null;
+      const ms = this.moveState, rs = this.resizeState;
+      this.moveState = null;
+      this.resizeState = null;
+      this.dirty = true;
       if (!d || e.type === 'pointercancel') return;
-      if (!d.moved && performance.now() - d.t0 < 600) this.tap(e.offsetX, e.offsetY);
-      else if (d.moved && Math.abs(d.vx) > 0.15 && performance.now() - d.lt < 80) this.momentum = { v: d.vx, t: performance.now() };
+      if (!d.moved) {
+        if (performance.now() - d.t0 < 600) this.tap(e.offsetX, e.offsetY, d.shift);
+        return;
+      }
+      if (d.mode === 'move' && ms && (ms.dBeat || ms.dTrack)) this.h.onMove?.(ms.dBeat, ms.dTrack);
+      else if (d.mode === 'resize' && rs && (rs.beat !== rs.ent.beat || rs.width !== rs.ent.width)) this.h.onResize?.(rs.ent, rs.beat, rs.width);
+      else if (d.mode === 'scroll' && Math.abs(d.vx) > 0.15 && performance.now() - d.lt < 80) this.momentum = { v: d.vx, t: performance.now() };
     };
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
+    cv.addEventListener('pointerleave', () => { if (this.hover) { this.hover = null; this.dirty = true; } });
     cv.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.lastUser = performance.now();
@@ -200,20 +277,33 @@ export class EditorView {
     }, { passive: false });
   }
 
-  tap(x, y) {
+  // ドラッグ中に画面の端へ寄せたら、その方向へ少しずつ進む
+  edgeScroll(x) {
+    const zone = 28;
+    if (x < zone) this.scrollBeat -= ((zone - x) / zone) * 0.25;
+    else if (x > this.W - zone) this.scrollBeat += ((x - (this.W - zone)) / zone) * 0.25;
+  }
+
+  tap(x, y, additive) {
     if (!this.remix) return;
     const L = this.layout();
     if (y < L.tracksTop) {
       // 上の目盛り部分のタップ → 再生開始位置（デスクトップ版の右クリック）
-      const raw = this.beatAt(x);
-      const b = this.snap > 0 ? Math.round(raw / this.snap) * this.snap : raw;
-      this.h.onSetPlaybackStart?.(b);
+      this.h.onSetPlaybackStart?.(this.snapRound(this.beatAt(x)));
+      return;
+    }
+    if (y > L.tracksBottom) {
+      if (y <= L.tracksBottom + L.tempoH + 6) {
+        const marker = this.remix.tempoMarkerNear(this.beatAt(x), 16 / this.ppb);
+        this.h.onTempoTap?.(this.snapFloor(this.beatAt(x)), marker);
+      }
       return;
     }
     const hit = this.hitTest(x, y, L);
-    this.selected = hit;
+    if (hit) this.h.onSelect?.(hit, additive);
+    else if (this.armed) this.h.onPlace?.(this.snapFloor(this.beatAt(x)), this.trackAt(y, L));
+    else this.h.onSelect?.(null, additive);
     this.dirty = true;
-    this.h.onSelect?.(hit);
   }
 
   hitTest(x, y, L) {
@@ -221,7 +311,7 @@ export class EditorView {
     const ents = this.remix.entities;
     for (let i = ents.length - 1; i >= 0; i--) {
       const e = ents[i];
-      const w = Math.max(e.width, 6 / this.ppb);
+      const w = Math.max(e.width, 10 / this.ppb);
       if (b >= e.beat && b <= e.beat + w) {
         const top = L.tracksTop + e.track * L.rowH;
         if (y >= top && y <= top + e.height * L.rowH) return e;
@@ -315,6 +405,7 @@ export class EditorView {
       if (e.minBeat > b1 || e.maxBeat < b0) continue;
       this.drawEntity(g, e, L, now);
     }
+    this.drawEditOverlay(g, L);
 
     // テンポ変更・音量変更
     const ty = L.tracksBottom + 3;
@@ -356,6 +447,53 @@ export class EditorView {
       g.strokeStyle = C.playhead;
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
+    }
+  }
+
+  // 移動・長さ変更中の行き先、伸ばせるブロックのつまみ、マウスで置く位置の目安
+  drawEditOverlay(g, L) {
+    const ghost = (beat, track, width, height, valid) => {
+      const x = this.x(beat), y = L.tracksTop + track * L.rowH + 1;
+      const w = Math.max(3, width * this.ppb), h = height * L.rowH - 2;
+      g.fillStyle = valid ? 'rgba(25,240,255,0.22)' : 'rgba(255,60,60,0.28)';
+      g.fillRect(x, y, w, h);
+      g.setLineDash([6, 4]);
+      g.strokeStyle = valid ? C.select : '#ff4d4d';
+      g.lineWidth = 2;
+      g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      g.setLineDash([]);
+    };
+    if (this.moveState) {
+      const { dBeat, dTrack, valid } = this.moveState;
+      for (const e of this.selection) ghost(e.beat + dBeat, e.track + dTrack, e.width, e.height, valid);
+    }
+    if (this.resizeState) {
+      const { ent, beat, width, valid } = this.resizeState;
+      ghost(beat, ent.track, width, ent.height, valid);
+    }
+    if (this.hover && this.armed) {
+      const a = this.armed;
+      const t = Math.max(0, Math.min(this.hover.track, L.tc - a.height));
+      ghost(this.hover.beat, t, a.width, a.height, true);
+    }
+    // つまみ（1つだけ選んでいて、伸ばせるとき）
+    if (this.selection.size === 1 && !this.moveState && !this.resizeState && this.h.canEdit?.()) {
+      const e = [...this.selection][0];
+      if (this.h.isStretchable?.(e)) {
+        const y = L.tracksTop + e.track * L.rowH;
+        const h = e.height * L.rowH;
+        for (const bx of [e.beat, e.beat + e.width]) {
+          const x = this.x(bx);
+          g.fillStyle = '#ffffff';
+          g.strokeStyle = '#0a5560';
+          g.lineWidth = 1.5;
+          const gw = 7, gh = Math.max(14, h * 0.55);
+          g.beginPath();
+          g.roundRect ? g.roundRect(x - gw / 2, y + (h - gh) / 2, gw, gh, 3) : g.rect(x - gw / 2, y + (h - gh) / 2, gw, gh);
+          g.fill();
+          g.stroke();
+        }
+      }
     }
   }
 
@@ -421,8 +559,9 @@ export class EditorView {
       } else e.flashAt = 0;
     }
 
-    g.strokeStyle = e === this.selected ? C.select : shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
-    g.lineWidth = e === this.selected ? 3 : 2;
+    const sel = this.selection.has(e);
+    g.strokeStyle = sel ? C.select : shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
+    g.lineWidth = sel ? 3 : 2;
     g.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
     if (w < 14) return;

@@ -1,7 +1,7 @@
 // .rhref（remix.json）の解釈。テンポ・パターン展開・音の鳴らし方は RHRE fresh 本体と同じ規則に合わせてある。
 
-import { readZip } from './zip.js';
-import { SFXDatabase } from './db.js';
+import { readZip } from './zip.js?v=4';
+import { SFXDatabase } from './db.js?v=4';
 
 // ---------------------------------------------------------------- テンポ（徐々の変化とスウィング込み）
 
@@ -141,6 +141,41 @@ class Model {
     return r;
   }
 
+  clearCaches() {
+    this.durCache.clear();
+    this.repitchCache.clear();
+  }
+
+  hasSound(o) {
+    return !!o && (o.type === 'cue' || isMulti(o));
+  }
+
+  // 端をドラッグして長さを変えられるか（RHRE の IStretchable）
+  stretchable(o) {
+    if (!o) return false;
+    switch (o.type) {
+      case 'cue': return !!o.stretchable;
+      case 'keepTheBeat': return true;
+      case 'pattern': case 'equidistant': case 'randomCue': case 'multiCue': return !!o.stretchable;
+      case 'pitchDependent': return this.options(o).some((c) => { const x = this.db.get(c.id); return x?.type === 'cue' && !!x.stretchable; });
+      case 'subtitleEntity': return true;
+      default: return false;
+    }
+  }
+
+  // 新しく置くときの高さ（トラック数）
+  height(o, trackCount) {
+    if (o.type === 'endEntity') return trackCount;
+    if (o.type === 'cue' || o.type === 'multiCue' || !isMulti(o)) return 1;
+    return 1 + Math.max(0, ...this.options(o).map((c) => Number(c.track || 0)));
+  }
+
+  defaultWidth(o) {
+    if (o.type === 'multiCue' && Number(o.width) > 0) return Number(o.width);
+    if (o.type === 'subtitleEntity') return 1;
+    return this.duration(o);
+  }
+
   // RHRE の MultipartEntity と同じ規則で、実際に鳴る cue（葉）まで展開する
   expand(o, x, y, w, semi, vol, rng, out, extra = {}) {
     if (!o) return;
@@ -256,108 +291,258 @@ function leafToEvents(lf, T, db, rng, ent, out) {
 
 // ---------------------------------------------------------------- リミックス全体
 
+export const DEFAULT_DB_COMMIT = '03cb1c7';
+export const DEFAULT_DB_VERSION = 149;
+
+export function emptyRemixJSON() {
+  return {
+    version: 'v4.0.1',
+    databaseVersion: DEFAULT_DB_VERSION,
+    databaseVersionCommit: DEFAULT_DB_COMMIT,
+    wasDevBranch: false,
+    playbackStart: 0,
+    musicStartSec: 0,
+    defaultTempo: 120,
+    trackCount: 5,
+    isAutosave: false,
+    midiInstruments: 0,
+    musicData: { present: false },
+    textures: [],
+    entities: [],
+    trackers: {
+      tempos: { trackers: [{ beat: 0, seconds: 0, bpm: 120, width: 0, swingRatio: 50, swingDivision: 1, isImmutable: true }] },
+      musicVolumes: { trackers: [] },
+    },
+    timeSignatures: [{ beat: 0, divisions: 4, beatUnit: 4, measure: 1 }],
+  };
+}
+
 export async function openRemixFile(arrayBuffer) {
   const zip = await readZip(arrayBuffer);
   let json = await zip.readText('remix.json');
-  let legacy = false;
   if (json == null) {
-    json = await zip.readText('data.json');
-    legacy = true;
+    if (zip.has('data.json')) throw new Error('RHRE2 の古い形式には未対応です');
+    throw new Error('remix.json が見つかりません（RHRE fresh / RHRE3 の .rhref を選んでください）');
   }
-  if (json == null) throw new Error('remix.json が見つかりません（RHRE fresh / RHRE3 の .rhref を選んでください）');
-  if (legacy) throw new Error('RHRE2 の古い形式には未対応です');
   const remix = JSON.parse(json);
   let music = null;
   if (remix.musicData?.present && zip.has('music.bin')) {
-    music = { bytes: await zip.read('music.bin'), filename: remix.musicData.filename || 'music', extension: remix.musicData.extension || '' };
+    const filename = remix.musicData.filename || 'music';
+    music = { bytes: await zip.read('music.bin'), filename, extension: remix.musicData.extension || filename.split('.').pop() || '' };
   }
-  return { remix, music };
+  // テクスチャ（png）など、編集しないファイルは保存時にそのまま書き戻す
+  const extraFiles = [];
+  for (const name of zip.names) {
+    if (name === 'remix.json' || name === 'music.bin' || name.endsWith('/')) continue;
+    extraFiles.push({ name, data: await zip.read(name) });
+  }
+  return { remix, music, extraFiles };
 }
 
+const KNOWN_KEYS = new Set(['type', 'beat', 'track', 'width', 'height', 'datamodel', 'semitone', 'volume', 'stopAtEnd', 'isCustom', 'subtitle']);
+const SOUNDLESS_SPECIAL = new Set(['endEntity', 'subtitleEntity', 'shakeEntity', 'textureEntity', 'tapeMeasure', 'playalongEntity', 'musicDistortEntity', 'pitchBenderEntity']);
+
 export class Remix {
-  constructor(remix, db) {
-    this.raw = remix;
+  constructor(raw, db) {
     this.db = db;
     this.model = new Model(db);
-    this.tempo = new TempoMap(remix.trackers?.tempos?.trackers, remix.defaultTempo);
-    this.trackCount = Math.max(1, Number(remix.trackCount) || 5);
-    this.playbackStart = Number(remix.playbackStart || 0);
-    this.musicStartSec = Number(remix.musicStartSec || 0);
-    this.timeSignatures = (remix.timeSignatures || [])
+    this.load(raw);
+  }
+
+  load(raw) {
+    this.raw = raw;
+    this.trackCount = Math.max(1, Number(raw.trackCount) || 5);
+    this.playbackStart = Number(raw.playbackStart || 0);
+    this.musicStartSec = Number(raw.musicStartSec || 0);
+    this.defaultTempo = Number(raw.defaultTempo) || 120;
+    this.tempoTrackers = (raw.trackers?.tempos?.trackers || []).map((t) => ({
+      beat: Number(t.beat), bpm: Number(t.bpm) || this.defaultTempo, width: Math.max(0, Number(t.width) || 0),
+      swingRatio: t.swingRatio ?? 50, swingDivision: t.swingDivision ?? 1, isImmutable: !!t.isImmutable,
+    }));
+    this.musicVolumes = (raw.trackers?.musicVolumes?.trackers || [])
+      .map((t) => ({ beat: Number(t.beat), width: Math.max(0, Number(t.width) || 0), volume: Number(t.volume ?? 100) }))
+      .sort((a, b) => a.beat - b.beat);
+    this.timeSignatures = (raw.timeSignatures || [])
       .map((t) => ({ beat: Number(t.beat), perMeasure: Math.max(1, Number(t.divisions) || 4), unit: Number(t.beatUnit) || 4 }))
       .sort((a, b) => a.beat - b.beat);
     if (!this.timeSignatures.length || this.timeSignatures[0].beat > 0) this.timeSignatures.unshift({ beat: 0, perMeasure: 4, unit: 4 });
-    this.musicVolumes = (remix.trackers?.musicVolumes?.trackers || [])
-      .map((t) => ({ beat: Number(t.beat), width: Math.max(0, Number(t.width) || 0), volume: Number(t.volume ?? 100) }))
-      .sort((a, b) => a.beat - b.beat);
-    this.buildEntities();
+    this.otherEntities = (raw.entities || []).filter((e) => !e.datamodel);
+    this.entities = (raw.entities || []).filter((e) => e.datamodel).map((e) => this.entFromJSON(e));
+    this.rebuild();
   }
 
-  buildEntities() {
-    const fixed = () => 0;
-    this.entities = [];
-    this.subtitles = [];
+  entFromJSON(e) {
+    const extra = {};
+    for (const k of Object.keys(e)) if (!KNOWN_KEYS.has(k)) extra[k] = e[k];
+    return {
+      id: e.datamodel,
+      beat: Number(e.beat || 0),
+      track: Number(e.track || 0) | 0,
+      width: Number(e.width || 0),
+      height: Math.max(1, Number(e.height || 1) | 0),
+      semitone: Number(e.semitone || 0) | 0,
+      volume: e.volume != null ? Number(e.volume) : 100,
+      stopAtEnd: !!e.stopAtEnd,
+      isCustom: !!e.isCustom,
+      subtitle: e.subtitle,
+      extra,
+      flashAt: 0,
+    };
+  }
+
+  entToJSON(ent) {
+    const out = { type: 'model', ...ent.extra, beat: ent.beat, track: ent.track, width: ent.width, height: ent.height, datamodel: ent.id };
+    if (!ent.o || !SOUNDLESS_SPECIAL.has(ent.o.type)) { out.semitone = ent.semitone; out.volume = ent.volume; }
+    if (ent.stopAtEnd) out.stopAtEnd = true;
+    if (ent.isCustom) out.isCustom = true;
+    if (ent.subtitle != null) out.subtitle = ent.subtitle;
+    return out;
+  }
+
+  // 表示・再生用の値を、編集できる値（id, beat, track, width…）から作り直す
+  refreshEnt(ent) {
+    const o = this.db.get(ent.id);
+    ent.o = o || null;
+    ent.type = o ? o.type : 'missing';
+    ent.name = o ? cleanName(o.name) : ent.id;
+    ent.game = o?.game || null;
+    ent.leaves = [];
+    if (o) this.model.expand(o, ent.beat, ent.track, ent.width, ent.semitone, ent.volume / 100, () => 0, ent.leaves, { stopAtEnd: ent.stopAtEnd });
+    ent.minBeat = Math.min(ent.beat, ...ent.leaves.map((l) => l.beat));
+    ent.maxBeat = Math.max(ent.beat + ent.width, ...ent.leaves.map((l) => l.beat + l.width));
+  }
+
+  rebuild() {
+    this.model.clearCaches();
+    this.tempo = new TempoMap(this.tempoTrackers, this.defaultTempo);
     this.missing = new Set();
+    this.subtitles = [];
     let endBeat = null;
     let lastBeat = 0;
-    (this.raw.entities || []).forEach((e, index) => {
-      const id = e.datamodel;
-      if (!id) return;
-      const o = this.db.get(id);
-      const beat = Number(e.beat || 0);
-      const width = Number(e.width || 0);
-      const ent = {
-        index, id, o,
-        type: o ? o.type : 'missing',
-        name: o ? cleanName(o.name) : id,
-        game: o?.game || null,
-        beat, width,
-        track: Number(e.track || 0),
-        height: Math.max(1, Number(e.height || 1)),
-        semitone: Number(e.semitone || 0),
-        volume: e.volume != null ? Number(e.volume) : 100,
-        stopAtEnd: !!e.stopAtEnd,
-        isCustom: !!e.isCustom,
-        leaves: [],
-        flash: -1,
-      };
-      if (!o) this.missing.add(id);
-      if (o?.type === 'endEntity') endBeat = endBeat == null ? beat : Math.min(endBeat, beat);
-      if (o?.type === 'subtitleEntity') {
-        ent.subtitle = String(e.subtitle ?? '');
-        this.subtitles.push(ent);
-      }
-      if (o) {
-        this.model.expand(o, beat, ent.track, width, ent.semitone, ent.volume / 100, fixed, ent.leaves, { stopAtEnd: ent.stopAtEnd });
-      }
-      ent.minBeat = Math.min(beat, ...ent.leaves.map((l) => l.beat));
-      ent.maxBeat = Math.max(beat + width, ...ent.leaves.map((l) => l.beat + l.width));
+    for (const ent of this.entities) {
+      this.refreshEnt(ent);
+      if (!ent.o) this.missing.add(ent.id);
+      if (ent.type === 'endEntity') endBeat = endBeat == null ? ent.beat : Math.min(endBeat, ent.beat);
+      if (ent.type === 'subtitleEntity') this.subtitles.push(ent);
       lastBeat = Math.max(lastBeat, ent.maxBeat);
-      this.entities.push(ent);
-    });
+    }
     this.entities.sort((a, b) => a.beat - b.beat || a.track - b.track);
     this.endBeat = endBeat ?? lastBeat;
     this.hasEndEntity = endBeat != null;
     this.durationSec = this.tempo.b2s(this.endBeat);
   }
 
+  // ---------------------------------------------------------------- 編集
+
+  createEntity(o, beat, track) {
+    const height = this.model.height(o, this.trackCount);
+    const ent = this.entFromJSON({ datamodel: o.id, beat, track: Math.max(0, Math.min(track, this.trackCount - height)), width: this.model.defaultWidth(o), height });
+    if (o.type === 'endEntity') ent.track = 0;
+    this.refreshEnt(ent);
+    return ent;
+  }
+
+  isStretchable(ent) { return this.model.stretchable(ent.o); }
+  canRepitch(ent) { return ent.o?.type === 'cue' ? true : this.model.canRepitch(ent.o); }
+  hasVolume(ent) { return this.model.hasSound(ent.o); }
+
+  // 別のエンティティと重なるか（RHRE では重ねて置けない）
+  collides(beat, track, width, height, ignore) {
+    const EPS = 1e-6;
+    const w = Math.max(width, 1e-4);
+    if (track < 0 || track + height > this.trackCount) return true;
+    for (const e of this.entities) {
+      if (ignore && ignore.has(e)) continue;
+      const ew = Math.max(e.width, 1e-4);
+      if (beat < e.beat + ew - EPS && e.beat < beat + w - EPS && track < e.track + e.height && e.track < track + height) return true;
+    }
+    return false;
+  }
+
+  tempoMarkerNear(beat, tolBeats) {
+    let best = null;
+    for (const t of this.tempoTrackers) {
+      const d = Math.abs(t.beat - beat);
+      if (d <= tolBeats && (!best || d < Math.abs(best.beat - beat))) best = t;
+    }
+    return best;
+  }
+
+  setTempo(beat, bpm) {
+    const t = this.tempoTrackers.find((x) => Math.abs(x.beat - beat) < 1e-6);
+    if (t) t.bpm = bpm;
+    else this.tempoTrackers.push({ beat, bpm, width: 0, swingRatio: 50, swingDivision: 1, isImmutable: false });
+    this.tempoTrackers.sort((a, b) => a.beat - b.beat);
+    if (t?.isImmutable || Math.abs(beat) < 1e-6) this.defaultTempo = bpm;
+  }
+
+  removeTempo(beat) {
+    this.tempoTrackers = this.tempoTrackers.filter((x) => !(Math.abs(x.beat - beat) < 1e-6 && !x.isImmutable));
+  }
+
+  // 元に戻す用の写し
+  snapshot() {
+    return JSON.stringify({
+      entities: this.entities.map((e) => this.entToJSON(e)),
+      tempoTrackers: this.tempoTrackers,
+      musicVolumes: this.musicVolumes,
+      playbackStart: this.playbackStart,
+      musicStartSec: this.musicStartSec,
+      defaultTempo: this.defaultTempo,
+      trackCount: this.trackCount,
+    });
+  }
+
+  restore(str) {
+    const s = JSON.parse(str);
+    this.entities = s.entities.map((e) => this.entFromJSON(e));
+    this.tempoTrackers = s.tempoTrackers;
+    this.musicVolumes = s.musicVolumes;
+    this.playbackStart = s.playbackStart;
+    this.musicStartSec = s.musicStartSec;
+    this.defaultTempo = s.defaultTempo;
+    this.trackCount = s.trackCount;
+    this.rebuild();
+  }
+
+  // ---------------------------------------------------------------- 保存（RHRE fresh の Remix.toJson と同じ形）
+
+  toJSON(music) {
+    const T = this.tempo;
+    const out = { ...this.raw };
+    out.version = this.raw.version || 'v4.0.1';
+    out.databaseVersion = this.raw.databaseVersion ?? DEFAULT_DB_VERSION;
+    out.databaseVersionCommit = this.raw.databaseVersionCommit || this.db.commit;
+    out.wasDevBranch = !!this.raw.wasDevBranch;
+    out.playbackStart = this.playbackStart;
+    out.musicStartSec = this.musicStartSec;
+    out.defaultTempo = this.defaultTempo;
+    out.trackCount = this.trackCount;
+    out.isAutosave = false;
+    out.midiInstruments = this.raw.midiInstruments ?? 0;
+    out.musicData = music ? { present: true, filename: music.filename, extension: music.extension } : { present: false };
+    out.textures = this.raw.textures || [];
+    out.entities = [...this.entities.map((e) => this.entToJSON(e)), ...this.otherEntities];
+    out.trackers = {
+      ...(this.raw.trackers || {}),
+      tempos: {
+        trackers: [...this.tempoTrackers].sort((a, b) => a.beat - b.beat).map((t) => ({
+          beat: t.beat, seconds: T.b2s(t.beat), bpm: t.bpm, width: t.width,
+          swingRatio: t.swingRatio, swingDivision: t.swingDivision, isImmutable: !!t.isImmutable,
+        })),
+      },
+      musicVolumes: { trackers: this.musicVolumes.map((m) => ({ beat: m.beat, width: m.width, volume: m.volume })) },
+    };
+    out.timeSignatures = this.timeSignatures.map((t) => ({ beat: t.beat, divisions: t.perMeasure, beatUnit: t.unit, measure: this.measureAt(t.beat).measure }));
+    return out;
+  }
+
+  // ---------------------------------------------------------------- 再生用
+
   // 使う可能性のあるすべての音（ランダム候補・イントロ・エンディングも含む）
   allSoundCues() {
     const out = new Map();
-    const visit = (o, seen = new Set()) => {
-      if (!o || seen.has(o.id)) return;
-      seen.add(o.id);
-      if (o.type === 'cue') {
-        out.set(this.db.soundUrl(o), o);
-        for (const s of [o.introSound, o.endingSound]) {
-          const so = s && this.db.get(s);
-          if (so?.type === 'cue') out.set(this.db.soundUrl(so), so);
-        }
-      } else if (isMulti(o)) {
-        for (const c of this.model.options(o)) visit(this.db.get(c.id), seen);
-      }
-    };
-    for (const e of this.entities) visit(e.o);
+    for (const e of this.entities) for (const u of this.soundUrlsOf(e.o)) out.set(u, true);
     return out;
   }
 
@@ -377,7 +562,7 @@ export class Remix {
   // ピッカーの試聴用：1つのデータモデルを一定テンポで鳴らすイベント
   previewEvents(o, bpm) {
     const tempo = new TempoMap([{ beat: 0, bpm }], bpm);
-    const w = this.model.duration(o);
+    const w = this.model.defaultWidth(o);
     const leaves = [];
     this.model.expand(o, 0, 0, w, 0, 1, Math.random, leaves);
     const events = [];
@@ -401,17 +586,6 @@ export class Remix {
     return [...urls];
   }
 
-  musicVolumeAt(beat) {
-    // RHRE: 直前（厳密に前）の音量変更点で決まる。幅があれば直線で変わる
-    let cur = null, prevVol = 100;
-    for (const mv of this.musicVolumes) {
-      if (mv.beat < beat) { if (cur) prevVol = cur.volume; cur = mv; } else break;
-    }
-    if (!cur) return 1;
-    if (cur.width > 0 && beat <= cur.beat + cur.width) return lerp(prevVol / 100, cur.volume / 100, (beat - cur.beat) / cur.width);
-    return cur.volume / 100;
-  }
-
   musicVolumeAutomation() {
     // RHRE の MusicVolumes.volumeAt と同じ形の折れ線（秒, 音量0〜）
     const pts = [];
@@ -424,6 +598,17 @@ export class Remix {
       prev = mv.volume;
     }
     return pts;
+  }
+
+  musicVolumeAt(beat) {
+    // RHRE: 直前（厳密に前）の音量変更点で決まる。幅があれば直線で変わる
+    let cur = null, prevVol = 100;
+    for (const mv of this.musicVolumes) {
+      if (mv.beat < beat) { if (cur) prevVol = cur.volume; cur = mv; } else break;
+    }
+    if (!cur) return 1;
+    if (cur.width > 0 && beat <= cur.beat + cur.width) return lerp(prevVol / 100, cur.volume / 100, (beat - cur.beat) / cur.width);
+    return cur.volume / 100;
   }
 
   measureAt(beat) {
@@ -445,11 +630,17 @@ export class Remix {
   }
 }
 
+// 開く: .rhref のバイト列から。ensureAll でデータベースの必要な分も読み込む
 export async function loadRemix(arrayBuffer, { onStatus } = {}) {
-  const { remix, music } = await openRemixFile(arrayBuffer);
-  const db = new SFXDatabase(remix.databaseVersionCommit);
-  const ids = (remix.entities || []).map((e) => e.datamodel).filter(Boolean);
+  const { remix, music, extraFiles } = await openRemixFile(arrayBuffer);
+  const r = await loadRemixJSON(remix, { onStatus });
+  return { ...r, music, extraFiles };
+}
+
+export async function loadRemixJSON(json, { onStatus } = {}) {
+  const db = new SFXDatabase(json.databaseVersionCommit || DEFAULT_DB_COMMIT);
+  const ids = (json.entities || []).map((e) => e.datamodel).filter(Boolean);
   onStatus?.('データベースを読み込み中…', 0);
   const missing = await db.ensureAll(ids, (done, total, g) => onStatus?.(`ミニゲームの定義を読み込み中 ${done}/${total}（${g}）`, total ? done / total : 1));
-  return { remix: new Remix(remix, db), music, missing };
+  return { remix: new Remix(json, db), missing };
 }

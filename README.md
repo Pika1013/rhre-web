@@ -1,6 +1,6 @@
 # RHRE Web（試作）
 
-[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで再生する試作です。今は再生専用で、編集・保存はできません。
+[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで再生・編集する試作です。
 
 ## できること
 
@@ -9,6 +9,8 @@
 - ピンチで拡大・縮小、ドラッグでスクロール、上の目盛りをタップで再生開始位置を移動
 - 使っているミニゲームの一覧とパターンの試聴
 - 再生開始位置から最後までを WAV に書き出し
+- 編集：全ミニゲームから置く、選ぶ・動かす・長さを変える、削除・複製・音程・音量、テンポ変更、音楽の追加、元に戻す・やり直す
+- RHRE fresh で開ける `.rhref` として保存。作業中は自動保存
 
 ## 効果音について
 

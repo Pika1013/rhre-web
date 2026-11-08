@@ -32,6 +32,7 @@
     --pause: #c9b51e;
     --stop: #cf2626;
     --on: #2d6c9a;
+    --danger: #a83232;
     --btn-size: 40px;
   }
   [hidden] { display: none !important; }
@@ -53,12 +54,12 @@
     height: 100dvh;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
     padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
     box-sizing: border-box;
   }
   button { font-family: var(--font); color: var(--text); cursor: pointer; touch-action: manipulation; }
-  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   /* ツールバー */
   #toolbar {
@@ -83,7 +84,6 @@
   #pauseBtn svg { fill: var(--pause); }
   #stopBtn svg { fill: var(--stop); }
   #transport .tb:disabled { opacity: 0.3; }
-  .spacer { flex: 1; }
   #timebox {
     height: var(--btn-size); min-width: 112px; box-sizing: border-box; padding: 0 10px; border-radius: 3px;
     background: #262626; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
@@ -103,14 +103,13 @@
   #toast {
     position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 5; width: min(520px, calc(100% - 24px));
     box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #5a1d1d; border: 2px solid #c94a4a;
-    font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center;
+    font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center; pointer-events: none;
   }
-  #loading {
-    position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72);
-  }
+  #toast.info { background: #1d3f5a; border-color: #4a9ac9; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72); }
   .card {
-    width: min(360px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
-    border: 2px solid #4a4a4a; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    width: min(380px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
+    border: 2px solid #4a4a4a; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); box-sizing: border-box;
   }
   .card h2 { margin: 0 0 8px; font-size: 17px; }
   .card p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: #ddd; -webkit-user-select: text; user-select: text; }
@@ -118,10 +117,25 @@
   .bar > div { height: 100%; width: 0; background: var(--play); transition: width 0.15s; }
   .err { color: #ff8a8a !important; }
 
+  /* 選択中・配置中に出る編集バー */
+  #ctxbar {
+    display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #16323d; border-top: 2px solid #2b6f86;
+    overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+  }
+  #ctxbar::-webkit-scrollbar { display: none; }
+  #ctxbar .lbl { font-weight: 700; font-size: 14px; color: #bfefff; flex: none; }
+  #ctxbar .hint { font-size: 13px; color: #9cc; flex: none; }
+  #ctxbar .tb { --btn-size: 36px; background: #24505f; }
+  #ctxbar .tb.danger { background: var(--danger); }
+  #ctxbar .val { min-width: 44px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; flex: none; }
+  #ctxbar .sep { width: 1px; align-self: stretch; background: #2b6f86; flex: none; margin: 2px 2px; }
+  #ctxbar .txtbtn { height: 36px; padding: 0 12px; border-radius: 4px; border: 0; background: #24505f; font-weight: 700; font-size: 14px; flex: none; }
+  #ctxbar .txtbtn.on { background: var(--on); outline: 2px solid var(--accent); }
+
   /* 下段のピッカー */
   #panel {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: auto minmax(0, 1fr);
-    height: clamp(170px, 34vh, 300px); background: var(--panel); border-top: 2px solid var(--panel-line);
+    height: clamp(180px, 36vh, 320px); background: var(--panel); border-top: 2px solid var(--panel-line);
   }
   .navrow {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
@@ -129,32 +143,47 @@
   }
   .navrow .tb { --btn-size: 32px; background: #303030; }
   .mini-wrap { position: relative; flex: 1; min-width: 0; height: 30px; }
+  #minimap { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid #5b5b5b; touch-action: none; display: block; }
   .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   .pane + .pane { border-left: 2px solid var(--panel-line); }
   .pane-head {
-    height: 40px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    height: 38px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px;
     border-bottom: 1px solid #333; font-weight: 700; font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden;
   }
-  .pane-head .tb { --btn-size: 32px; background: #303030; }
+  #tabs { padding: 0 6px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  #tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none; height: 28px; padding: 0 9px; border-radius: 14px; border: 1px solid #4a4a4a; background: #262626;
+    font-weight: 700; font-size: 13px; color: #cfcfcf;
+  }
+  .tab.on { background: #ffe14d; color: #1a1a1a; border-color: #ffe14d; }
+  #search {
+    flex: none; width: 74px; height: 28px; box-sizing: border-box; border-radius: 14px; border: 1px solid #4a4a4a;
+    background: #111; color: var(--text); padding: 0 10px; font: 700 13px var(--font); transition: width 0.15s;
+  }
+  #search:focus { width: 130px; }
   #gameGrid { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; }
-  .game { width: 50px; height: 50px; padding: 0; border: 3px solid transparent; border-radius: 4px; background: #0e0e0e; }
+  .game { width: 50px; height: 50px; padding: 0; border: 3px solid transparent; border-radius: 4px; background: #0e0e0e; position: relative; }
   .game img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .game.sel { border-color: #ffe14d; }
-  #minimap { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid #5b5b5b; touch-action: none; display: block; }
+  .game .mark { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid #191919; }
+  .game.txt { width: auto; min-width: 50px; padding: 0 8px; font-size: 12px; font-weight: 700; color: #ddd; }
   #list { flex: 1; overflow-y: auto; padding: 4px 0; }
-  .item {
-    width: 100%; display: flex; align-items: center; gap: 6px; padding: 7px 10px 7px 6px; border: 0; background: none;
+  .item { display: flex; align-items: stretch; }
+  .item .main {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 7px 4px 7px 6px; border: 0; background: none;
     text-align: left; font-size: 17px; font-weight: 700; line-height: 1.25;
   }
-  .item .arrow { width: 22px; flex: none; color: var(--accent); visibility: hidden; font-size: 18px; }
+  .item .arrow { width: 22px; flex: none; color: var(--accent); visibility: hidden; font-size: 18px; align-self: flex-start; }
   .item.sel .arrow { visibility: visible; }
-  .item .arrow { align-self: flex-start; }
+  .item.sel { background: rgba(95, 211, 255, 0.08); }
   .item .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .item .nm { overflow-wrap: break-word; }
   .item .tags { display: flex; gap: 4px; flex-wrap: wrap; }
   .item .kind { font-size: 11px; color: var(--muted); border: 1px solid #555; border-radius: 3px; padding: 0 4px; }
   .item .used { font-size: 11px; color: #121212; background: var(--accent); border-radius: 3px; padding: 0 4px; }
-  .item svg { width: 22px; height: 22px; flex: none; stroke: var(--accent); fill: none; stroke-width: 2; opacity: 0.8; }
+  .item .pv { flex: none; width: 44px; border: 0; background: none; display: grid; place-items: center; }
+  .item .pv svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 2; opacity: 0.85; }
   .empty { padding: 14px; color: var(--muted); font-size: 14px; line-height: 1.6; }
 
   #status {
@@ -166,14 +195,23 @@
   #version { color: var(--muted); white-space: nowrap; }
 
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
-  .modal .card { max-height: 80vh; overflow-y: auto; }
+  .modal .card { max-height: 84vh; max-height: 84dvh; overflow-y: auto; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px;
     border-radius: 5px; border: 0; background: var(--btn); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text);
   }
   .btn.primary { background: #1f8f1f; }
+  .btn.danger { background: var(--danger); }
   .card ul { margin: 0 0 8px; padding-left: 18px; font-size: 14px; line-height: 1.6; color: #ddd; }
+  .menu-list { display: grid; gap: 6px; }
+  .menu-list .btn { justify-content: flex-start; gap: 10px; width: 100%; }
+  .menu-list hr { border: 0; border-top: 1px solid #444; margin: 4px 0; width: 100%; }
+  .field { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-weight: 700; }
+  .field input {
+    flex: 1; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 10px; border-radius: 5px; border: 1px solid #555;
+    background: #161616; color: var(--text); font: 700 18px var(--font); font-variant-numeric: tabular-nums;
+  }
 
   .desk { display: grid; }
   @media (max-width: 640px) {
@@ -186,7 +224,6 @@
   #panel.collapsed .pane { display: none; }
   #panelToggle svg { transition: transform 0.15s; }
   #panel.collapsed #panelToggle svg { transform: rotate(180deg); }
-  #fsBtn[hidden] { display: none !important; }
 
   @media (max-height: 460px) {
     :root { --btn-size: 32px; }
@@ -196,50 +233,60 @@
     #timebox { min-width: 96px; }
     #timebox .t { font-size: 15px; }
     #timebox .b { font-size: 10px; }
-    #panel { height: 132px; }
-    .pane-head { display: none; }
+    #panel { height: 150px; }
+    #listHead { display: none; }
+    .pane-head { height: 32px; }
     .navrow { padding-block: 2px; }
     .navrow .tb { --btn-size: 28px; }
     .mini-wrap { height: 26px; }
     .game { width: 40px; height: 40px; }
-    .item { padding-block: 4px; font-size: 15px; }
+    .item .main { padding-block: 4px; font-size: 15px; }
+    #ctxbar { padding-block: 3px; }
+    #ctxbar .tb { --btn-size: 32px; }
+    #ctxbar .txtbtn { height: 32px; }
     #status { font-size: 11px; padding-block: 1px calc(1px + env(safe-area-inset-bottom, 0px)); min-height: 0; }
     .card { padding: 10px 14px; }
     .card h2 { font-size: 15px; margin-bottom: 4px; }
     .card p { font-size: 13px; margin-bottom: 4px; }
     .bar { margin-top: 6px; }
   }
-  @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .bar > div, #search { transition: none; } }
 </style>
 </head>
 <body>
 <div id="app">
   <header id="toolbar">
     <div class="group">
-      <button class="tb" id="openBtn" title="開く（.rhref）" aria-label="開く">
+      <button class="tb" id="menuBtn" title="メニュー（新規・開く・保存・音楽など）" aria-label="メニュー">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <button class="tb desk" id="newBtn" title="新規" aria-label="新規">
+        <svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M12 11v6M9 14h6"/></svg>
+      </button>
+      <button class="tb desk" id="openBtn" title="開く（.rhref）" aria-label="開く">
         <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H7.5a2 2 0 0 0-1.9 1.4L3 19z"/><path d="M3 19l2.6-7.6A2 2 0 0 1 7.5 10H22l-2.8 8.1a1.5 1.5 0 0 1-1.4.9H3z"/></svg>
       </button>
-      <button class="tb" id="sampleBtn" title="サンプルを開く" aria-label="サンプルを開く">
-        <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><circle cx="10.5" cy="16.5" r="1.8"/><path d="M12.3 16.5V10l3 1"/></svg>
-      </button>
-      <button class="tb desk" disabled title="保存（試作では未対応）" aria-label="保存">
+      <button class="tb desk" id="saveBtn" title="保存（.rhref）" aria-label="保存">
         <svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z"/><path d="M8 4v5h8V4"/><path d="M7 20v-6h10v6"/></svg>
       </button>
-      <button class="tb" id="exportBtn" title="WAVに書き出す" aria-label="WAVに書き出す">
+      <button class="tb desk" id="exportBtn" title="WAVに書き出す" aria-label="WAVに書き出す">
         <svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V8z"/><path d="M14 3v5h4"/><path d="M12 11v6"/><path d="M9 14l3 3 3-3"/></svg>
-      </button>
-      <button class="tb desk" disabled title="元に戻す（試作では未対応）" aria-label="元に戻す">
-        <svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg>
-      </button>
-      <button class="tb desk" disabled title="やり直す（試作では未対応）" aria-label="やり直す">
-        <svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg>
       </button>
     </div>
     <div class="group">
+      <button class="tb" id="undoBtn" title="元に戻す（Ctrl+Z）" aria-label="元に戻す" disabled>
+        <svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12"/></svg>
+      </button>
+      <button class="tb" id="redoBtn" title="やり直す（Ctrl+Shift+Z）" aria-label="やり直す" disabled>
+        <svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12"/></svg>
+      </button>
+      <button class="tb desk" id="musicBtn" title="音楽を選ぶ" aria-label="音楽を選ぶ">
+        <svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="2.5"/><circle cx="17" cy="15" r="2.5"/><path d="M9.5 17V6l10-2v11"/></svg>
+      </button>
       <button class="tb" id="metroBtn" title="メトロノーム" aria-label="メトロノーム" aria-pressed="false">
         <svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M8 15h8"/><path d="M12 15l5-9"/></svg>
       </button>
-      <button class="tb" id="snapBtn" title="スナップ（再生開始位置を置く間隔）">Snap: <span id="snapVal">1/4</span></button>
+      <button class="tb" id="snapBtn" title="スナップ（置く・動かす間隔）">Snap: <span id="snapVal">1/4</span></button>
     </div>
     <div class="group" id="transport">
       <button class="tb" id="pauseBtn" title="一時停止" aria-label="一時停止" disabled>
@@ -270,11 +317,13 @@
     <div id="loading">
       <div class="card">
         <h2 id="loadTitle">準備中…</h2>
-        <p id="loadMsg">サンプルのリミックスを読み込んでいます。</p>
+        <p id="loadMsg">リミックスを読み込んでいます。</p>
         <div class="bar"><div id="loadBar"></div></div>
       </div>
     </div>
   </main>
+
+  <div id="ctxbar" hidden></div>
 
   <section id="panel">
     <div class="navrow">
@@ -286,16 +335,77 @@
       <button class="tb" id="zoomIn" title="拡大" aria-label="拡大"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
     </div>
     <div class="pane">
-      <div class="pane-head" id="gamesHead">ミニゲーム</div>
+      <div class="pane-head" id="tabs" role="tablist">
+        <input id="search" type="search" placeholder="検索" aria-label="ミニゲームを検索" autocomplete="off" enterkeyhint="search">
+      </div>
       <div id="gameGrid"></div>
     </div>
     <div class="pane">
       <div class="pane-head" id="listHead">パターン</div>
-      <div id="list"><div class="empty">左のアイコンを押すと、そのミニゲームのパターンが並びます。名前を押すと試聴できます。</div></div>
+      <div id="list"><div class="empty">ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックをタップすると置けます。🔊で試聴できます。</div></div>
     </div>
   </section>
 
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.1.3</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 0.2</span></footer>
+</div>
+
+<div class="modal" id="menuModal" hidden>
+  <div class="card">
+    <h2>メニュー</h2>
+    <div class="menu-list">
+      <button class="btn" data-act="new">📄 新規作成</button>
+      <button class="btn" data-act="open">📂 開く（.rhref）</button>
+      <button class="btn" data-act="sample">🎵 サンプルを開く</button>
+      <button class="btn primary" data-act="save">💾 保存（.rhref）</button>
+      <button class="btn" data-act="export">⬇️ WAVに書き出す</button>
+      <hr>
+      <button class="btn" data-act="music">🎼 音楽を選ぶ</button>
+      <button class="btn" data-act="musicStart">⏱ 音楽の開始位置</button>
+      <button class="btn" data-act="musicRemove">✖️ 音楽を外す</button>
+      <hr>
+      <button class="btn" data-act="help">❔ 使い方</button>
+      <button class="btn" data-act="close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="tempoModal" hidden>
+  <div class="card">
+    <h2 id="tempoTitle">テンポ</h2>
+    <p id="tempoInfo"></p>
+    <div class="field"><label for="tempoInput">♩=</label><input id="tempoInput" type="number" inputmode="decimal" min="5" max="600" step="0.1"></div>
+    <div class="row">
+      <button class="btn primary" id="tempoOk">決定</button>
+      <button class="btn danger" id="tempoDel">削除</button>
+      <button class="btn" id="tempoCancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="musicModal" hidden>
+  <div class="card">
+    <h2>音楽の開始位置</h2>
+    <p id="musicInfo">音楽が鳴り始める時刻（秒）です。デスクトップ版の赤い旗と同じです。</p>
+    <div class="field"><label for="musicStartInput">秒</label><input id="musicStartInput" type="number" inputmode="decimal" step="0.001"></div>
+    <div class="row">
+      <button class="btn" id="musicAlign">緑の旗（再生開始位置）に合わせる</button>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="musicOk">決定</button>
+      <button class="btn" id="musicCancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal" hidden>
+  <div class="card">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmMsg"></p>
+    <div class="row">
+      <button class="btn danger" id="confirmOk">OK</button>
+      <button class="btn" id="confirmCancel">やめる</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="exportModal" hidden>
@@ -310,21 +420,40 @@
   </div>
 </div>
 
+<div class="modal" id="saveModal" hidden>
+  <div class="card">
+    <h2>保存</h2>
+    <p id="saveMsg"></p>
+    <div class="row">
+      <a class="btn primary" id="saveLink">.rhref を保存</a>
+      <button class="btn" id="saveClose">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web（再生専用の試作）</h2>
-    <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
+    <h2>RHRE Web（試作）</h2>
+    <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
+    <p><b>見る</b></p>
     <ul>
-      <li>1本指で左右にドラッグ：スクロール</li>
-      <li>2本指でつまむ：拡大・縮小</li>
+      <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
-      <li>ブロックをタップ：選択して下に詳細を表示</li>
-      <li>下のアイコン：そのミニゲームへ移動、名前を押すと試聴</li>
-      <li>iPhone で音が出ないときは、消音スイッチと音量を確認</li>
-      <li>全体図の左の ⌄ ボタン：下のピッカーを畳む／開く（横向きでは最初から畳んであります）</li>
+      <li>全体図の左の ⌄ ボタン：下のピッカーを畳む／開く</li>
     </ul>
-    <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。ホーム画面のアイコンから開くと、Safari のバーなしで使えます。</p>
-    <p>編集・保存はまだできません。字幕は表示しますが、プレイアロングや画面揺れなどの演出は再生しません。</p>
+    <p><b>編集</b></p>
+    <ul>
+      <li>置く：下でミニゲーム → パターン名を押す → トラックの空いている所をタップ（続けて置けます）</li>
+      <li>選ぶ：ブロックをタップ。「複数選択」を押すと、タップで追加・解除できます</li>
+      <li>動かす：選んだブロックをドラッグ（重なる所には置けません）</li>
+      <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
+      <li>削除・複製・音程・音量：選ぶと出る青いバーから</li>
+      <li>テンポ：トラックの下（♩=…の段）をタップして追加・変更・削除</li>
+      <li>保存：メニュー →「保存」。iPhone は共有メニューから「ファイルに保存」</li>
+      <li>作業中は自動で保存され、次に開くと続きから始まります</li>
+    </ul>
+    <p>まだできないこと：拍子の変更、字幕の文字入力、トラック数の変更、カスタム効果音。</p>
+    <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。</p>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
     <p id="helpAudio" style="color:#9a9a9a;font-size:12px"></p>
     <div class="row"><button class="btn" id="helpClose">閉じる</button></div>
@@ -332,6 +461,7 @@
 </div>
 
 <input type="file" id="fileInput" hidden>
-<script type="module" src="js/app.js?v=3"></script>
+<input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
+<script type="module" src="js/app.js?v=4"></script>
 </body>
 </html>
