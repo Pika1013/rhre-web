@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=15';
+import { t, setLang, applyStatic } from './i18n.js?v=16';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0';
+const VERSION = '1.0.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -852,7 +852,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   $('search').value = '';
   renderGrid();
   $('listHead').textContent = t('パターン');
-  $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。'))}</div>`;
+  $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。スピーカーのボタンで試聴できます。'))}</div>`;
   const sounds = [...remix.allSoundCues().keys()];
   const failed = await engine.loadSounds(sounds, remix.db, (d, t) => showLoading(name, `効果音を読み込み中 ${d} / ${t}`, 0.25 + 0.75 * (d / t)));
   if (musicFile) {
@@ -869,7 +869,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   const notes = [];
   if (res.missing?.length) notes.push(`見つからない ID ${res.missing.length} 件`);
   if (failed.length) notes.push(`読めなかった音 ${failed.length} 件`);
-  loadWarn = notes.length ? ' ／ ⚠ ' + notes.join('・') : '';
+  loadWarn = notes.length ? ' ／ 注意：' + notes.join('・') : '';
   setStatus(summaryText());
   $('version').textContent = `RHRE Web v${VERSION} ／ DB v${remix.raw.databaseVersion ?? '?'}`;
   $('helpDiag').textContent = `データベース: ${remix.db.commit}${res.missing?.length ? ' ／ 見つからない ID: ' + res.missing.slice(0, 6).join(', ') : ''}`;
@@ -1782,7 +1782,7 @@ $('customInput').addEventListener('change', async (e) => {
 
 // ---------------------------------------------------------------- トラックの数
 
-// 保存ボタン → 名前を決める画面 → 「💾 保存」で保存（押した瞬間に保存するので iPhone の共有シートも出せる）
+// 保存ボタン → 名前を決める画面 → 「保存」で保存（押した瞬間に保存するので iPhone の共有シートも出せる）
 function openSave() {
   if (!remix || loading) return;
   const inp = $('saveNameInput');
@@ -1864,7 +1864,7 @@ function setPlayMode(on) {
   playMode = on;
   root.classList.toggle('playmode', on);
   // メニューの項目の文字を、今の状態に合わせる
-  $('menuPlayMode').textContent = on ? t('🎮 プレイモードをやめる') : t('🎮 プレイモード');
+  $('menuPlayMode').textContent = on ? t('プレイモードをやめる') : t('プレイモード');
   view.playMode = on;
   if (on) {
     if (armed) setArmed(null);
@@ -1999,10 +1999,10 @@ const TOUR_STEPS = [
   { title: 'ゲームを選ぶ', text: '下のタブ（GBA・DS・Wii など）からミニゲームを選ぶと、右にパターンが並びます。お気に入り・最近使ったもの・検索もここです。',
     target: () => (panelOpen() ? visibleRect($('tabsRow').parentElement) : visibleRect($('panelToggle'))),
     alt: '一覧が閉じているときは、左下の「ゲームを選ぶ」を押すと開きます。' },
-  { title: '置き方', text: 'パターンの名前を押して選んでから、トラックの空いている所をタップすると置けます。🔊 を押すと音を確かめられます。',
+  { title: '置き方', text: 'パターンの名前を押して選んでから、トラックの空いている所をタップすると置けます。スピーカーのボタンを押すと音を確かめられます。',
     target: () => (panelOpen() ? visibleRect($('list').parentElement) : visibleRect($('view'))) },
   { title: '編集バー', text: '置いたブロックをタップすると、上に編集バーが出ます。ブロックはドラッグで移動、端をドラッグで長さを変更。削除・複製・音程・音量もここで変えられます。空いている所を長押しすると、範囲でまとめて選べます。', target: () => visibleRect($('topbar')) },
-  { title: '再生', text: '▶ で再生、⏸ で一時停止、■ で停止です。再生中は黄色い線が今の位置を示します。横の数字は時間と拍、虹色のつまみは再生速度です。', target: () => visibleRect($('transport')) || visibleRect($('topbar')) },
+  { title: '再生', text: '▶ で再生、一時停止ボタン（縦 2 本線）で一時停止、■ で停止です。再生中は黄色い線が今の位置を示します。横の数字は時間と拍、虹色のつまみは再生速度です。', target: () => visibleRect($('transport')) || visibleRect($('topbar')) },
   { title: '音楽と再生の旗', text: '赤い旗は音楽が始まる位置、緑の旗は再生を始める位置です。どちらも横にドラッグして動かせます。上の目盛りをタップしても、再生を始める位置を変えられます。', target: () => viewPart('flags') },
   { title: 'テンポ・拍子・音量', text: 'トラックの下の段をタップすると、テンポ・拍子・音楽の音量を変えられます。印は長押ししてからドラッグで動かせます。大きな拍子の数字をタップすると、その場で書きかえられます。', target: () => viewPart('tempo') },
   { title: 'スナップ', text: 'ブロックを置く・動かすときの目盛りの細かさです。1 拍から 1/32 拍まで選べます。', target: () => visibleRect($('snapBtn')) },
@@ -2101,7 +2101,7 @@ const GATE_TEXT = {
       </ol>
       <p class="g-note">LINE などのアプリの中で開いているときは、Safari で開き直してから追加してください。</p>`,
     save: '作業中のリミックスを .rhref で保存',
-    aTitle: '全画面で使う', aFs: '全画面で始める', aInstall: '📲 アプリとして追加',
+    aTitle: '全画面で使う', aFs: '全画面で始める', aInstall: 'アプリとして追加',
     aNote: 'Chrome のメニュー（⋮）→「ホーム画面に追加」または「アプリをインストール」でアプリにすると、次からはアイコンから全画面で開けます。',
   },
   en: {
@@ -2115,7 +2115,7 @@ const GATE_TEXT = {
       </ol>
       <p class="g-note">If you opened this inside an app such as LINE, open it in Safari first, then add it.</p>`,
     save: 'Save the current remix as .rhref',
-    aTitle: 'Use in full screen', aFs: 'Start in full screen', aInstall: '📲 Install as an app',
+    aTitle: 'Use in full screen', aFs: 'Start in full screen', aInstall: 'Install as an app',
     aNote: 'Install it from the Chrome menu (⋮) → "Add to Home screen" or "Install app" to always open it full screen.',
   },
 };
@@ -2445,24 +2445,24 @@ function guideRender() {
     btns = [{ label: t('拍と合った'), cls: 'primary', fn: () => { if (mode === 'playing') stopPlayback(); guideGo('startInfo'); } }];
   } else if (st === 'startInfo') {
     title = t('ばっちり！');
-    text = t('じつは、メニューの「⏱ 音楽の開始位置」→「曲の始まりを 0 拍目に合わせる」で、自動で合わせることもできます。ただ、弱起（アウフタクト）で始まる曲はずれるので、そのときは今みたいに手で合わせよう。');
+    text = t('じつは、メニューの「音楽の開始位置」→「曲の始まりを 0 拍目に合わせる」で、自動で合わせることもできます。ただ、弱起（アウフタクト）で始まる曲はずれるので、そのときは今みたいに手で合わせよう。');
     btns = [{ label: t('次へ'), cls: 'primary', fn: () => guideGo('cues') }];
   } else if (st === 'cues') {
     title = t('効果音を置いてみよう');
     text = guide.placed
       ? t('いいね！▶ で聞きながら、好きなだけ置こう。できたら「リミックス完成！」を押してね。')
       : t('下の一覧でミニゲームを選び、パターンの名前を押してから、トラックの空いている所をタップ。') + (closed ? t('一覧が閉じているときは、左下の「ゲームを選ぶ」で開けます。') : '');
-    btns = [{ label: t('🎉 リミックス完成！'), cls: 'finish', fn: () => guideGo('end') }];
+    btns = [{ label: t('リミックス完成！'), cls: 'finish', fn: () => guideGo('end') }];
   } else if (st === 'end') {
     title = t('終わりの印を置こう');
     text = t('「特殊」タブ →「終わり・字幕・画像」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。');
     btns = [{ label: t('戻る'), fn: () => guideGo('cues') }];
   } else if (st === 'export') {
     title = t('書き出してみよう');
-    text = t('左上のメニュー（☰）→「⬇️ WAVに書き出す」で、曲として保存できます。');
+    text = t('左上のメニュー（☰）→「WAVに書き出す」で、曲として保存できます。');
   } else if (st === 'done') {
     title = t('リミックス完成！おつかれさま！');
-    text = t('💾 で .rhref に保存すれば、続きを編集したり RHRE fresh で開いたりできます。これで基本操作はおしまいです。');
+    text = t('保存ボタンで .rhref に保存すれば、続きを編集したり RHRE fresh で開いたりできます。これで基本操作はおしまいです。');
     btns = [{ label: t('おわる'), cls: 'primary', fn: () => endGuide(true) }];
   }
   $('coachTitle').textContent = title;
@@ -2531,7 +2531,7 @@ async function guideBegin() {
     openSongPicker();
   };
   const hasWork = remix && remix.entities.some((e) => e.type !== 'endEntity');
-  if (hasWork) confirmBox(t('リミックスを作ってみる'), t('新しいリミックスで始めます。今のリミックスは閉じます。残したいときは、先に 💾 で保存してください。'), t('始める'), go);
+  if (hasWork) confirmBox(t('リミックスを作ってみる'), t('新しいリミックスで始めます。今のリミックスは閉じます。残したいときは、先に保存ボタンで保存してください。'), t('始める'), go);
   else go();
 }
 function endGuide(finished) {
@@ -2540,7 +2540,7 @@ function endGuide(finished) {
   $('coachBar').hidden = true;
   $('coachRing').hidden = true;
   updateCtxbar();
-  if (!finished) setStatus(t('メニューの「🎵 リミックスを作ってみる」から、いつでもまた始められます'));
+  if (!finished) setStatus(t('メニューの「リミックスを作ってみる」から、いつでもまた始められます'));
 }
 $('coachX').addEventListener('click', () => endGuide(false));
 $('coachToggle').addEventListener('click', () => { guide.collapsed = !guide.collapsed; guideRender(); });
@@ -2788,7 +2788,7 @@ $('uiLangSelect').addEventListener('change', () => {
   if (shownGame) showGameList(shownGame.id === CUSTOM_GAME_ID && customRegistry.game ? customRegistry.game : shownGame);
   else {
     $('listHead').textContent = t('パターン');
-    $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。🔊で試聴できます。'))}</div>`;
+    $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。スピーカーのボタンで試聴できます。'))}</div>`;
   }
   updateCtxbar();
   setStatus(summaryText());
