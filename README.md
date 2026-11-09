@@ -1,4 +1,4 @@
-# RHRE Web v1.0.1
+# RHRE Web v1.0.2
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
@@ -25,6 +25,10 @@
 効果音はこのリポジトリには入っていません。リミックスに記録されたバージョンの [RHRE-database](https://github.com/RHREfresh/RHRE-database) から、使う分だけ jsDelivr 経由で読み込みます。
 
 曲もこのサイトには入っていません。使う曲は、各自の端末から追加してください（端末の中にだけ保存されます）。
+
+## アクセス数について
+
+このサイトは [GoatCounter](https://www.goatcounter.com/) で訪問数を数えています。Cookie は使わず、個人を特定する情報は集めません。
 
 ## ローカルで動かす
 

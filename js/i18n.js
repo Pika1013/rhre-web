@@ -181,7 +181,7 @@ const STATIC_EN = {
   '■ 終わる': '■ Exit', '▶ 再生': '▶ Play',
   '背景の画像': 'Background image', '画像を選ぶ': 'Choose image', '外す': 'Remove', '表示': 'Fit', '濃さ': 'Strength',
   '画面いっぱい': 'Fill the screen', '全体が見えるように': 'Show the whole image', '背景': 'Background', '線': 'Lines', 'アクセント': 'Accent',
-  '終わる': 'Exit', '曲を選ぶ': 'Choose a song', 'リミックスに使う曲を選んでください。「＋ 曲を追加」で端末の曲を入れられます。': 'Choose a song for your remix. Add songs from this device with "+ Add songs".',
+  '終わる': 'Exit', 'このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。': 'This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.', '曲を選ぶ': 'Choose a song', 'リミックスに使う曲を選んでください。「＋ 曲を追加」で端末の曲を入れられます。': 'Choose a song for your remix. Add songs from this device with "+ Add songs".',
   '＋ 曲を追加': '+ Add songs', '曲のテンポ': 'Song tempo', 'この曲のテンポ（BPM）を教えてください。': 'What is the tempo (BPM) of this song?', 'テンポがわからない': "I don't know the tempo",
   'テンポを測る': 'Measure the tempo', 'タップ': 'Tap', 'やり直す': 'Reset', 'この BPM にする': 'Use this BPM', '横向きにしてください': 'Please turn your phone sideways',
   'RHRE Web は横向きで使うアプリです。': 'RHRE Web is used in landscape.', 'テンポを測る': 'Measure tempo', 'リミックスを作ってみる': 'Make a remix',
