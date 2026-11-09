@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=21';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.6';
+const VERSION = '1.0.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1985,28 +1985,47 @@ for (const el of [$('playStage'), $('touchPad')]) {
   el.addEventListener('touchstart', (e) => { if (!e.target.closest('#psClose')) e.preventDefault(); }, { passive: false });
 }
 document.addEventListener('selectstart', (e) => { if (playMode && !e.target.closest?.('input, textarea')) e.preventDefault(); });
-// 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド）
-{
-  const pad = $('touchPad');
+// 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド）。下の段のボタン以外の所も同じ
+// フリックは RHRE fresh と同じく、指を離した瞬間の速さで決める（先に触れておいて、合わせてさっと払っても OK）
+const FLICK_MIN_PX = 18;      // 離す直前に動いた距離
+const FLICK_MIN_SPEED = 0.35; // px/ms（＝ 350px/秒）
+const FLICK_WINDOW = 90;      // 離す直前の何ミリ秒の動きで見るか
+function isFlick(s, e, now) {
+  const recent = s.trail.filter((p) => now - p.t <= FLICK_WINDOW);
+  const p0 = recent[0] || s.trail[s.trail.length - 1];
+  const dist = Math.hypot(e.clientX - p0.x, e.clientY - p0.y);
+  return dist >= FLICK_MIN_PX && dist / Math.max(16, now - p0.t) >= FLICK_MIN_SPEED;
+}
+function bindTouchSurface(el, skip) {
   const touches = new Map();
-  pad.addEventListener('pointerdown', (e) => {
+  el.addEventListener('pointerdown', (e) => {
+    if (skip?.(e.target)) return;
     e.preventDefault();
-    try { pad.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), slid: false, flicked: false });
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    const now = performance.now();
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, slid: false, trail: [{ x: e.clientX, y: e.clientY, t: now }] });
     paPress('TOUCH');
   });
-  pad.addEventListener('pointermove', (e) => {
+  el.addEventListener('pointermove', (e) => {
     const s = touches.get(e.pointerId);
     if (!s) return;
-    const d = Math.hypot(e.clientX - s.x, e.clientY - s.y);
-    const dt = performance.now() - s.t;
-    if (!s.flicked && d > 34 && dt < 220) { s.flicked = true; paPress('FLICK'); }
-    if (!s.slid && d > 26) { s.slid = true; paPress('SLIDE'); }
+    const now = performance.now();
+    s.trail.push({ x: e.clientX, y: e.clientY, t: now });
+    while (s.trail.length > 2 && now - s.trail[0].t > FLICK_WINDOW * 2) s.trail.shift();
+    if (!s.slid && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 26) { s.slid = true; paPress('SLIDE'); }
   });
-  const end = (e) => { if (!touches.has(e.pointerId)) return; touches.delete(e.pointerId); paRelease('TOUCH'); };
-  pad.addEventListener('pointerup', end);
-  pad.addEventListener('pointercancel', end);
+  const end = (e) => {
+    const s = touches.get(e.pointerId);
+    if (!s) return;
+    touches.delete(e.pointerId);
+    if (e.type === 'pointerup' && isFlick(s, e, performance.now())) paPress('FLICK');
+    paRelease('TOUCH');
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
 }
+bindTouchSurface($('touchPad'));
+bindTouchSurface($('playStage'), (t) => !!t.closest('.pkey, #psClose'));
 // キーボード（パソコン）：A＝J、B＝K、十字＝WASD・矢印
 const PA_KEYS = { KeyJ: 'A', KeyK: 'B', ArrowUp: 'UP', KeyW: 'UP', ArrowDown: 'DOWN', KeyS: 'DOWN', ArrowLeft: 'LEFT', KeyA: 'LEFT', ArrowRight: 'RIGHT', KeyD: 'RIGHT' };
 window.addEventListener('keydown', (e) => {
