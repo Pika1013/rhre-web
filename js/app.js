@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=13';
+import { t, setLang, applyStatic } from './i18n.js?v=14';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.6';
+const VERSION = '3.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -220,6 +220,7 @@ function afterEdit() {
   updateCtxbar();
   if (currentTab === 'used' && !$('search').value) renderGrid();
   scheduleAutosave();
+  guideCheck();
 }
 
 function undo() {
@@ -1152,6 +1153,7 @@ $('markerCancel').addEventListener('click', () => { $('markerModal').hidden = tr
 function openMusicStart() {
   if (!remix) return;
   $('musicStartInput').value = String(+remix.musicStartSec.toFixed(3));
+  $('musicAuto').hidden = guide.on && guide.step === 'start';
   $('musicInfo').textContent = musicFile
     ? `「${musicFile.filename}」が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。`
     : 'まだ音楽を選んでいません。先にメニューの「音楽を選ぶ」から選んでください。';
@@ -1174,25 +1176,8 @@ $('musicInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
   e.target.value = '';
   if (!f || !remix) return;
-  try {
-    toast('音楽を読み込んでいます…', 4000, 'info');
-    const ab = await f.arrayBuffer();
-    const buf = await engine.decode(ab.slice(0));
-    buf.rhreLeadIn = rhreMusicLeadIn(new Uint8Array(ab), buf);
-    musicFile = { bytes: new Uint8Array(ab), filename: f.name, extension: (f.name.split('.').pop() || '').toLowerCase() };
-    musicBuf = buf;
-    remix.musicPresent = true;
-    view.dirty = true;
-    saveMusicToStore();
-    if (mode !== 'stopped') stopPlayback();
-    const onset = detectOnset(buf);
-    // RHRE fresh で鳴る位置（mp3 の先頭の空白の分だけ遅い）で、曲の始まりが 0 拍目に来るように
-    const start = Math.round((remix.tempo.b2s(0) - onset - (buf.rhreLeadIn || 0)) * 1000) / 1000;
-    edit(() => { remix.musicStartSec = start; });
-    toast(`音楽を読み込みました：${f.name}（${fmtTime(buf.duration)}）。曲の始まり（${onset.toFixed(3)} 秒）が 0 拍目に来るよう、音楽開始を ${fmtTime(start)} に合わせました。`, 6000, 'info');
-  } catch (_) {
-    toast('この音楽ファイルは読み込めませんでした（mp3・wav・m4a などを選んでください）', 4000);
-  }
+  const ok = await loadMusicBytes(new Uint8Array(await f.arrayBuffer()), f.name, { manualStart: guide.on });
+  if (ok) { const p = parseSongName(f.name); askTempo({ bpm: p.bpm }); }
 });
 
 let confirmAction = null;
@@ -1337,6 +1322,7 @@ function frame(now) {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
   view.stepMomentum(now);
+  if (guide.on) positionCoachRing();
   if (view.dirty) {
     view.dirty = false;
     view.draw(now);
@@ -1358,7 +1344,9 @@ function doAction(act) {
       break;
     case 'save': openSave(); break;
     case 'export': exportWav(); break;
-    case 'music': $('musicInput').click(); break;
+    case 'music': openSongPicker(); break;
+    case 'tapTempo': openTapTempo('menu'); break;
+    case 'guide': startGuide(); break;
     case 'musicStart': openMusicStart(); break;
     case 'musicRemove':
       if (!musicFile) { toast('音楽は選ばれていません', 2000, 'info'); break; }
@@ -1516,6 +1504,7 @@ function enterFullscreen() {
     const p = req ? req.call(root, { navigationUI: 'hide' }) : null;
     if (!req) gateFsFailed = true;
     if (p && p.catch) p.catch(() => { gateFsFailed = true; });
+    if (p && p.then) p.then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   } catch (_) { gateFsFailed = true; }
   applyPanel();
 }
@@ -1588,6 +1577,7 @@ $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
   renderThemeGrid();
   applyBackgroundOptions();
+  $('tapSoundSelect').value = settings.tapSound === false ? 'off' : 'on';
   $('paOffset').value = String(Number(settings.paOffset) || 0);
   $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
@@ -1625,6 +1615,7 @@ async function exportWav() {
     a.hidden = false;
     $('exportBar').style.width = '100%';
     $('exportMsg').textContent = `書き出しました（${(blob.size / 1048576).toFixed(1)} MB）。下のボタンで保存できます。`;
+    guideOnExport();
   } catch (e) {
     $('exportMsg').textContent = `書き出しに失敗しました: ${e.message}`;
   }
@@ -2017,7 +2008,7 @@ const TOUR_STEPS = [
   { title: 'スナップ', text: 'ブロックを置く・動かすときの目盛りの細かさです。1 拍から 1/32 拍まで選べます。', target: () => visibleRect($('snapBtn')) },
   { title: 'メニュー', text: '保存・開く・音楽を選ぶ・WAV に書き出す・トラックの数・プレゼンテーション・プレイモードなどはここです。このチュートリアルも、ここからもう一度見られます。', target: () => visibleRect($('menuBtn')) },
   { title: '設定', text: 'ミニゲームの声の言語、テーマの色、背景の画像、画面の言語などを変えられます。', target: () => visibleRect($('settingsBtn')) },
-  { title: '準備完了！', text: '作ったリミックスは自動で端末に保存されます。RHRE fresh で開ける .rhref にも保存できます。さっそく作ってみましょう！' },
+  { title: '準備完了！', text: '作ったリミックスは自動で端末に保存されます。RHRE fresh で開ける .rhref にも保存できます。次は、実際にリミックスを 1 つ作ってみましょう！' },
 ];
 
 function startTour() {
@@ -2031,12 +2022,13 @@ function startTour() {
   $('tourDots').innerHTML = TOUR_STEPS.map(() => '<span></span>').join('');
   showTourStep();
 }
-function endTour() {
+function endTour(completed) {
   if (!tour.on) return;
   tour.on = false;
   $('tour').hidden = true;
   settings.tutorialDone = true;
   saveSettings();
+  if (completed === true) startGuideIntro();
 }
 function showTourStep() {
   const st = TOUR_STEPS[tour.i];
@@ -2074,25 +2066,509 @@ function showTourStep() {
   Object.assign(card.style, { left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
 }
 $('tourNext').addEventListener('click', () => {
-  if (tour.i >= TOUR_STEPS.length - 1) { endTour(); return; }
+  if (tour.i >= TOUR_STEPS.length - 1) { endTour(true); return; }
   tour.i++;
   showTourStep();
 });
 $('tourPrev').addEventListener('click', () => { if (tour.i > 0) { tour.i--; showTourStep(); } });
-$('tourX').addEventListener('click', endTour);
+$('tourX').addEventListener('click', () => endTour(false));
 window.addEventListener('resize', () => { if (tour.on) requestAnimationFrame(showTourStep); });
 window.addEventListener('keydown', (e) => {
   if (!tour.on) return;
-  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); endTour(); }
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); endTour(false); }
   else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); $('tourNext').click(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopImmediatePropagation(); $('tourPrev').click(); }
 }, true);
 // 初めて開いたときだけ自動で始める（スマホのブラウザの案内画面が出ている間は待つ）
 function maybeStartTour() {
-  if (settings.tutorialDone || tour.on) return;
   if (root.classList.contains('gate-ios') || root.classList.contains('gate-android')) return;
+  if (!settings.uiLangChosen) { $('langPick').hidden = false; return; }
+  if (settings.tutorialDone || tour.on) return;
   setTimeout(() => { if (!settings.tutorialDone && !tour.on) startTour(); }, 400);
 }
+
+// ---------------------------------------------------------------- 言語選択（初めて開いたとき・スマホのブラウザの案内画面）
+
+const GATE_TEXT = {
+  ja: {
+    ios: `<h1 id="gateTitle">ホーム画面に追加して使ってください</h1>
+      <p>iPhone では、ホーム画面に追加すると全画面で開き、音も安定して鳴ります。</p>
+      <ol>
+        <li><span>画面下の <b>共有ボタン</b>（${'<svg class="g-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>'}）を押す<small>見当たらないときは「…」→「共有」</small></span></li>
+        <li><span><b>「ホーム画面に追加」</b>を選ぶ<small>出てこないときは、下にスクロールするか「さらに表示」</small></span></li>
+        <li><span>右上の <b>「追加」</b> を押す</span></li>
+        <li><span>ホーム画面の <b>RHRE Web</b> から開く</span></li>
+      </ol>
+      <p class="g-note">LINE などのアプリの中で開いているときは、Safari で開き直してから追加してください。</p>`,
+    save: '作業中のリミックスを .rhref で保存',
+    aTitle: '全画面で使う', aFs: '全画面で始める', aInstall: '📲 アプリとして追加',
+    aNote: 'Chrome のメニュー（⋮）→「ホーム画面に追加」または「アプリをインストール」でアプリにすると、次からはアイコンから全画面で開けます。',
+  },
+  en: {
+    ios: `<h1 id="gateTitle">Add it to your Home Screen</h1>
+      <p>On iPhone, RHRE Web opens full screen and plays sound reliably once it is on your Home Screen.</p>
+      <ol>
+        <li><span>Tap the <b>Share</b> button (${'<svg class="g-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>'}) at the bottom<small>Can't see it? Tap "…" → "Share"</small></span></li>
+        <li><span>Choose <b>"Add to Home Screen"</b><small>If it's missing, scroll down or tap "More"</small></span></li>
+        <li><span>Tap <b>"Add"</b> at the top right</span></li>
+        <li><span>Open <b>RHRE Web</b> from your Home Screen</span></li>
+      </ol>
+      <p class="g-note">If you opened this inside an app such as LINE, open it in Safari first, then add it.</p>`,
+    save: 'Save the current remix as .rhref',
+    aTitle: 'Use in full screen', aFs: 'Start in full screen', aInstall: '📲 Install as an app',
+    aNote: 'Install it from the Chrome menu (⋮) → "Add to Home screen" or "Install app" to always open it full screen.',
+  },
+};
+function renderGate() {
+  const L = GATE_TEXT[settings.uiLang === 'en' ? 'en' : 'ja'];
+  $('gateIosText').innerHTML = L.ios;
+  $('gateSave').textContent = L.save;
+  if (!$('gateTitleA').dataset.back) $('gateTitleA').textContent = L.aTitle;
+  if (!$('gateFs').dataset.back) $('gateFs').textContent = L.aFs;
+  $('gateInstall').textContent = L.aInstall;
+  if (!$('gateAndroidNote').dataset.done) $('gateAndroidNote').textContent = L.aNote;
+  for (const b of document.querySelectorAll('#gate [data-glang]')) b.classList.toggle('on', b.dataset.glang === (settings.uiLang === 'en' ? 'en' : 'ja'));
+}
+function chooseLang(l) {
+  settings.uiLang = l === 'en' ? 'en' : 'ja';
+  settings.lang = settings.uiLang; // ミニゲームの声の言語も、まずは同じに（設定で変えられる）
+  settings.uiLangChosen = true;
+  saveSettings();
+  applySettings();
+  renderGate();
+  if (remix) renderGrid();
+}
+$('gate').querySelector('.g-lang').addEventListener('click', (e) => { const b = e.target.closest('[data-glang]'); if (b) chooseLang(b.dataset.glang); });
+$('langPick').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lang]');
+  if (!b) return;
+  chooseLang(b.dataset.lang);
+  $('langPick').hidden = true;
+  maybeStartTour();
+});
+renderGate();
+
+// ---------------------------------------------------------------- 決定音（ボタンを押したとき）
+
+let ketteiBuf = null, ketteiReq = null;
+function loadKettei() {
+  ketteiReq ||= fetch('sfx/kettei.wav').then((r) => r.arrayBuffer()).then((ab) => engine.decode(ab)).then((b) => { ketteiBuf = b; }).catch(() => {});
+  return ketteiReq;
+}
+function playKettei() {
+  if (settings.tapSound === false) return;
+  try {
+    engine.unlock();
+    if (!ketteiBuf) { loadKettei(); return; }
+    const ctx = engine.context;
+    const s = ctx.createBufferSource();
+    s.buffer = ketteiBuf;
+    const g = ctx.createGain();
+    g.gain.value = 0.45;
+    s.connect(g);
+    g.connect(ctx.destination);
+    s.start();
+  } catch (_) { /* 鳴らせなくても気にしない */ }
+}
+loadKettei();
+// 再生・試聴・プレイモードのボタンなど、自分で音を出すボタンでは鳴らさない
+document.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest?.('button, a.btn');
+  if (!b || b.disabled) return;
+  if (b.closest('#psDpad, #psAB, #transport, .ctx-transport') || b.matches('.pv, .song-pv, #tapPad, #tapPlay')) return;
+  playKettei();
+}, true);
+$('tapSoundSelect').addEventListener('change', () => { settings.tapSound = $('tapSoundSelect').value === 'on'; saveSettings(); });
+
+// ---------------------------------------------------------------- 曲の一覧（端末から追加した曲。サイトには置かない）
+
+const songs = { meta: null, pvId: null, pvSrc: null, decoded: new Map() };
+// 「日本語名_English name_BPM.mp3」の形なら、名前と BPM を読む
+function parseSongName(fn) {
+  const base = fn.replace(/\.[^.]+$/, '');
+  const parts = base.split('_');
+  if (parts.length >= 3) {
+    const bpm = parseFloat(parts[parts.length - 1].trim());
+    if (bpm >= 20 && bpm <= 400) return { ja: parts[0].trim(), en: parts.slice(1, -1).join('_').trim(), bpm };
+  }
+  if (parts.length === 2) return { ja: parts[0].trim(), en: parts[1].trim(), bpm: null };
+  return { ja: base, en: '', bpm: null };
+}
+const songLabel = (m) => (settings.uiLang === 'en' && m.en ? m.en : m.ja) || m.file;
+async function songMeta() {
+  if (!songs.meta) songs.meta = (await store.get('songsMeta')) || [];
+  return songs.meta;
+}
+function saveSongMeta() { store.set('songsMeta', songs.meta); }
+async function openSongPicker() {
+  if (!remix) return;
+  await songMeta();
+  renderSongList();
+  $('songModal').hidden = false;
+}
+function renderSongList() {
+  const list = $('songList');
+  if (!songs.meta.length) {
+    list.innerHTML = `<div class="song-empty">${esc(t('まだ曲がありません。下の「＋ 曲を追加」から、端末の曲（mp3・wav など）を入れてください。'))}</div>`;
+    return;
+  }
+  list.innerHTML = songs.meta.map((m) => `<div class="song-row" data-id="${m.id}">`
+    + `<button class="song-main" type="button"><span>${esc(songLabel(m))}</span>${m.bpm ? `<em class="song-bpm">BPM ${m.bpm}</em>` : ''}</button>`
+    + `<button class="song-pv${songs.pvId === m.id ? ' on' : ''}" type="button" aria-label="${esc(t('試聴'))}">${songs.pvId === m.id ? '■' : '▶'}</button>`
+    + `<button class="song-del" type="button" aria-label="${esc(t('一覧から消す'))}">✕</button></div>`).join('');
+}
+async function addSongFiles(files) {
+  await songMeta();
+  let added = 0;
+  for (const f of files) {
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      const p = parseSongName(f.name);
+      await store.set(`song:${id}`, bytes);
+      songs.meta.push({ id, file: f.name, ja: p.ja, en: p.en, bpm: p.bpm });
+      added++;
+    } catch (_) { /* 読めないファイルは飛ばす */ }
+  }
+  saveSongMeta();
+  renderSongList();
+  if (added) setStatus(t('{n} 曲を追加しました', { n: added }));
+}
+function stopSongPreview() {
+  try { songs.pvSrc?.stop(); } catch (_) { /* 済み */ }
+  songs.pvSrc = null;
+  if (songs.pvId) { songs.pvId = null; if (!$('songModal').hidden) renderSongList(); }
+}
+async function toggleSongPreview(id) {
+  if (songs.pvId === id) { stopSongPreview(); return; }
+  stopSongPreview();
+  engine.unlock();
+  songs.pvId = id;
+  renderSongList();
+  try {
+    let buf = songs.decoded.get(id);
+    if (!buf) {
+      const bytes = await store.get(`song:${id}`);
+      buf = await engine.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      songs.decoded.set(id, buf);
+    }
+    if (songs.pvId !== id) return;
+    const ctx = engine.context;
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = 0.8;
+    s.connect(g);
+    g.connect(ctx.destination);
+    s.onended = () => { if (songs.pvSrc === s) { songs.pvSrc = null; songs.pvId = null; if (!$('songModal').hidden) renderSongList(); } };
+    s.start();
+    songs.pvSrc = s;
+  } catch (_) {
+    songs.pvId = null;
+    renderSongList();
+    toast(t('この曲は再生できませんでした'), 2500);
+  }
+}
+async function chooseSong(id) {
+  const m = songs.meta.find((x) => x.id === id);
+  if (!m) return;
+  stopSongPreview();
+  const bytes = await store.get(`song:${id}`);
+  if (!bytes) { toast(t('この曲は読み込めませんでした'), 2500); return; }
+  $('songModal').hidden = true;
+  const ok = await loadMusicBytes(bytes, m.file, { manualStart: guide.on });
+  if (ok) askTempo(m);
+}
+$('songList').addEventListener('click', (e) => {
+  const row = e.target.closest('.song-row');
+  if (!row) return;
+  const id = row.dataset.id;
+  if (e.target.closest('.song-pv')) toggleSongPreview(id);
+  else if (e.target.closest('.song-del')) {
+    const m = songs.meta.find((x) => x.id === id);
+    confirmBox(t('曲を消す'), t('「{n}」を一覧から消しますか？（端末の元のファイルは消えません）', { n: songLabel(m) }), t('消す'), () => {
+      if (songs.pvId === id) stopSongPreview();
+      songs.meta = songs.meta.filter((x) => x.id !== id);
+      saveSongMeta();
+      store.set(`song:${id}`, null);
+      songs.decoded.delete(id);
+      renderSongList();
+      $('songModal').hidden = false;
+    });
+  } else if (e.target.closest('.song-main')) chooseSong(id);
+});
+$('songAdd').addEventListener('click', () => $('songInput').click());
+$('songInput').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  if (files.length) await addSongFiles(files);
+});
+$('songCancel').addEventListener('click', () => { stopSongPreview(); $('songModal').hidden = true; if (guide.on) guideRender(); });
+
+// 音楽を読み込む（曲の一覧・ファイルから共通）。manualStart のときは自動で頭を合わせない（チュートリアル）
+async function loadMusicBytes(bytes, filename, opts = {}) {
+  if (!remix) return false;
+  try {
+    toast(t('音楽を読み込んでいます…'), 4000, 'info');
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const buf = await engine.decode(ab.slice(0));
+    buf.rhreLeadIn = rhreMusicLeadIn(bytes, buf);
+    musicFile = { bytes, filename, extension: (filename.split('.').pop() || '').toLowerCase() };
+    musicBuf = buf;
+    remix.musicPresent = true;
+    view.dirty = true;
+    saveMusicToStore();
+    if (mode !== 'stopped') stopPlayback();
+    if (opts.manualStart) {
+      edit(() => { remix.musicStartSec = 0; });
+      toast(t('音楽を読み込みました：{f}', { f: filename }), 3000, 'info');
+    } else {
+      const onset = detectOnset(buf);
+      // RHRE fresh で鳴る位置（mp3 の先頭の空白の分だけ遅い）で、曲の始まりが 0 拍目に来るように
+      const start = Math.round((remix.tempo.b2s(0) - onset - (buf.rhreLeadIn || 0)) * 1000) / 1000;
+      edit(() => { remix.musicStartSec = start; });
+      toast(t('音楽を読み込みました：{f}。曲の始まりが 0 拍目に来るように、音楽開始を {s} に合わせました。', { f: filename, s: fmtTime(start) }), 5000, 'info');
+    }
+    return true;
+  } catch (_) {
+    toast(t('この音楽ファイルは読み込めませんでした（mp3・wav・m4a などを選んでください）'), 4000);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------- 曲のテンポを聞く ／ タップでテンポを測る
+
+let tempoAskSong = null;
+function askTempo(songMetaItem) {
+  tempoAskSong = songMetaItem || null;
+  const known = songMetaItem?.bpm;
+  $('tempoAskInput').value = known ? String(known) : (guide.on ? '' : String(+remix.tempo.tempoAt(0).toFixed(2)));
+  $('tempoAskInfo').textContent = guide.on
+    ? t('この曲のテンポ（BPM）を教えてください。わからないときは「テンポがわからない」で、曲に合わせてタップして測れます。')
+    : t('この曲のテンポ（BPM）を教えてください。決定すると、リミックスの最初のテンポがこの値になります。');
+  $('tempoAskModal').hidden = false;
+}
+$('tempoAskTap').addEventListener('click', () => openTapTempo('ask'));
+$('tempoAskOk').addEventListener('click', () => {
+  const v = parseFloat($('tempoAskInput').value);
+  if (!(v >= 20 && v <= 400)) { toast(t('テンポは 20〜400 の数で入れてください'), 2500); return; }
+  const bpm = Math.round(v * 100) / 100;
+  $('tempoAskModal').hidden = true;
+  // 次に同じ曲を選んだときのために覚えておく
+  if (tempoAskSong && tempoAskSong.bpm !== bpm) { tempoAskSong.bpm = bpm; saveSongMeta(); }
+  if (guide.on && guide.step === 'song') { guide.bpm = bpm; guideGo('tempo'); return; }
+  edit(() => remix.setTempo(0, bpm));
+  setStatus(t('最初のテンポを {b} にしました', { b: bpm }));
+});
+$('tempoAskSkip').addEventListener('click', () => { $('tempoAskModal').hidden = true; if (guide.on) guideRender(); });
+
+const tap = { times: [], src: null, from: 'menu', bpm: null };
+function openTapTempo(from) {
+  tap.from = from;
+  tap.times = [];
+  updateTap();
+  $('tapPlay').disabled = !musicBuf;
+  $('tapPlay').textContent = t('▶ 曲を流す');
+  $('tapInfo').textContent = musicBuf
+    ? t('曲を流して、拍に合わせて下の大きなボタンをタップしてください。8 回以上タップすると正確になります。')
+    : t('曲がまだありません。手で拍を取りながら、下の大きなボタンをタップしてください。');
+  $('tapTempoModal').hidden = false;
+}
+function stopTapMusic() {
+  try { tap.src?.stop(); } catch (_) { /* 済み */ }
+  tap.src = null;
+  $('tapPlay').textContent = t('▶ 曲を流す');
+}
+function registerTap() {
+  const now = performance.now();
+  if (tap.times.length && now - tap.times[tap.times.length - 1] > 2500) tap.times = [];
+  tap.times.push(now);
+  if (tap.times.length > 33) tap.times.shift();
+  updateTap();
+  const p = $('tapPad');
+  p.classList.add('hit');
+  setTimeout(() => p.classList.remove('hit'), 90);
+}
+function updateTap() {
+  const ts = tap.times;
+  $('tapCount').textContent = String(ts.length);
+  tap.bpm = null;
+  if (ts.length >= 2) {
+    const avg = (ts[ts.length - 1] - ts[0]) / (ts.length - 1);
+    tap.bpm = 60000 / avg;
+  }
+  $('tapBpm').textContent = tap.bpm ? tap.bpm.toFixed(1) : '--';
+  $('tapUse').disabled = !(tap.bpm && ts.length >= 4);
+}
+$('tapPad').addEventListener('pointerdown', (e) => { e.preventDefault(); registerTap(); });
+$('tapReset').addEventListener('click', () => { tap.times = []; updateTap(); });
+$('tapPlay').addEventListener('click', () => {
+  if (tap.src) { stopTapMusic(); return; }
+  if (!musicBuf) return;
+  engine.unlock();
+  const ctx = engine.context;
+  const s = ctx.createBufferSource();
+  s.buffer = musicBuf;
+  s.connect(ctx.destination);
+  s.onended = () => { if (tap.src === s) stopTapMusic(); };
+  s.start();
+  tap.src = s;
+  $('tapPlay').textContent = t('■ 止める');
+});
+$('tapUse').addEventListener('click', () => {
+  if (!tap.bpm) return;
+  // タップには必ずずれがあるので、整数に丸める（細かい値は自分で入れられる）
+  const v = Math.round(tap.bpm);
+  stopTapMusic();
+  $('tapTempoModal').hidden = true;
+  if (tap.from === 'ask') { $('tempoAskInput').value = String(v); return; }
+  if (guide.on && guide.step === 'tempo') { toast(t('測ったテンポは {b} です。下の段のテンポに入れてみよう', { b: v }), 4000, 'info'); return; }
+  edit(() => remix.setTempo(0, v));
+  setStatus(t('最初のテンポを {b} にしました', { b: v }));
+});
+$('tapClose').addEventListener('click', () => { stopTapMusic(); $('tapTempoModal').hidden = true; });
+window.addEventListener('keydown', (e) => {
+  if ($('tapTempoModal').hidden) return;
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) registerTap(); }
+}, true);
+
+// ---------------------------------------------------------------- チュートリアルの続き「実際にリミックスを作ってみよう！」
+// 画面の上の案内バーで、1 つずつやってもらう（操作はふだんどおりできる）
+
+const guide = { on: false, step: null, bpm: null };
+const GUIDE_NUM = { song: 1, tempo: 2, start: 3, startInfo: 3, cues: 4, end: 5, export: 6, done: 6 };
+function coachButtons(list) {
+  const box = $('coachBtns');
+  box.textContent = '';
+  for (const b of list) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `btn ${b.cls || ''}`;
+    el.textContent = b.label;
+    el.addEventListener('click', b.fn);
+    box.appendChild(el);
+  }
+}
+function guideRender() {
+  if (!guide.on) return;
+  const st = guide.step;
+  $('coachBar').hidden = false;
+  $('coachStep').textContent = GUIDE_NUM[st] ? `${GUIDE_NUM[st]} / 6` : t('チュートリアル');
+  const closed = $('panel').classList.contains('collapsed');
+  let title = '', text = '', btns = [];
+  if (st === 'intro') {
+    title = t('実際にリミックスを作ってみよう！');
+    text = t('曲を選んで、テンポと曲の頭を合わせ、効果音を置いて、書き出すところまで一緒にやってみましょう。');
+    btns = [{ label: t('やってみる'), cls: 'primary', fn: guideBegin }, { label: t('あとで'), fn: () => endGuide(false) }];
+  } else if (st === 'song') {
+    title = t('曲を選ぼう');
+    text = musicBuf
+      ? t('曲を読み込みました。テンポ（BPM）を教えてください。')
+      : t('一覧から使う曲を選んでね。曲がないときは「＋ 曲を追加」で端末の曲を入れよう。');
+    btns = [{ label: t('曲を選ぶ'), cls: musicBuf ? '' : 'primary', fn: openSongPicker }];
+    if (musicBuf) btns.unshift({ label: t('テンポを入れる'), cls: 'primary', fn: () => askTempo(null) });
+  } else if (st === 'tempo') {
+    title = t('テンポを {b} にしよう', { b: guide.bpm });
+    text = t('トラックの下の段（♩= の所）をタップして、テンポに {b} を入れて「決定」。このテンポにならないと次へ進めません。', { b: guide.bpm });
+  } else if (st === 'start') {
+    title = t('曲の頭を合わせよう');
+    text = t('▶ で聞きながら、上の赤い旗（音楽開始）を左右にドラッグして、曲の拍が目盛りの縦線と合うようにしよう。メトロノーム（振り子のボタン）をオンにすると合わせやすいよ。合ったら「拍と合った」を押してね。');
+    btns = [{ label: t('拍と合った'), cls: 'primary', fn: () => { if (mode === 'playing') stopPlayback(); guideGo('startInfo'); } }];
+  } else if (st === 'startInfo') {
+    title = t('ばっちり！');
+    text = t('じつは、メニューの「⏱ 音楽の開始位置」→「曲の始まりを 0 拍目に合わせる」で、自動で合わせることもできます。ただ、弱起（アウフタクト）で始まる曲はずれるので、そのときは今みたいに手で合わせよう。');
+    btns = [{ label: t('次へ'), cls: 'primary', fn: () => guideGo('cues') }];
+  } else if (st === 'cues') {
+    title = t('効果音を置いてみよう');
+    text = guide.placed
+      ? t('いいね！▶ で聞きながら、好きなだけ置こう。できたら「リミックス完成！」を押してね。')
+      : t('下の一覧でミニゲームを選び、パターンの名前を押してから、トラックの空いている所をタップ。') + (closed ? t('一覧が閉じているときは、左下の「ゲームを選ぶ」で開けます。') : '');
+    btns = [{ label: t('🎉 リミックス完成！'), cls: 'finish', fn: () => guideGo('end') }];
+  } else if (st === 'end') {
+    title = t('終わりの印を置こう');
+    text = t('「特殊」タブ →「終わり・字幕・画像」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。');
+    btns = [{ label: t('戻る'), fn: () => guideGo('cues') }];
+  } else if (st === 'export') {
+    title = t('書き出してみよう');
+    text = t('左上のメニュー（☰）→「⬇️ WAVに書き出す」で、曲として保存できます。');
+  } else if (st === 'done') {
+    title = t('リミックス完成！おつかれさま！');
+    text = t('💾 で .rhref に保存すれば、続きを編集したり RHRE fresh で開いたりできます。これで基本操作はおしまいです。');
+    btns = [{ label: t('おわる'), cls: 'primary', fn: () => endGuide(true) }];
+  }
+  $('coachTitle').textContent = title;
+  $('coachText').textContent = text;
+  coachButtons(btns);
+  positionCoachRing();
+}
+function guideGo(step) {
+  guide.step = step;
+  if (step === 'cues') guide.placed = remix?.entities.some((e) => e.o && !e.game?.id?.startsWith('special') && e.type !== 'playalongEntity');
+  guideRender();
+  if (step === 'start') setStatus(t('赤い旗を動かして、曲の頭を合わせよう'));
+  if (step === 'tempo') setTimeout(guideCheck, 0); // もともと同じテンポなら、そのまま次へ
+}
+// 照らす所（案内バーの説明と同じ所）
+function guideTarget() {
+  const st = guide.step;
+  if (st === 'tempo') return viewPart('tempo');
+  if (st === 'start') return viewPart('flags');
+  if (st === 'cues' && !guide.placed) return panelOpen() ? visibleRect($('panel')) : visibleRect($('panelToggle'));
+  if (st === 'end') return panelOpen() ? visibleRect($('tabsRow')) : visibleRect($('panelToggle'));
+  if (st === 'export') return $('menuModal').hidden ? visibleRect($('menuBtn')) : visibleRect(document.querySelector('#menuModal [data-act="export"]'));
+  return null;
+}
+let ringKey = '';
+function positionCoachRing() {
+  const ring = $('coachRing');
+  const r = guide.on && !presenting ? guideTarget() : null;
+  if (!r) { if (!ring.hidden) ring.hidden = true; ringKey = ''; return; }
+  const key = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+  if (key === ringKey && !ring.hidden) return;
+  ringKey = key;
+  ring.hidden = false;
+  Object.assign(ring.style, { left: `${Math.round(r.left - 3)}px`, top: `${Math.round(r.top - 3)}px`, width: `${Math.round(r.width + 6)}px`, height: `${Math.round(r.height + 6)}px` });
+}
+// 編集のたびに、その段のことができたか確かめる
+function guideCheck() {
+  if (!guide.on || !remix) return;
+  if (guide.step === 'tempo' && guide.bpm && Math.abs(remix.tempo.tempoAt(0) - guide.bpm) < 0.005) { guideGo('start'); toast(t('テンポが合いました！'), 2000, 'info'); return; }
+  if (guide.step === 'cues' && !guide.placed && remix.entities.some((e) => e.o && !e.game?.id?.startsWith('special') && e.type !== 'playalongEntity')) { guide.placed = true; guideRender(); return; }
+  if (guide.step === 'end' && remix.hasEndEntity) { guideGo('export'); return; }
+}
+function guideOnExport() { if (guide.on && guide.step === 'export') guideGo('done'); }
+function startGuideIntro() {
+  guide.on = true;
+  guideGo('intro');
+}
+function startGuide() {
+  if (tour.on) endTour(false);
+  guide.on = true;
+  guideBegin();
+}
+async function guideBegin() {
+  const go = async () => {
+    if (presenting) stopPresentation();
+    if (playMode) setPlayMode(false);
+    await newRemix();
+    guide.on = true;
+    guide.bpm = null;
+    guideGo('song');
+    openSongPicker();
+  };
+  const hasWork = remix && remix.entities.some((e) => e.type !== 'endEntity');
+  if (hasWork) confirmBox(t('リミックスを作ってみる'), t('新しいリミックスで始めます。今のリミックスは閉じます。残したいときは、先に 💾 で保存してください。'), t('始める'), go);
+  else go();
+}
+function endGuide(finished) {
+  guide.on = false;
+  guide.step = null;
+  $('coachBar').hidden = true;
+  $('coachRing').hidden = true;
+  if (!finished) setStatus(t('メニューの「🎵 リミックスを作ってみる」から、いつでもまた始められます'));
+}
+$('coachX').addEventListener('click', () => endGuide(false));
+window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(positionCoachRing); });
 
 // ---------------------------------------------------------------- ウィンドウの閉じるボタン
 // 「閉じる」「やめる」のボタンは、ウィンドウの左上の × にまとめる（押すと、もとのボタンと同じ動き）
@@ -2102,6 +2578,7 @@ function maybeStartTour() {
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
     saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose',
+    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
     const card = $(mid)?.querySelector('.card');
