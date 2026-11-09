@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=16';
+import { t, setLang, applyStatic } from './i18n.js?v=17';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2545,6 +2545,27 @@ function endGuide(finished) {
 $('coachX').addEventListener('click', () => endGuide(false));
 $('coachToggle').addEventListener('click', () => { guide.collapsed = !guide.collapsed; guideRender(); });
 window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(positionCoachRing); });
+
+// ---------------------------------------------------------------- 隠しスイッチ：自分のアクセスを数えない
+// 右下のバージョン表示を続けて 7 回タップすると、この端末（このアプリ）からのアクセスを GoatCounter で数えなくする。
+// GoatCounter は保存された印 skipgc が 't' のときに数えない（#toggle-goatcounter と同じ印）
+{
+  let taps = 0, last = 0;
+  $('version').addEventListener('click', () => {
+    const now = performance.now();
+    taps = now - last < 700 ? taps + 1 : 1;
+    last = now;
+    if (taps < 7) return;
+    taps = 0;
+    try {
+      const off = localStorage.getItem('skipgc') === 't';
+      if (off) localStorage.removeItem('skipgc'); else localStorage.setItem('skipgc', 't');
+      toast(off ? t('この端末のアクセスを、また数えるようにしました') : t('この端末のアクセスを数えないようにしました'), 3000, 'info');
+    } catch (_) {
+      toast(t('この端末では切り替えられませんでした'), 2500);
+    }
+  });
+}
 
 // ---------------------------------------------------------------- ウィンドウの閉じるボタン
 // 「閉じる」「やめる」のボタンは、ウィンドウの左上の × にまとめる（押すと、もとのボタンと同じ動き）

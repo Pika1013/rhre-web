@@ -2,6 +2,8 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'この端末のアクセスを、また数えるようにしました': 'Visits from this device are counted again.', 'この端末のアクセスを数えないようにしました': 'Visits from this device will no longer be counted.',
+  'この端末では切り替えられませんでした': "Couldn't change this on this device.",
   // チュートリアル（リミックスを作ってみよう）・曲の一覧・テンポ
   '説明を閉じる': 'Hide explanation', '説明を表示': 'Show explanation', 'この曲を使う': 'Use this song', '置きやすいように、Snap を 1/2 にしました': 'Snap set to 1/2 to make placing easier.',
   'まず上の「Snap」を押して 1/32 にしよう（細かく動かせます）。▶ で聞きながら、上の赤い旗（音楽開始）を左右にドラッグして、曲の拍が目盛りの縦線と合うようにしよう。メトロノーム（振り子のボタン）をオンにすると合わせやすいよ。合ったら「拍と合った」を押してね。': 'First tap "Snap" at the top and choose 1/32 so you can move in fine steps. Then play with ▶ and drag the red flag (music start) left or right until the song\'s beats line up with the beat lines. Turning on the metronome (pendulum button) helps. When it matches, tap "On the beat".',
