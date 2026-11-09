@@ -608,6 +608,7 @@ export class EditorView {
       if (e.minBeat > b1 || e.maxBeat < b0) continue;
       this.drawEntity(g, e, L, now);
     }
+    g.globalAlpha = 1;
     this.drawEditOverlay(g, L);
     if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
@@ -675,20 +676,24 @@ export class EditorView {
     for (const e of ents) {
       const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
       const instant = e.o.method === 'PRESS' || e.o.method === 'RELEASE';
+      // 長押し中は青、終わって上手くいったら緑、失敗したら赤
+      const tint = e.paHold ? PA_COLOR.hold : e.judge ? (e.judge === 'MISS' ? PA_COLOR.miss : PA_COLOR.ok) : null;
       g.save();
-      if (e.judge) g.globalAlpha = 0.45;
-      // 押しっぱなしなどは、終わりまで白い帯でつなぐ
+      // 押しっぱなしなどは、終わりまで帯でつなぐ（端は丸く）
       if (!instant) {
-        g.fillStyle = '#1a1a1a';
-        g.fillRect(x0, cy - r * 0.32, x1 - x0, r * 0.64);
-        g.fillStyle = '#ffffff';
-        g.fillRect(x0, cy - r * 0.2, x1 - x0, r * 0.4);
-        // 終わり：離すときは縁だけの丸、押すときは白い丸
-        drawBigInput(g, e.o.input, x1, cy, r * 0.62, e.o.method === 'RELEASE_AND_HOLD' ? false : e.o.method !== 'LONG_PRESS');
+        const band = (hr, color) => {
+          g.fillStyle = color;
+          g.fillRect(x0, cy - hr, Math.max(0, x1 - x0), hr * 2);
+          g.beginPath(); g.arc(x1, cy, hr, -Math.PI / 2, Math.PI / 2); g.fill();
+        };
+        band(r * 0.32, '#1a1a1a');
+        band(r * 0.2, tint || '#ffffff');
+        // 「離して、終わりで押す」だけは、終わりにも押す丸を出す（長押しの尻尾には出さない）
+        if (e.o.method === 'RELEASE_AND_HOLD') drawBigInput(g, e.o.input, x1, cy, r * 0.62, false, tint);
       }
       g.fillStyle = 'rgba(26, 26, 26, 0.9)';
       g.fillRect(x0 - r * 1.18, cy - r * 1.18, r * 2.36, r * 2.36);
-      drawBigInput(g, e.o.input, x0, cy, r, release(e.o.method));
+      drawBigInput(g, e.o.input, x0, cy, r, release(e.o.method), tint);
       g.restore();
     }
   }
@@ -880,6 +885,9 @@ export class EditorView {
     const h = e.height * L.rowH - 2;
     const isSpecial = e.o && !['cue', 'pattern', 'keepTheBeat', 'equidistant', 'randomCue', 'multiCue', 'pitchDependent'].includes(e.type);
     const base = e.o ? (C.entity[e.type] || (isSpecial ? C.entity.special : C.entity.pattern)) : C.entity.missing;
+    // プレイモード中はブロックを薄くして、押す丸を目立たせる
+    const alpha = this.playMode ? 0.38 : 1;
+    g.globalAlpha = alpha;
     g.fillStyle = base;
     g.fillRect(x, y, w, h);
 
@@ -906,7 +914,7 @@ export class EditorView {
         // 枠の外の音も帯（ブロックと同じ色）の上なので、中と同じ控えめな線で区切る
         g.strokeStyle = 'rgba(0,0,0,0.28)';
         g.strokeRect(Math.round(lx) + 0.5, Math.round(ly) + 0.5, Math.round(lw) - 1, Math.round(L.rowH - 6));
-        g.globalAlpha = 1;
+        g.globalAlpha = alpha;
       }
     }
 
@@ -993,12 +1001,16 @@ export class EditorView {
   }
 }
 
-// プレイモードの大きな丸。hollow＝離すとき（黒い丸に白い文字）
-function drawBigInput(g, input, cx, cy, r, hollow) {
-  const ink = hollow ? '#ffffff' : '#111111';
+// プレイモードの丸の色：長押し中・成功・失敗
+const PA_COLOR = { hold: '#2f7dff', ok: '#22c55e', miss: '#ef3b36' };
+
+// プレイモードの大きな丸。hollow＝離すとき（黒い丸に白い文字）。tint があれば、その色の丸に白い文字
+function drawBigInput(g, input, cx, cy, r, hollow, tint) {
+  const ink = tint || hollow ? '#ffffff' : '#111111';
+  const fill = tint || (hollow ? '#1a1a1a' : '#ffffff');
   g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
-  g.fillStyle = hollow ? '#1a1a1a' : '#ffffff'; g.fill();
-  g.lineWidth = Math.max(2, r * 0.09); g.strokeStyle = hollow ? '#ffffff' : '#000000'; g.stroke();
+  g.fillStyle = fill; g.fill();
+  g.lineWidth = Math.max(2, r * 0.09); g.strokeStyle = tint ? '#000000' : hollow ? '#ffffff' : '#000000'; g.stroke();
   g.fillStyle = ink;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -1007,7 +1019,7 @@ function drawBigInput(g, input, cx, cy, r, hollow) {
     g.fillRect(cx - a / 2, cy - b, a, size); g.fillRect(cx - b, cy - a / 2, size, a);
     if (dir != null) {
       g.save(); g.translate(cx, cy); g.rotate(dir);
-      g.fillStyle = hollow ? '#1a1a1a' : '#ffffff';
+      g.fillStyle = fill;
       g.beginPath(); g.moveTo(b * 0.92, 0); g.lineTo(b * 0.42, -a * 0.36); g.lineTo(b * 0.42, a * 0.36); g.closePath(); g.fill();
       g.restore();
     }

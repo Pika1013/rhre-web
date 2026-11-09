@@ -2,11 +2,11 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
 import { t, setLang, applyStatic } from './i18n.js?v=18';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=20';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=21';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.5';
+const VERSION = '1.0.6';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1355,6 +1355,7 @@ function frame(now) {
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
+  if (playMode && judge) syncHolding();
   view.stepMomentum(now);
   if (guide.on) positionCoachRing();
   if (view.dirty) {
@@ -1912,7 +1913,7 @@ function setPlayMode(on) {
     setStatus(t('プレイモード：▶ で再生して、キューに合わせて押してください'));
   } else {
     judge = null;
-    for (const e of remix?.entities || []) e.judge = null;
+    for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
     $('psMarks').textContent = '';
     setStatus(summaryText());
   }
@@ -1923,7 +1924,7 @@ $('psClose').addEventListener('click', () => setPlayMode(false));
 
 function resetJudge() {
   $('psMarks').textContent = '';
-  for (const e of remix?.entities || []) e.judge = null;
+  for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
   if (!remix) { judge = null; updatePlayStage(); return; }
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
@@ -1939,6 +1940,13 @@ function resetJudge() {
   $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A'));
   $('psAB').querySelector('.bkey').classList.toggle('off', !keys.has('B'));
   updatePlayStage();
+}
+// 長押しの最中のキュー（トラックの丸を青くする）。止めたら消す
+function syncHolding() {
+  for (const a of judge.actions) {
+    const h = mode === 'playing' && judge.inProgress.has(a);
+    if (!!a.ent.paHold !== h) { a.ent.paHold = h; view.dirty = true; }
+  }
 }
 function updatePlayStage() {
   const n = judge ? judge.actions.filter((a) => !a.skipped).length : 0;
@@ -1972,6 +1980,11 @@ for (const b of document.querySelectorAll('#playStage .pkey')) {
   b.addEventListener('pointercancel', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
+// iPhone で長押ししたときに出る拡大鏡（文字の選択）を止める。やめるボタンは普通に押せるように除く
+for (const el of [$('playStage'), $('touchPad')]) {
+  el.addEventListener('touchstart', (e) => { if (!e.target.closest('#psClose')) e.preventDefault(); }, { passive: false });
+}
+document.addEventListener('selectstart', (e) => { if (playMode && !e.target.closest?.('input, textarea')) e.preventDefault(); });
 // 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド）
 {
   const pad = $('touchPad');
