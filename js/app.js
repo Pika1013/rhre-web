@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=20';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.4';
+const VERSION = '1.0.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -148,19 +148,20 @@ function updateButtons() {
   $('playBtn').disabled = !ready || mode === 'playing';
   $('pauseBtn').disabled = mode !== 'playing';
   $('stopBtn').disabled = mode === 'stopped';
-  $('rewindBtn').disabled = !ready;
   $('exportBtn').disabled = !ready;
   $('saveBtn').disabled = !ready;
   $('undoBtn').disabled = !ready || !undoStack.length;
   $('redoBtn').disabled = !ready || !redoStack.length;
   document.documentElement.classList.toggle('pa-playing', playMode && mode === 'playing');
   // 編集バーとプレゼンテーションの再生ボタンも同じ状態に
-  for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn'], ['rewind', 'rewindBtn']]) {
+  for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn']]) {
     for (const bar of [$('ctxbar'), $('presentCtl')]) {
       const b = bar.querySelector(`[data-c="${c}"]`);
       if (b) b.disabled = $(id).disabled;
     }
   }
+  // 0拍目に戻るボタンはプレゼンテーションモードだけ
+  $('presentCtl').querySelector('[data-c="rewind"]').disabled = !ready;
 }
 
 function updateTimebox(sec, beat) {
@@ -529,7 +530,7 @@ function updateCtxbar() {
   }
   // 右端に、上のツールバーと同じ 一時停止・再生・停止
   const tr = (c, id, label) => `<button class="tb tr-${c}" data-c="${c}" title="${esc(t(label))}" aria-label="${esc(t(label))}"${$(id).disabled ? ' disabled' : ''}>${$(id).innerHTML}</button>`;
-  html += `<span class="grp ctx-transport">${tr('pause', 'pauseBtn', '一時停止')}${tr('rewind', 'rewindBtn', '0拍目に戻る')}${tr('play', 'playBtn', '再生')}${tr('stop', 'stopBtn', '停止')}</span>`;
+  html += `<span class="grp ctx-transport">${tr('pause', 'pauseBtn', '一時停止')}${tr('play', 'playBtn', '再生')}${tr('stop', 'stopBtn', '停止')}</span>`;
   bar.innerHTML = html;
   show(true);
 }
@@ -558,7 +559,6 @@ $('ctxbar').addEventListener('click', (e) => {
     case 'redo': redo(); break;
     case 'play': play(); break;
     case 'pause': pause(); break;
-    case 'rewind': rewind(); break;
     case 'stop': stopPlayback(); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
@@ -1420,7 +1420,6 @@ $('fileInput').addEventListener('change', async (e) => {
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
 $('stopBtn').addEventListener('click', stopPlayback);
-$('rewindBtn').addEventListener('click', rewind);
 $('metroBtn').addEventListener('click', () => {
   metronome = !metronome;
   player.metronome = metronome;
