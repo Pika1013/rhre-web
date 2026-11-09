@@ -109,7 +109,7 @@ const EN = {
   '音楽開始を {t} にしました（元に戻すボタンで戻せます）': 'Music start set to {t} (undo to restore)',
   '赤い旗（音楽開始）は、横にドラッグすると動かせます': 'Drag the red flag (music start) sideways to move it',
   '前回の続きを開きました（自動保存）': 'Reopened your last work (autosave)',
-  '新しい版（試作 {v}）があります': 'A new version ({v}) is available', '更新する': 'Update', 'あとで': 'Later',
+  '新しい版（v{v}）があります': 'A new version (v{v}) is available', '更新する': 'Update', 'あとで': 'Later',
   // キャンバス
   '音楽開始': 'Music start', '再生開始': 'Playback start',
   '⏸ 一時停止': '⏸ Pause', '▶ 再生': '▶ Play', 'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',

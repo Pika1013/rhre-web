@@ -1,7 +1,7 @@
 {
   "name": "RHRE Web",
   "short_name": "RHRE Web",
-  "description": "RHRE fresh のリミックス（.rhref）を再生する試作",
+  "description": "RHRE fresh のリミックス（.rhref）を、スマホやブラウザで作って再生できるエディタ",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",

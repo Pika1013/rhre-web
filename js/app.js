@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.8';
+const VERSION = '1.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -310,8 +310,9 @@ function placeAt(o, beat, track) {
   if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   if (!edit(() => { remix.entities.push(ent); })) return false;
+  // 一覧から置いたときは編集モードにしない（続けて置ける）。置いた所だけ一瞬光らせる
   view.selection.clear();
-  view.selection.add(ent);
+  ent.flashAt = performance.now();
   updateCtxbar();
   setStatus(`${t('置きました')}：${describe(ent)}`);
   engine.loadSounds(remix.soundUrlsOf(o), remix.db);
@@ -870,7 +871,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   if (failed.length) notes.push(`読めなかった音 ${failed.length} 件`);
   loadWarn = notes.length ? ' ／ ⚠ ' + notes.join('・') : '';
   setStatus(summaryText());
-  $('version').textContent = `RHRE Web 試作 ${VERSION} ／ DB v${remix.raw.databaseVersion ?? '?'}`;
+  $('version').textContent = `RHRE Web v${VERSION} ／ DB v${remix.raw.databaseVersion ?? '?'}`;
   $('helpDiag').textContent = `データベース: ${remix.db.commit}${res.missing?.length ? ' ／ 見つからない ID: ' + res.missing.slice(0, 6).join(', ') : ''}`;
   updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   updateCtxbar();
@@ -2816,7 +2817,7 @@ async function checkUpdate() {
     const { version } = await res.json();
     if (!version || version === VERSION) return;
     updateShown = true;
-    $('updateText').textContent = `新しい版（試作 ${version}）があります`;
+    $('updateText').textContent = t('新しい版（v{v}）があります', { v: version });
     $('updateBar').hidden = false;
     $('updateBtn').onclick = () => {
       if (mode === 'playing') stopPlayback();

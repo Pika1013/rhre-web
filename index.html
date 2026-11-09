@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
-<link rel="manifest" href="manifest.webmanifest?v=6">
+<link rel="manifest" href="manifest.webmanifest?v=7">
 <script>
   // ブラウザで開いたスマホには案内を出す：iPhone はホーム画面に追加するまで使えない、Android は全画面にしてから
   (function () {
@@ -757,7 +757,7 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.8</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -989,7 +989,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web（試作）</h2>
+    <h2>RHRE Web v1.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
     <ul>
@@ -1001,7 +1001,7 @@
     </ul>
     <p><b>編集</b></p>
     <ul>
-      <li>置く：下でミニゲームを選び、パターン名を押す → トラックの空いている所をタップ（続けて置けます。やめるときは名前をもう一度押すか、編集バーの ✕）</li>
+      <li>置く：下でミニゲームを選び、パターン名を押す → トラックの空いている所をタップ（続けて置けます。やめるときは名前をもう一度押す）。置いたブロックを直すときは、タップして選びます</li>
       <li>選ぶ：ブロックをタップ。「複数選択」を押すと、タップで追加・解除できます</li>
       <li>範囲選択：トラックの空いている所を長押ししてから、指でなぞる（パソコンはそのままドラッグ）</li>
       <li>コピー・貼り付け・分解：編集バーの「…」から（パソコンは Ctrl+C／Ctrl+V も使えます）</li>
@@ -1027,6 +1027,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=41"></script>
+<script type="module" src="js/app.js?v=42"></script>
 </body>
 </html>
