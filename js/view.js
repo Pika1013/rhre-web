@@ -571,8 +571,11 @@ export class EditorView {
       }
       const x = Math.round(this.x(b)) + 0.5;
       if (b % step === 0) {
+        // 小節の 1 拍目の数字ははっきり、それ以外の拍は薄く
+        g.globalAlpha = isMeasure ? 1 : 0.38;
         g.fillStyle = C.beatNum;
         g.fillText(String(b), x, L.tracksTop - 4);
+        g.globalAlpha = 1;
       }
     }
     g.strokeStyle = C.grid;
