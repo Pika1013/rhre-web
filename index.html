@@ -492,6 +492,7 @@
   .song-row .song-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--text); text-align: left; padding: 8px 10px; font: 700 15px var(--font); }
   .song-row .song-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .song-row .song-bpm { flex: none; font-size: 12px; color: #9cc; font-weight: 700; }
+  .song-row .song-use { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: #1f8f1f; color: #fff; font: 700 13px var(--font); }
   .song-row .song-pv, .song-row .song-del { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: #33393f; color: #fff; font-size: 15px; }
   .song-row .song-pv.on { background: var(--accent); color: #111; }
   .song-row .song-del { background: none; color: #999; width: 32px; }
@@ -520,6 +521,8 @@
   #coachTitle { margin-right: 6px; }
   #coachText { color: #e9dcf7; }
   .coach-btns { flex: none; display: flex; gap: 6px; }
+  /* 「説明を閉じる」「説明を表示」：灰色の斜めの文字 */
+  .coach-toggle { border: 0; background: none; padding: 0 0 0 8px; color: #b9b0c6; font: italic 700 12px var(--font); text-decoration: underline; cursor: pointer; }
   .coach-btns .btn { min-height: 34px; padding: 0 12px; font-size: 13px; }
   .coach-btns .btn.finish { background: #e0a020; color: #1a1300; }
   #coachRing {
@@ -698,7 +701,7 @@
   <div id="ctxbar" hidden></div>
   <div id="coachBar" hidden>
     <button class="coach-x" id="coachX" type="button" title="チュートリアルをやめる" aria-label="チュートリアルをやめる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    <div class="coach-body"><span id="coachStep"></span><b id="coachTitle"></b><span id="coachText"></span></div>
+    <div class="coach-body"><span id="coachStep"></span><b id="coachTitle"></b><span id="coachText"></span><button class="coach-toggle" id="coachToggle" type="button">説明を閉じる</button></div>
     <div class="coach-btns" id="coachBtns"></div>
   </div>
   </div>
@@ -754,7 +757,7 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.7</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web 試作 3.8</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -977,9 +980,6 @@
     <div class="sb-title">プレイアロング</div>
     <div class="field"><label for="paOffset">タイミング調整</label><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
     <p class="note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
-    <div class="field"><label for="tapSoundSelect">ボタンの音</label>
-      <select id="tapSoundSelect"><option value="on">鳴らす</option><option value="off">鳴らさない</option></select>
-    </div>
     <div class="field"><label for="uiLangSelect">画面の言語</label>
       <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
     </div>
@@ -1027,6 +1027,6 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=40"></script>
+<script type="module" src="js/app.js?v=41"></script>
 </body>
 </html>

@@ -3,6 +3,8 @@
 
 const EN = {
   // チュートリアル（リミックスを作ってみよう）・曲の一覧・テンポ
+  '説明を閉じる': 'Hide explanation', '説明を表示': 'Show explanation', 'この曲を使う': 'Use this song', '置きやすいように、Snap を 1/2 にしました': 'Snap set to 1/2 to make placing easier.',
+  'まず上の「Snap」を押して 1/32 にしよう（細かく動かせます）。▶ で聞きながら、上の赤い旗（音楽開始）を左右にドラッグして、曲の拍が目盛りの縦線と合うようにしよう。メトロノーム（振り子のボタン）をオンにすると合わせやすいよ。合ったら「拍と合った」を押してね。': 'First tap "Snap" at the top and choose 1/32 so you can move in fine steps. Then play with ▶ and drag the red flag (music start) left or right until the song\'s beats line up with the beat lines. Turning on the metronome (pendulum button) helps. When it matches, tap "On the beat".',
   'まだ曲がありません。下の「＋ 曲を追加」から、端末の曲（mp3・wav など）を入れてください。': 'No songs yet. Use "+ Add songs" below to add songs (mp3, wav…) from this device.',
   '試聴': 'Preview', '一覧から消す': 'Remove from list', '{n} 曲を追加しました': 'Added {n} song(s).', 'この曲は再生できませんでした': "This song couldn't be played.",
   'この曲は読み込めませんでした': "This song couldn't be loaded.", '曲を消す': 'Remove song',

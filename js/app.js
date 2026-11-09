@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=14';
+import { t, setLang, applyStatic } from './i18n.js?v=15';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '3.7';
+const VERSION = '3.8';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -495,7 +495,7 @@ function updateCtxbar() {
   const bar = $('ctxbar');
   const show = (on) => { bar.hidden = !on; $('toolbar').hidden = on; };
   closeMore();
-  if (!remix) { show(false); return; }
+  if (!remix || !$('coachBar').hidden) { show(false); return; }
   const sel = [...view.selection];
   if (!sel.length && !multiSelect && !pasteArmed) { show(false); return; }
   const one = sel.length === 1 ? sel[0] : null;
@@ -1577,7 +1577,6 @@ $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
   renderThemeGrid();
   applyBackgroundOptions();
-  $('tapSoundSelect').value = settings.tapSound === false ? 'off' : 'on';
   $('paOffset').value = String(Number(settings.paOffset) || 0);
   $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
@@ -2148,38 +2147,6 @@ $('langPick').addEventListener('click', (e) => {
 });
 renderGate();
 
-// ---------------------------------------------------------------- 決定音（ボタンを押したとき）
-
-let ketteiBuf = null, ketteiReq = null;
-function loadKettei() {
-  ketteiReq ||= fetch('sfx/kettei.wav').then((r) => r.arrayBuffer()).then((ab) => engine.decode(ab)).then((b) => { ketteiBuf = b; }).catch(() => {});
-  return ketteiReq;
-}
-function playKettei() {
-  if (settings.tapSound === false) return;
-  try {
-    engine.unlock();
-    if (!ketteiBuf) { loadKettei(); return; }
-    const ctx = engine.context;
-    const s = ctx.createBufferSource();
-    s.buffer = ketteiBuf;
-    const g = ctx.createGain();
-    g.gain.value = 0.45;
-    s.connect(g);
-    g.connect(ctx.destination);
-    s.start();
-  } catch (_) { /* 鳴らせなくても気にしない */ }
-}
-loadKettei();
-// 再生・試聴・プレイモードのボタンなど、自分で音を出すボタンでは鳴らさない
-document.addEventListener('pointerdown', (e) => {
-  const b = e.target.closest?.('button, a.btn');
-  if (!b || b.disabled) return;
-  if (b.closest('#psDpad, #psAB, #transport, .ctx-transport') || b.matches('.pv, .song-pv, #tapPad, #tapPlay')) return;
-  playKettei();
-}, true);
-$('tapSoundSelect').addEventListener('change', () => { settings.tapSound = $('tapSoundSelect').value === 'on'; saveSettings(); });
-
 // ---------------------------------------------------------------- 曲の一覧（端末から追加した曲。サイトには置かない）
 
 const songs = { meta: null, pvId: null, pvSrc: null, decoded: new Map() };
@@ -2214,6 +2181,7 @@ function renderSongList() {
   }
   list.innerHTML = songs.meta.map((m) => `<div class="song-row" data-id="${m.id}">`
     + `<button class="song-main" type="button"><span>${esc(songLabel(m))}</span>${m.bpm ? `<em class="song-bpm">BPM ${m.bpm}</em>` : ''}</button>`
+    + `<button class="song-use" type="button">${esc(t('この曲を使う'))}</button>`
     + `<button class="song-pv${songs.pvId === m.id ? ' on' : ''}" type="button" aria-label="${esc(t('試聴'))}">${songs.pvId === m.id ? '■' : '▶'}</button>`
     + `<button class="song-del" type="button" aria-label="${esc(t('一覧から消す'))}">✕</button></div>`).join('');
 }
@@ -2295,7 +2263,7 @@ $('songList').addEventListener('click', (e) => {
       renderSongList();
       $('songModal').hidden = false;
     });
-  } else if (e.target.closest('.song-main')) chooseSong(id);
+  } else if (e.target.closest('.song-main, .song-use')) chooseSong(id);
 });
 $('songAdd').addEventListener('click', () => $('songInput').click());
 $('songInput').addEventListener('change', async (e) => {
@@ -2435,7 +2403,7 @@ window.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- チュートリアルの続き「実際にリミックスを作ってみよう！」
 // 画面の上の案内バーで、1 つずつやってもらう（操作はふだんどおりできる）
 
-const guide = { on: false, step: null, bpm: null };
+const guide = { on: false, step: null, bpm: null, collapsed: false };
 const GUIDE_NUM = { song: 1, tempo: 2, start: 3, startInfo: 3, cues: 4, end: 5, export: 6, done: 6 };
 function coachButtons(list) {
   const box = $('coachBtns');
@@ -2472,7 +2440,7 @@ function guideRender() {
     text = t('トラックの下の段（♩= の所）をタップして、テンポに {b} を入れて「決定」。このテンポにならないと次へ進めません。', { b: guide.bpm });
   } else if (st === 'start') {
     title = t('曲の頭を合わせよう');
-    text = t('▶ で聞きながら、上の赤い旗（音楽開始）を左右にドラッグして、曲の拍が目盛りの縦線と合うようにしよう。メトロノーム（振り子のボタン）をオンにすると合わせやすいよ。合ったら「拍と合った」を押してね。');
+    text = t('まず上の「Snap」を押して 1/32 にしよう（細かく動かせます）。▶ で聞きながら、上の赤い旗（音楽開始）を左右にドラッグして、曲の拍が目盛りの縦線と合うようにしよう。メトロノーム（振り子のボタン）をオンにすると合わせやすいよ。合ったら「拍と合った」を押してね。');
     btns = [{ label: t('拍と合った'), cls: 'primary', fn: () => { if (mode === 'playing') stopPlayback(); guideGo('startInfo'); } }];
   } else if (st === 'startInfo') {
     title = t('ばっちり！');
@@ -2498,11 +2466,16 @@ function guideRender() {
   }
   $('coachTitle').textContent = title;
   $('coachText').textContent = text;
+  // 説明は閉じられる（閉じたら「説明を表示」）
+  $('coachText').hidden = guide.collapsed;
+  $('coachToggle').textContent = guide.collapsed ? t('説明を表示') : t('説明を閉じる');
   coachButtons(btns);
   positionCoachRing();
+  updateCtxbar(); // チュートリアル中は編集バーを出さない
 }
 function guideGo(step) {
   guide.step = step;
+  if (step === 'cues' && view.snap !== 0.5) { setSnap(0.5); toast(t('置きやすいように、Snap を 1/2 にしました'), 2500, 'info'); }
   if (step === 'cues') guide.placed = remix?.entities.some((e) => e.o && !e.game?.id?.startsWith('special') && e.type !== 'playalongEntity');
   guideRender();
   if (step === 'start') setStatus(t('赤い旗を動かして、曲の頭を合わせよう'));
@@ -2565,9 +2538,11 @@ function endGuide(finished) {
   guide.step = null;
   $('coachBar').hidden = true;
   $('coachRing').hidden = true;
+  updateCtxbar();
   if (!finished) setStatus(t('メニューの「🎵 リミックスを作ってみる」から、いつでもまた始められます'));
 }
 $('coachX').addEventListener('click', () => endGuide(false));
+$('coachToggle').addEventListener('click', () => { guide.collapsed = !guide.collapsed; guideRender(); });
 window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(positionCoachRing); });
 
 // ---------------------------------------------------------------- ウィンドウの閉じるボタン
@@ -2595,9 +2570,9 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     card.classList.add('has-x');
     if (!card.querySelector('h2')) card.classList.add('no-title');
     closer.hidden = true;
-    // ほかにボタンがない段は、段ごと隠す
+    // 閉じるボタンしかない段は、段ごと隠す（あとで出てくるボタン＝WAVを保存 などがある段は残す）
     const row = closer.parentElement;
-    if (row?.classList.contains('row') && ![...row.children].some((c) => !c.hidden)) row.hidden = true;
+    if (row?.classList.contains('row') && ![...row.children].some((c) => c !== closer)) row.hidden = true;
   }
 }
 
