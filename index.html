@@ -94,6 +94,7 @@
   #playBtn svg { fill: var(--play); }
   #pauseBtn svg { fill: var(--pause); }
   #stopBtn svg { fill: var(--stop); }
+  #rewindBtn svg, #ctxbar .tr-rewind svg { fill: var(--text); }
   #transport .tb:disabled { opacity: 0.3; }
   #timebox {
     height: var(--btn-size); width: 116px; flex: none; box-sizing: border-box; padding: 0 10px; border-radius: 3px; overflow: hidden; white-space: nowrap;
@@ -405,6 +406,25 @@
     font: 700 14px var(--font); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
   .presenting #presentExit svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  /* プレゼンテーション中の 一時停止・0拍目に戻る・再生・停止（右上） */
+  #presentCtl { display: none; }
+  .presenting #presentCtl {
+    display: flex; align-items: center; gap: 4px; position: fixed; z-index: 30; height: 44px; padding: 0 4px;
+    top: calc(env(safe-area-inset-top, 0px) + 4px); right: calc(env(safe-area-inset-right, 0px) + 8px);
+    border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 22px; background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  #presentCtl button {
+    width: 38px; height: 36px; border: 0; border-radius: 18px; background: transparent; padding: 0;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  #presentCtl button:active { background: rgba(255, 255, 255, 0.18); }
+  #presentCtl button:disabled { opacity: 0.3; cursor: default; }
+  #presentCtl svg { width: 22px; height: 22px; }
+  #presentCtl .tr-play svg { fill: var(--play); }
+  #presentCtl .tr-pause svg { fill: var(--pause); }
+  #presentCtl .tr-stop svg { fill: var(--stop); }
+  #presentCtl .tr-rewind svg { fill: #fff; }
   /* プレイモード（Playalong）：下のゲーム一覧の代わりに、スコアとズレのバーと押すボタン */
   #playStage { display: none; }
   .playmode #panel, .playmode #panelToggle { display: none !important; }
@@ -673,6 +693,9 @@
       <button class="tb" id="pauseBtn" title="一時停止" aria-label="一時停止" disabled>
         <svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg>
       </button>
+      <button class="tb" id="rewindBtn" title="0拍目に戻る" aria-label="0拍目に戻る">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="3.2" height="16" rx="1"/><path d="M20 4.5v15L8.5 12z"/></svg>
+      </button>
       <button class="tb" id="playBtn" title="再生（スペース）" aria-label="再生">
         <svg viewBox="0 0 24 24"><path d="M6 3.5l14 8.5-14 8.5z"/></svg>
       </button>
@@ -757,7 +780,7 @@
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0.3</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0.4</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -815,6 +838,12 @@
   </div>
 </div>
 <button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>終わる</span></button>
+<div id="presentCtl" role="group" aria-label="再生">
+  <button data-c="pause" class="tr-pause" title="一時停止" aria-label="一時停止"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
+  <button data-c="rewind" class="tr-rewind" title="0拍目に戻る" aria-label="0拍目に戻る"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="3.2" height="16" rx="1"/><path d="M20 4.5v15L8.5 12z"/></svg></button>
+  <button data-c="play" class="tr-play" title="再生" aria-label="再生"><svg viewBox="0 0 24 24"><path d="M6 3.5l14 8.5-14 8.5z"/></svg></button>
+  <button data-c="stop" class="tr-stop" title="停止" aria-label="停止"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
+</div>
 
 <div class="modal" id="menuModal" hidden>
   <div class="card">
@@ -989,7 +1018,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.0.3</h2>
+    <h2>RHRE Web v1.0.4</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1028,7 +1057,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=45"></script>
+<script type="module" src="js/app.js?v=46"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

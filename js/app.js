@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=17';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=19';
+import { t, setLang, applyStatic } from './i18n.js?v=18';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=20';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -26,6 +26,7 @@ let extraFiles = [];
 let fileName = 'remix.rhref';
 let mode = 'stopped'; // stopped | playing | paused
 let pausedSec = 0;
+let rewound = false; // 0拍目に戻したあと（プレイモードの判定を最初からにする）
 let loading = false;
 let metronome = false;
 let multiSelect = false;
@@ -60,6 +61,7 @@ let shownGame = null;
 
 const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting,
+  iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => { if (!presenting) selectEntity(ent, additive); },
   onPlace: (beat, track) => (pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track)),
@@ -146,15 +148,18 @@ function updateButtons() {
   $('playBtn').disabled = !ready || mode === 'playing';
   $('pauseBtn').disabled = mode !== 'playing';
   $('stopBtn').disabled = mode === 'stopped';
+  $('rewindBtn').disabled = !ready;
   $('exportBtn').disabled = !ready;
   $('saveBtn').disabled = !ready;
   $('undoBtn').disabled = !ready || !undoStack.length;
   $('redoBtn').disabled = !ready || !redoStack.length;
   document.documentElement.classList.toggle('pa-playing', playMode && mode === 'playing');
-  // 編集バーの再生ボタンも同じ状態に
-  for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn']]) {
-    const b = $('ctxbar').querySelector(`[data-c="${c}"]`);
-    if (b) b.disabled = $(id).disabled;
+  // 編集バーとプレゼンテーションの再生ボタンも同じ状態に
+  for (const [c, id] of [['play', 'playBtn'], ['pause', 'pauseBtn'], ['stop', 'stopBtn'], ['rewind', 'rewindBtn']]) {
+    for (const bar of [$('ctxbar'), $('presentCtl')]) {
+      const b = bar.querySelector(`[data-c="${c}"]`);
+      if (b) b.disabled = $(id).disabled;
+    }
   }
 }
 
@@ -524,7 +529,7 @@ function updateCtxbar() {
   }
   // 右端に、上のツールバーと同じ 一時停止・再生・停止
   const tr = (c, id, label) => `<button class="tb tr-${c}" data-c="${c}" title="${esc(t(label))}" aria-label="${esc(t(label))}"${$(id).disabled ? ' disabled' : ''}>${$(id).innerHTML}</button>`;
-  html += `<span class="grp ctx-transport">${tr('pause', 'pauseBtn', '一時停止')}${tr('play', 'playBtn', '再生')}${tr('stop', 'stopBtn', '停止')}</span>`;
+  html += `<span class="grp ctx-transport">${tr('pause', 'pauseBtn', '一時停止')}${tr('rewind', 'rewindBtn', '0拍目に戻る')}${tr('play', 'playBtn', '再生')}${tr('stop', 'stopBtn', '停止')}</span>`;
   bar.innerHTML = html;
   show(true);
 }
@@ -553,6 +558,7 @@ $('ctxbar').addEventListener('click', (e) => {
     case 'redo': redo(); break;
     case 'play': play(); break;
     case 'pause': pause(); break;
+    case 'rewind': rewind(); break;
     case 'stop': stopPlayback(); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
@@ -1239,7 +1245,33 @@ function play() {
   const fresh = mode !== 'paused';
   const from = fresh ? remix.tempo.b2s(remix.playbackStart) : pausedSec;
   startPlayback(from);
-  if (playMode && fresh) { resetJudge(); judge?.skipBefore(from - 0.05); }
+  if (playMode && (fresh || rewound)) { resetJudge(); judge?.skipBefore(from - 0.05); }
+  rewound = false;
+}
+
+// 0拍目に戻る：再生中ならそこから続けて再生。止まっているときは 0拍目で一時停止にして、次の ▶ はそこから
+function rewind() {
+  if (!remix || loading) return;
+  const from = remix.tempo.b2s(0);
+  view.momentum = null;
+  view.lastUser = 0;
+  view.scrollBeat = -(view.W * 0.3) / view.ppb;
+  view.dirty = true;
+  $('subtitle').hidden = true;
+  showStageImage($('stageImg'), null);
+  if (mode === 'playing') {
+    startPlayback(from);
+    if (playMode) { resetJudge(); judge?.skipBefore(from - 0.05); }
+    return;
+  }
+  previewer.stop();
+  pausedSec = from;
+  mode = 'paused';
+  rewound = true;
+  view.playhead = 0;
+  updateTimebox(from, 0);
+  updateButtons();
+  updateCtxbar();
 }
 
 function pause() {
@@ -1253,6 +1285,7 @@ function pause() {
 }
 
 function stopPlayback() {
+  rewound = false;
   player.stop();
   previewer.stop();
   engine.stopKeepAlive();
@@ -1387,6 +1420,7 @@ $('fileInput').addEventListener('change', async (e) => {
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
 $('stopBtn').addEventListener('click', stopPlayback);
+$('rewindBtn').addEventListener('click', rewind);
 $('metroBtn').addEventListener('click', () => {
   metronome = !metronome;
   player.metronome = metronome;
@@ -1849,6 +1883,13 @@ function stopPresentation() {
   view.dirty = true;
 }
 $('presentExit').addEventListener('click', stopPresentation);
+$('presentCtl').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-c]')?.dataset.c;
+  if (c === 'play') play();
+  else if (c === 'pause') pause();
+  else if (c === 'rewind') rewind();
+  else if (c === 'stop') stopPlayback();
+});
 
 // ---------------------------------------------------------------- プレイモード（RHRE fresh の Playalong）
 // 上の Ⓐ ボタンで切り替え。下のゲーム一覧の代わりにスコアとズレのバーを出し、▶ で再生してボタンのキューに合わせて押す

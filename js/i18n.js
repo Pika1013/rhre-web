@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  '0拍目に戻る': 'Back to beat 0', '一時停止': 'Pause', '再生': 'Play', '停止': 'Stop',
   'この端末のアクセスを、また数えるようにしました': 'Visits from this device are counted again.', 'この端末のアクセスを数えないようにしました': 'Visits from this device will no longer be counted.',
   'この端末では切り替えられませんでした': "Couldn't change this on this device.",
   // チュートリアル（リミックスを作ってみよう）・曲の一覧・テンポ
@@ -235,7 +236,7 @@ export function applyStatic(root = document.body) {
 const ATTR_EN = {
   'メニュー（新規・開く・保存・音楽など）': 'Menu (new, open, save, music…)', '新規': 'New', '開く（.rhref）': 'Open (.rhref)', '保存（.rhref）': 'Save (.rhref)',
   '元に戻す（Ctrl+Z）': 'Undo (Ctrl+Z)', 'やり直す（Ctrl+Shift+Z）': 'Redo (Ctrl+Shift+Z)', 'メトロノーム': 'Metronome',
-  'スナップ（置く・動かす間隔）': 'Snap (placing and moving grid)', '一時停止': 'Pause', '再生（スペース）': 'Play (Space)', '再生': 'Play', '停止': 'Stop',
+  'スナップ（置く・動かす間隔）': 'Snap (placing and moving grid)', '一時停止': 'Pause', '再生（スペース）': 'Play (Space)', '再生': 'Play', '停止': 'Stop', '0拍目に戻る': 'Back to beat 0',
   '全画面': 'Fullscreen', '使い方': 'Help', '設定': 'Settings', 'ゲーム一覧を隠す／出す': 'Show/hide the game list',
   'ミニゲームを検索': 'Search minigames', '検索': 'Search', 'トラック': 'Tracks',
   '再生速度（ダブルタップで 1.0 に戻す）': 'Playback speed (double-tap to reset to 1.0)', '再生速度': 'Playback speed',
