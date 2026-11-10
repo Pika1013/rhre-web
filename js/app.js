@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=27';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.6';
+const VERSION = '1.3.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -913,6 +913,8 @@ function renderListHead(game) {
 }
 
 function showGameList(game, highlightObj, filter) {
+  // 別のミニゲームに変えたときは、右のリストを一番上から（同じゲームを描き直すときは、そのままの位置）
+  const changed = !shownGame || shownGame.id !== game.id;
   shownGame = game;
   renderListHead(game);
   const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
@@ -965,6 +967,7 @@ function showGameList(game, highlightObj, filter) {
     if (o === highlightObj) requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest' }));
   }
   if (!objs.length) list.innerHTML = `<div class="empty">${esc(t('表示できる項目がありません。'))}</div>`;
+  if (changed && !highlightObj) list.scrollTop = 0;
 }
 
 async function preview(o) {
