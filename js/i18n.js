@@ -203,6 +203,7 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  'ホーム画面に追加したアプリや Android アプリでは、一度使ったミニゲームは、ネットにつながっていなくても使えます（最初の 1 回はネットが必要です）': 'In the home screen app or the Android app, minigames you have used once work without an internet connection (the first time needs the internet).',
   'キーボードで遊ぶとき': 'Playing with a keyboard', 'A ボタン': 'A button', 'B ボタン': 'B button', '十字ボタン': '+ Control Pad',
   'タッチ・はじく': 'Touch / flick', 'マウス': 'Mouse', 'マウス（緑の枠の中でクリック・ドラッグ）': 'Mouse (click and drag in the green area)', 'または': 'or',
   'RHRE fresh と同じ配置です。A ボタンは J キーです。A キーは十字の左になるので気をつけてください。': 'Same layout as RHRE fresh. The A button is the J key. Careful: the A key is Left on the + Control Pad.',

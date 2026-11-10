@@ -13,7 +13,14 @@
   // ブラウザで開いたスマホには案内を出す：iPhone はホーム画面に追加するまで使えない、Android は全画面にしてから
   (function () {
     var ua = navigator.userAgent, h = document.documentElement;
-    var app = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+    // Android アプリ（TWA）の中で開いたときも、案内はいらない（開き直しても分かるように覚えておく）
+    var twa = false;
+    try {
+      if (document.referrer.indexOf('android-app://') === 0 || /[?&]twa\b/.test(location.search)) sessionStorage.setItem('rhre-twa', '1');
+      twa = sessionStorage.getItem('rhre-twa') === '1';
+    } catch (e) { /* 保存できない環境 */ }
+    if (twa) h.classList.add('in-twa');
+    var app = twa || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
     if (app || /[?&]nogate\b/.test(location.search)) return;
     if (/iPhone|iPod/.test(ua)) h.classList.add('gate-ios');
     else if (/Android/.test(ua)) h.classList.add('gate-android');
@@ -825,7 +832,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.8</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.4.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1083,11 +1090,12 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.3.8</h2>
+    <h2>RHRE Web v1.4.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
     <ul>
+      <li>ホーム画面に追加したアプリや Android アプリでは、一度使ったミニゲームは、ネットにつながっていなくても使えます（最初の 1 回はネットが必要です）</li>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
       <li>一覧の左上の「ゲームを選ぶ」：ゲーム一覧を隠す／出す</li>
@@ -1122,7 +1130,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=61"></script>
+<script type="module" src="js/app.js?v=62"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

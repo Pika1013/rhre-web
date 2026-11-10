@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=24';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=25';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=27';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.8';
+const VERSION = '1.4.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1703,7 +1703,7 @@ applyPanel();
 // 全画面（iPad・PC など対応している環境だけボタンを出す。iPhone はホーム画面に追加、Android は案内画面から全画面に）
 const root = document.documentElement;
 const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
-const inStandalone = window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+const inStandalone = root.classList.contains('in-twa') || window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
 const androidGate = root.classList.contains('gate-android');
 $('fsBtn').hidden = !fsSupported || inStandalone || androidGate;
 
@@ -1756,10 +1756,13 @@ $('gateInstall').addEventListener('click', async () => {
   } catch (_) { $('gateInstall').hidden = true; }
 });
 window.addEventListener('appinstalled', installedNote);
-// インストールのためのサービスワーカー（Android だけ。何も保存しない）
-if (isAndroid && 'serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+// サービスワーカー：使ったものを端末に保存して、ネットがなくても使えるようにする（Android ではインストールにも要る）。
+// 手元で試すとき（http://localhost）は、URL に ?sw を付けたときだけ
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || /[?&]sw\b/.test(location.search))) {
+  navigator.serviceWorker.register('sw.js').then((reg) => reg.update?.()).catch(() => {});
 }
+// 端末の空きが少なくなっても、保存した効果音などを消さないでほしいとブラウザに頼む（アプリとして使っているときだけ）
+if (inStandalone) { try { navigator.storage?.persist?.().catch(() => {}); } catch (_) { /* 未対応 */ } }
 
 // Android の「戻る」：開いている画面やメニューを閉じる（何も開いていなければ普通に戻る）
 if (isAndroid) {
