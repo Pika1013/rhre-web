@@ -987,23 +987,25 @@ export class EditorView {
     const base = e.o ? (C.entity[e.type] || (isSpecial ? C.entity.special : C.entity.pattern)) : C.entity.missing;
     // プレイモード中はブロックを薄くして、押す丸を目立たせる
     const alpha = this.playMode ? 0.38 : 1;
-    g.globalAlpha = alpha;
-    g.fillStyle = base;
-    g.fillRect(x, y, w, h);
-
-    // 枠の外に音がある（等間隔など）ときは、全体を薄い帯でつないで見せる
-    if (e.leaves.length && (e.minBeat < e.beat - 1e-6 || e.maxBeat > e.beat + e.width + 1e-6)) {
+    // 枠の外に音がある（等間隔など）ときは、全体を薄い帯でつないで見せる。
+    // ブロックの外にはみ出た所は半透明にして、ブロック本体（あとで上に描く）と見分けやすくする
+    const outside = e.leaves.length && (e.minBeat < e.beat - 1e-6 || e.maxBeat > e.beat + e.width + 1e-6);
+    if (outside) {
       const t0 = Math.min(e.track, ...e.leaves.map((l) => l.track));
       const t1 = Math.max(e.track + e.height - 1, ...e.leaves.map((l) => l.track));
       const bx = this.x(e.minBeat), bw = (e.maxBeat - e.minBeat) * this.ppb;
       const by = L.tracksTop + t0 * L.rowH + 2, bh = (t1 - t0 + 1) * L.rowH - 4;
       // 背景はブロックと同じ色、枠はブロックの外枠と同じ色で上下左右すべてに
+      g.globalAlpha = alpha * 0.45;
       g.fillStyle = base;
       g.fillRect(bx, by, bw, bh);
       g.strokeStyle = shade(base.startsWith('#') ? base : '#9b9b9b', 0.55);
       g.lineWidth = 2;
       g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
     }
+    g.globalAlpha = alpha;
+    g.fillStyle = base;
+    g.fillRect(x, y, w, h);
 
     // 中の cue の位置（デスクトップ版と同じく薄い枠）
     if (e.leaves.length > 1 || (e.leaves[0] && e.type !== 'cue')) {

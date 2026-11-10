@@ -2,11 +2,11 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=29';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=30';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.5';
+const VERSION = '1.7.6';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
