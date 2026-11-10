@@ -133,7 +133,7 @@
   #toast {
     position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 5; width: min(520px, calc(100% - 24px));
     box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #5a1d1d; border: 2px solid #c94a4a;
-    font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center; pointer-events: none;
+    font-weight: 700; font-size: 14px; line-height: 1.45; text-align: center; cursor: pointer;
   }
   #toast.info { background: #1d3f5a; border-color: #4a9ac9; }
   #updateBar {
@@ -536,7 +536,12 @@
   #nightCover { display: none; position: absolute; inset: 0; z-index: 4; background: #000; place-items: center; }
   .playmode.night #nightCover { display: grid; }
   .playmode.night #status { display: none; }
-  #nightText { padding: 0 16px; color: #ececec; font: 800 clamp(18px, 4.2vw, 34px) var(--font); letter-spacing: 0.04em; text-align: center; }
+  /* プレイモード中は、下の文字（状態・オンライン人数・版）を枠なしで一番下に重ねる（操作の段がその分だけ下まで広がる） */
+  .playmode #status {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: transparent; pointer-events: none;
+    text-shadow: 0 0 3px #000, 0 0 2px #000, 1px 1px 0 #000;
+  }
+  #nightText { padding: 0 16px; color: #ececec; font: 800 clamp(13px, 2.6vw, 22px) var(--font); letter-spacing: 0.04em; text-align: center; }
   #psTabs button {
     height: 24px; padding: 0 10px;
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font: 700 11px var(--font);
@@ -870,7 +875,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.3</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1128,7 +1133,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.7.2</h2>
+    <h2>RHRE Web v1.7.3</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p class="note">右下のオンライン人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
@@ -1169,7 +1174,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=68"></script>
+<script type="module" src="js/app.js?v=69"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=29';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.2';
+const VERSION = '1.7.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -129,6 +129,8 @@ function summaryText() {
 }
 
 let toastTimer = 0;
+// お知らせは、タップするとすぐ消える
+$('toast').addEventListener('pointerdown', (e) => { e.stopPropagation(); clearTimeout(toastTimer); $('toast').hidden = true; });
 function toast(msg, ms = 6000, kind = '') {
   const el = $('toast');
   el.textContent = msg;
@@ -2073,10 +2075,16 @@ function startPresentation() {
   view.armed = null;
   view.selection.clear();
   updateCtxbar();
+  // プレゼンテーションはプレイモードと別（ブロックを薄くしない・押す合図の丸を出さない）
+  if (playMode) setPlayMode(false);
   presenting = true;
   document.documentElement.classList.add('presenting');
+  // 勝手に再生しない。再生位置を 0 拍目に戻して、0 拍目が見える所まで戻すだけ
+  if (mode !== 'stopped') stopPlayback();
+  view.h.onSetPlaybackStart(0);
+  view.momentum = null;
+  view.scrollBeat = -(view.W * 0.1) / view.ppb;
   view.dirty = true;
-  if (mode !== 'playing') play();
 }
 function stopPresentation() {
   if (!presenting) return;
