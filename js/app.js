@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=29';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.4';
+const VERSION = '1.7.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -3531,17 +3531,20 @@ $('moreMenu').addEventListener('click', (e) => {
 document.addEventListener('pointerdown', (e) => { if (!$('moreMenu').hidden && !e.target.closest('#moreMenu, [data-c="more"]')) closeMore(); });
 
 // ---------------------------------------------------------------- 新しい版の確認
-// GitHub Pages はページを10分ほどキャッシュするので、起動時と画面に戻ったときに version.json を見て、
-// 新しい版があれば「更新する」ボタンを出す（押すと URL を変えて読み直すので、古いページが残らない）
-let updateShown = false;
+// 新しい版の確認：起動時・画面に戻ったとき・開いている間は 1 分ごとに version.json を見て、
+// 新しい版があれば「更新する」ボタンを出す（押すと URL を変えて読み直すので、古いページが残らない）。
+// 「あとで」を押した版は、もっと新しい版が出るまで出さない
+let updateShownFor = '';
+let updateDismissed = '';
 async function checkUpdate() {
-  if (updateShown || location.protocol === 'file:') return;
+  // 再生中は邪魔しない（止めたあとの確認で出す）
+  if (location.protocol === 'file:' || document.hidden || mode === 'playing') return;
   try {
     const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return;
     const { version } = await res.json();
-    if (!version || version === VERSION) return;
-    updateShown = true;
+    if (!version || version === VERSION || version === updateShownFor || version === updateDismissed) return;
+    updateShownFor = version;
     $('updateText').textContent = t('新しい版（v{v}）があります', { v: version });
     $('updateBar').hidden = false;
     $('updateBtn').onclick = () => {
@@ -3550,9 +3553,10 @@ async function checkUpdate() {
     };
   } catch (_) { /* オフラインなど */ }
 }
-$('updateLater').addEventListener('click', () => { $('updateBar').hidden = true; });
+$('updateLater').addEventListener('click', () => { $('updateBar').hidden = true; updateDismissed = updateShownFor; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
 setTimeout(checkUpdate, 1500);
+setInterval(checkUpdate, 60000);
 
 // ---------------------------------------------------------------- 起動
 
