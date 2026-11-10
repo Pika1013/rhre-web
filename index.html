@@ -409,13 +409,16 @@
   .popover button:disabled { opacity: 0.35; }
   /* プレゼンテーションモード：いつもの画面から上下のバー・ゲーム一覧を隠すだけ。終わるボタンは左上 */
   /* トラックの左右の端（上のバーのすぐ下）：0拍目に戻る・高速移動。枠なしのアイコンだけ */
-  .nav-btns { position: absolute; top: 4px; z-index: 4; display: flex; gap: 2px; pointer-events: none; }
-  #navL { left: max(4px, env(safe-area-inset-left, 0px)); }
-  #navR { right: max(4px, env(safe-area-inset-right, 0px)); }
+  /* トラックの部分はもう画面の端（丸い角など）を避けた内側にあるので、その端にぴったり寄せる */
+  .nav-btns { position: absolute; top: 4px; z-index: 4; display: flex; gap: 0; pointer-events: none; }
+  #navL { left: 0; }
+  #navR { right: 0; }
   .nav-btns button {
-    pointer-events: auto; width: 36px; height: 36px; padding: 0; border: 0; background: none; display: grid; place-items: center;
+    pointer-events: auto; width: 34px; height: 36px; padding: 0; border: 0; background: none; display: grid; place-items: center;
     cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent;
   }
+  #navL button:first-child { justify-items: start; padding-left: 2px; }
+  #navR button:last-child { justify-items: end; padding-right: 2px; }
   .nav-btns svg {
     width: 26px; height: 26px; fill: none; stroke: var(--text); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7));
@@ -816,7 +819,7 @@
     <canvas id="view" aria-label="トラック"></canvas>
     <div id="stageOverlay"><img id="stageImg" alt="" hidden><div id="subtitle" hidden></div></div>
     <div id="nightCover" aria-live="polite"><div id="nightText">ナイトモード挑戦中！</div></div>
-    <div id="navL" class="nav-btns"><button type="button" id="navZero" title="0拍目に戻る" aria-label="0拍目に戻る"><svg viewBox="0 0 24 24"><path d="M5 5v14"/><path d="M19 5l-9 7 9 7z"/></svg></button><button type="button" id="navLeft" title="左へ高速移動（押し続けると流れ続ける）" aria-label="左へ高速移動"><svg viewBox="0 0 24 24"><path d="M12 5l-7 7 7 7"/><path d="M20 5l-7 7 7 7"/></svg></button></div>
+    <div id="navL" class="nav-btns"><button type="button" id="navZero" title="0拍目に戻る（再生位置も 0 拍目に）" aria-label="0拍目に戻る"><svg viewBox="0 0 24 24"><path d="M5 5v14"/><path d="M19 5l-9 7 9 7z"/></svg></button><button type="button" id="navLeft" title="左へ高速移動（押し続けると流れ続ける）" aria-label="左へ高速移動"><svg viewBox="0 0 24 24"><path d="M12 5l-7 7 7 7"/><path d="M20 5l-7 7 7 7"/></svg></button></div>
     <div id="navR" class="nav-btns"><button type="button" id="navRight" title="右へ高速移動（押し続けると流れ続ける）" aria-label="右へ高速移動"><svg viewBox="0 0 24 24"><path d="M12 5l7 7-7 7"/><path d="M4 5l7 7-7 7"/></svg></button></div>
     <div id="toast" role="status" hidden></div>
     <input id="tsEdit" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="拍子" hidden>
@@ -867,7 +870,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.2</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1125,7 +1128,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.7.1</h2>
+    <h2>RHRE Web v1.7.2</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p class="note">右下のオンライン人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
@@ -1166,7 +1169,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=67"></script>
+<script type="module" src="js/app.js?v=68"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
   '{n} 人がオンライン': '{n} online',
   '左へ高速移動（押し続けると流れ続ける）': 'Fast scroll left (hold to keep scrolling)', '右へ高速移動（押し続けると流れ続ける）': 'Fast scroll right (hold to keep scrolling)', '左へ高速移動': 'Fast scroll left', '右へ高速移動': 'Fast scroll right',
   'パーフェクト挑戦': 'Perfect Challenge', 'めざせ パーフェクト!': 'Go for a Perfect!', 'パーフェクト挑戦の切り替え': 'Toggle Perfect Challenge',
@@ -206,6 +207,7 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
   '左へ高速移動（押し続けると流れ続ける）': 'Fast scroll left (hold to keep scrolling)', '右へ高速移動（押し続けると流れ続ける）': 'Fast scroll right (hold to keep scrolling)', '左へ高速移動': 'Fast scroll left', '右へ高速移動': 'Fast scroll right',
   'パーフェクト挑戦': 'Perfect Challenge', 'めざせ パーフェクト!': 'Go for a Perfect!', 'パーフェクト挑戦の切り替え': 'Toggle Perfect Challenge',
   'ホーム画面に追加したアプリや Android アプリでは、一度使ったミニゲームは、ネットにつながっていなくても使えます（最初の 1 回はネットが必要です）': 'In the home screen app or the Android app, minigames you have used once work without an internet connection (the first time needs the internet).',

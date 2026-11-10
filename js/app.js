@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=28';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=29';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=29';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.1';
+const VERSION = '1.7.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2503,6 +2503,8 @@ function onPerfectFail() {
 // 高速移動：タップで 1 画面分（の 8 割）動く。押し続けると、だんだん速く流れ続ける
 $('navZero').addEventListener('click', () => {
   if (!remix) return;
+  // 再生位置（緑の旗）も 0 拍目に（目盛りをタップしたときと同じ。再生中ならそこから再生し直す）
+  view.h.onSetPlaybackStart(0);
   view.momentum = null;
   view.lastUser = performance.now();
   view.scrollBeat = -(view.W * 0.1) / view.ppb;
