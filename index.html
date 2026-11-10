@@ -462,27 +462,26 @@
   #psAB .bkey { width: 44%; aspect-ratio: 1; left: 0; bottom: 0; background: #e2b228; color: #2a2200; }
   /* 丸が縦に伸びないように（文字の高さで楕円にならない） */
   #psAB .pkey { min-height: 0; line-height: 1; }
-  #psAB .akey span { position: relative; z-index: 1; display: inline-block; pointer-events: none; }
-  /* 払う（フリック）があるリミックスでは、A を筆のような形にする（位置はいつもの所、尻尾ははみ出してよい）。
-     丸と尻尾は同じ絵の中に描くので、押して丸が縮んでも尻尾とつながったまま */
-  #psAB .fbrush { display: none; position: absolute; left: 50%; top: 50%; width: 400%; height: 400%; transform: translate(-50%, -50%); overflow: visible; pointer-events: none; }
-  #psAB.flick .fbrush { display: block; }
-  #psAB.flick .akey { background: transparent; border-color: transparent; overflow: visible; }
-  #psAB.flick .akey.down-now { transform: none; filter: none; }
-  #psAB .fbrush .ft { fill: #ef7f7b; stroke: #f6aaa7; stroke-width: 3; stroke-linejoin: round; }
-  #psAB .fbrush .fb { fill: #ee6f6a; stroke: #f6aaa7; stroke-width: 3; stroke-linejoin: round; }
-  /* 尻尾が上のトラックにはみ出しても隠れないように */
-  .playmode #playStage { z-index: 3; }
   .pkey.down-now { filter: brightness(1.45); transform: scale(0.94); }
-  /* 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド） */
-  #touchPad { display: none; position: absolute; inset: 0; z-index: 4; touch-action: none; }
-  .pa-playing #touchPad { display: block; }
-  /* プレイモードの段の左上：やめるボタン（右上は筆の尻尾がはみ出すので） */
+  /* タッチの枠（RHRE fresh の FlickingStage）。タッチ・はじく・スライドのキューがあるときだけ、
+     下の段の端（画面の幅の 35%）に RHRE fresh と同じ緑の四角を出す。左右は切り替えられる */
+  #psTouch { display: none; }
+  .playmode #playStage.touch #psTouch {
+    display: block; position: relative; align-self: stretch; min-width: 0; margin-top: -8px; margin-bottom: -8px;
+    background: rgba(0, 188, 103, 0.8); touch-action: none; overflow: hidden; cursor: pointer;
+  }
+  .playmode #playStage.touch.side-right #psTouch { margin-right: calc(-1 * max(10px, env(safe-area-inset-right, 0px))); }
+  .playmode #playStage.touch.side-left #psTouch { margin-left: calc(-1 * max(10px, env(safe-area-inset-left, 0px))); }
+  #psTouch canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* プレイモードの段の左上：やめるボタンと、タッチの枠を左右に動かすボタン */
   .playmode #playStage { position: relative; }
-  #psClose {
-    position: absolute; bottom: 100%; left: max(6px, env(safe-area-inset-left, 0px)); z-index: 4; height: 24px; padding: 0 10px;
+  #psTabs { position: absolute; bottom: 100%; left: max(6px, env(safe-area-inset-left, 0px)); z-index: 4; display: flex; gap: 4px; }
+  #psTabs button {
+    height: 24px; padding: 0 10px;
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font: 700 11px var(--font);
   }
+  #psSide { display: none; }
+  .playmode #playStage.touch #psSide { display: block; }
   /* 縦向き：スコアとズレのバーを上の段に横いっぱい、十字と A・B はその下 */
   @media (max-width: 640px) {
     .playmode #playStage { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; height: auto; row-gap: 8px; }
@@ -743,7 +742,6 @@
 
   <main id="editor">
     <canvas id="view" aria-label="トラック"></canvas>
-    <div id="touchPad" aria-hidden="true"></div>
     <div id="stageOverlay"><img id="stageImg" alt="" hidden><div id="subtitle" hidden></div></div>
     <div id="toast" role="status" hidden></div>
     <input id="tsEdit" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="拍子" hidden>
@@ -774,7 +772,7 @@
   </section>
 
   <section id="playStage" aria-label="プレイモード">
-    <button id="psClose" title="プレイモードをやめる">✕ やめる</button>
+    <div id="psTabs"><button id="psClose" title="プレイモードをやめる">✕ やめる</button><button id="psSide">タッチの枠を左へ</button></div>
     <div id="psDpad">
       <button class="pkey up" data-key="UP" aria-label="十字の上"><svg viewBox="0 0 24 24"><path d="M12 6l6 9H6z"/></svg></button>
       <button class="pkey left" data-key="LEFT" aria-label="十字の左"><svg viewBox="0 0 24 24"><path d="M6 12l9-6v12z"/></svg></button>
@@ -789,10 +787,11 @@
     </div>
     <div id="psAB">
       <button class="pkey bkey" data-key="B" aria-label="B">B</button>
-      <button class="pkey akey" data-key="A" aria-label="A"><svg class="fbrush" viewBox="-200 -200 400 400" aria-hidden="true"><path class="ft"/><path class="fb"/></svg><span>A</span></button>
+      <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
+    <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.1.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.2.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1019,7 +1018,8 @@
     <div class="field"><label for="bgAlpha">濃さ</label><input type="range" id="bgAlpha" min="10" max="100" step="5" value="60"><span id="bgAlphaVal" class="range-val">60%</span></div>
     <input type="file" id="bgInput" accept="image/*" hidden>
     <div class="sb-title">プレイアロング</div>
-    <div class="field"><label for="paOffset">タイミング調整</label><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
+    <div class="field"><label for="paOffset">ボタンのタイミング調整</label><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
+    <div class="field"><label for="paTouchOffset">タッチのタイミング調整</label><input type="range" id="paTouchOffset" min="-300" max="300" step="10" value="0"><span id="paTouchOffsetVal" class="range-val">0ms</span></div>
     <p class="note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
     <div class="field"><label for="uiLangSelect">画面の言語</label>
       <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
@@ -1030,7 +1030,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.1.0</h2>
+    <h2>RHRE Web v1.2.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1069,7 +1069,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=51"></script>
+<script type="module" src="js/app.js?v=52"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

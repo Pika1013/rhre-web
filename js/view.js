@@ -693,7 +693,10 @@ export class EditorView {
       }
       g.fillStyle = 'rgba(26, 26, 26, 0.9)';
       g.fillRect(x0 - r * 1.18, cy - r * 1.18, r * 2.36, r * 2.36);
-      drawBigInput(g, e.o.input, x0, cy, r, release(e.o.method), tint);
+      // はじく：RHRE fresh と同じ、ペンではじく手の絵（結果の色に染める）
+      const flickImg = e.o.input === 'TOUCH_FLICK' ? tintedFlick(tint, () => { this.dirty = true; }) : null;
+      if (flickImg) g.drawImage(flickImg, x0 - r * 1.18, cy - r * 1.18, r * 2.36, r * 2.36);
+      else drawBigInput(g, e.o.input, x0, cy, r, release(e.o.method), tint);
       g.restore();
     }
   }
@@ -1001,8 +1004,33 @@ export class EditorView {
   }
 }
 
-// プレイモードの丸の色：長押し中・成功・失敗
-const PA_COLOR = { hold: '#2f7dff', ok: '#22c55e', miss: '#ef3b36' };
+// プレイモードの丸の色：長押し中・成功・失敗（RHRE fresh と同じ）
+const PA_COLOR = { hold: '#3391ff', ok: '#33ff33', miss: '#ff2626' };
+
+// はじくキューの絵（RHRE fresh の tap_flick.png）。色を付けたものは作っておく
+const FLICK_IMG = new Image();
+FLICK_IMG.src = 'assets/playalong/tap_flick.png';
+const flickTints = new Map();
+function tintedFlick(color, onLoad) {
+  if (!FLICK_IMG.complete || !FLICK_IMG.naturalWidth) { FLICK_IMG.addEventListener('load', onLoad, { once: true }); return null; }
+  const key = color || '';
+  if (!flickTints.has(key)) {
+    const c = document.createElement('canvas');
+    c.width = FLICK_IMG.naturalWidth; c.height = FLICK_IMG.naturalHeight;
+    const x = c.getContext('2d');
+    x.drawImage(FLICK_IMG, 0, 0);
+    if (color) {
+      // RHRE fresh と同じく、白い所が結果の色、線は暗い色になるように掛け合わせる
+      x.globalCompositeOperation = 'multiply';
+      x.fillStyle = color;
+      x.fillRect(0, 0, c.width, c.height);
+      x.globalCompositeOperation = 'destination-in';
+      x.drawImage(FLICK_IMG, 0, 0);
+    }
+    flickTints.set(key, c);
+  }
+  return flickTints.get(key);
+}
 
 // プレイモードの大きな丸。hollow＝離すとき（黒い丸に白い文字）。tint があれば、その色の丸に白い文字
 function drawBigInput(g, input, cx, cy, r, hollow, tint) {

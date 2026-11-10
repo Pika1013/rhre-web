@@ -26,7 +26,7 @@ export const INPUT = {
   TOUCH_TAP: { keys: ['TOUCH'], glyph: 'Tap', touch: true },
   TOUCH_FLICK: { keys: ['FLICK'], glyph: 'Flick', touch: true },
   TOUCH_RELEASE: { keys: ['TOUCH'], glyph: 'Release', touch: true },
-  TOUCH_QUICK_TAP: { keys: ['TOUCH'], glyph: 'Quick\nTap', touch: true },
+  TOUCH_QUICK_TAP: { keys: ['QTAP'], glyph: 'Quick\nTap', touch: true }, // 0.1 秒以内に、はじかずに離したときだけ
   TOUCH_SLIDE: { keys: ['SLIDE'], glyph: 'Slide', touch: true },
 };
 
@@ -94,6 +94,10 @@ const timingOf = (off) => {
 
 export const hasPlayalong = (remix) => remix.entities.some((e) => e.o?.type === 'playalongEntity');
 
+// タッチの操作（RHRE fresh ではどれもマウスの「キー 0」。押しっぱなしの終わりは同じキー同士で決まる）
+export const TOUCH_KEYS = ['TOUCH', 'QTAP', 'FLICK', 'SLIDE'];
+const keyGroup = (keys) => (keys.some((k) => TOUCH_KEYS.includes(k)) ? 'TOUCH' : keys[0]);
+
 // 判定する係。時間はリミックスの秒（再生速度を変えているときは、判定の幅もその分だけ広げる）
 export class PlayalongJudge {
   constructor(remix, speed = 1) {
@@ -138,60 +142,69 @@ export class PlayalongJudge {
     this.onJudge?.(a, timing, isEnd, off, !!forced);
   }
 
-  find(t, key, wantRelease) {
+  // RHRE fresh の searchForInputAction と同じ：始まりの時刻が ±9/60 秒以内で、条件に合う最初のもの
+  find(t, keys, wantRelease) {
     for (const a of this.actions) {
       if (a.done || a.results.length || this.inProgress.has(a)) continue;
       if (a.start - t > this.maxWin) break;
       if (Math.abs(t - a.start) > this.maxWin) continue;
-      if (!a.input.keys.includes(key)) continue;
+      if (!a.input.keys.some((k) => keys.includes(k))) continue;
       if (!!METHOD[a.method]?.release !== wantRelease) continue;
       return a;
     }
     return null;
   }
 
-  press(key, t) {
-    // 「離して、終わりで押す」の終わり
-    for (const [a, k] of this.inProgress) {
-      if (k === key && a.method === 'RELEASE_AND_HOLD') {
-        this.inProgress.delete(a);
-        a.done = true;
-        this.record(a, t - a.end, true);
-        return;
-      }
+  // 押した（触れた・はじいた・スライドした）。RHRE fresh の handleInput(down = true) と同じ順番：
+  // まず新しいキューを探し、そのあと「離して、終わりで押す」の途中のものを同じキーで終わらせる
+  press(keys, t) {
+    keys = [].concat(keys);
+    const g = keyGroup(keys);
+    const a = this.find(t, keys, false);
+    if (a) {
+      this.record(a, t - a.start, false);
+      if (a.method === 'PRESS') a.done = true;
+      else this.inProgress.set(a, g);
     }
-    const a = this.find(t, key, false);
-    if (!a) return;
-    this.record(a, t - a.start, false);
-    if (a.method === 'PRESS') a.done = true;
-    else this.inProgress.set(a, key);
+    for (const [b, bg] of [...this.inProgress]) {
+      if (bg !== g || b.method !== 'RELEASE_AND_HOLD') continue;
+      this.inProgress.delete(b);
+      b.done = true;
+      this.record(b, t - b.end, true);
+    }
   }
 
-  release(key, t) {
-    // 押しっぱなしの終わり
-    for (const [a, k] of this.inProgress) {
-      if (k !== key || (a.method !== 'PRESS_AND_HOLD' && a.method !== 'LONG_PRESS')) continue;
-      this.inProgress.delete(a);
-      a.done = true;
-      let off = t - a.end;
-      if (a.method === 'LONG_PRESS' && off > 0) off = 0;
-      this.record(a, off, true);
+  // 離した。新しいキュー（離す・離して終わりで押す）を探し、そのあと押しっぱなしの途中のものを同じキーで終わらせる
+  release(keys, t) {
+    keys = [].concat(keys);
+    const g = keyGroup(keys);
+    const a = this.find(t, keys, true);
+    if (a) {
+      this.record(a, t - a.start, false);
+      if (a.method === 'RELEASE') a.done = true;
+      else this.inProgress.set(a, g);
     }
-    const a = this.find(t, key, true);
-    if (!a) return;
-    this.record(a, t - a.start, false);
-    if (a.method === 'RELEASE') a.done = true;
-    else this.inProgress.set(a, key);
+    for (const [b, bg] of [...this.inProgress]) {
+      if (bg !== g || (b.method !== 'PRESS_AND_HOLD' && b.method !== 'LONG_PRESS')) continue;
+      this.inProgress.delete(b);
+      b.done = true;
+      let off = t - b.end;
+      if (b.method === 'LONG_PRESS' && off > 0) off = 0;
+      this.record(b, off, true);
+    }
   }
 
-  // 毎フレーム：時間切れのものをミス（長押しは終わりまで押し続けたらばっちり）
-  update(t) {
-    for (const [a] of this.inProgress) {
+  // 毎フレーム：時間切れのものをミス（長押しは終わりまで押し続けたらばっちり）。
+  // タッチのキューはタッチ用のタイミング調整、ボタンのキューはボタン用で見る（RHRE fresh と同じ）
+  update(tKey, tTouch = tKey) {
+    for (const [a, g] of [...this.inProgress]) {
+      const t = g === 'TOUCH' ? tTouch : tKey;
       if (a.method === 'LONG_PRESS' && t > a.end) { this.inProgress.delete(a); a.done = true; this.record(a, 0, true, 'ACE'); }
       else if (t > a.end + this.maxWin) { this.inProgress.delete(a); a.done = true; this.record(a, t - a.end, true, 'MISS'); }
     }
     for (const a of this.actions) {
-      if (a.start - t > this.maxWin) break;
+      const t = a.input.touch ? tTouch : tKey;
+      if (a.start - Math.max(tKey, tTouch) > this.maxWin) break;
       if (a.done || a.results.length || this.inProgress.has(a)) continue;
       if (t > a.start + this.maxWin) {
         a.done = true;
@@ -200,6 +213,9 @@ export class PlayalongJudge {
       }
     }
   }
+
+  // タッチの操作が要るか（RHRE fresh の needsTouchScreen）
+  get needsTouch() { return this.actions.some((a) => a.input.touch); }
 
   // 再生を途中から始めたときは、それより前のものは数えない
   skipBefore(t) {

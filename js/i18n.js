@@ -2,6 +2,9 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'タッチの枠を左へ': 'Touch area to the left', 'タッチの枠を右へ': 'Touch area to the right',
+  'ボタンのタイミング調整': 'Button timing offset', 'タッチのタイミング調整': 'Touch timing offset',
+  'タッチの枠（タッチ・はじく・スライド）': 'Touch area (tap, flick, slide)',
   'ゲームには無い操作': 'not present in-game', '例：': 'ex: ',
   '0拍目に戻る': 'Back to beat 0', '一時停止': 'Pause', '再生': 'Play', '停止': 'Stop',
   'この端末のアクセスを、また数えるようにしました': 'Visits from this device are counted again.', 'この端末のアクセスを数えないようにしました': 'Visits from this device will no longer be counted.',
@@ -164,6 +167,9 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  'タッチの枠を左へ': 'Touch area to the left', 'タッチの枠を右へ': 'Touch area to the right',
+  'ボタンのタイミング調整': 'Button timing offset', 'タッチのタイミング調整': 'Touch timing offset',
+  'タッチの枠（タッチ・はじく・スライド）': 'Touch area (tap, flick, slide)',
   'メニュー': 'Menu', '新規作成': 'New', '開く（.rhref）': 'Open (.rhref)', 'サンプルを開く': 'Open sample', '保存（.rhref）': 'Save (.rhref)',
   'WAVに書き出す': 'Export WAV', '音楽を選ぶ': 'Choose music', '音楽の開始位置': 'Music start position', '音楽を外す': 'Remove music',
   'トラックの数': 'Number of tracks', 'プレゼンテーションモード': 'Presentation mode', '使い方': 'Help', '閉じる': 'Close',

@@ -1,12 +1,12 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
-import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=19';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=22';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=12';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
+import { customRegistry } from './db.js?v=9';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=20';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=23';
 import { makeZip } from './zip.js?v=4';
-import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
+import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1400,7 +1400,7 @@ function frame(now) {
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
-    if (playMode && judge) judge.update(paTime());
+    if (playMode && judge) judge.update(paTime(false), paTime(true));
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
@@ -1663,6 +1663,8 @@ $('settingsBtn').addEventListener('click', () => {
   applyBackgroundOptions();
   $('paOffset').value = String(Number(settings.paOffset) || 0);
   $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
+  $('paTouchOffset').value = String(Number(settings.paTouchOffset) || 0);
+  $('paTouchOffsetVal').textContent = `${Number(settings.paTouchOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
   $('settingsModal').hidden = false;
 });
@@ -1944,9 +1946,11 @@ $('presentCtl').addEventListener('click', (e) => {
 // 上の Ⓐ ボタンで切り替え。下のゲーム一覧の代わりにスコアとズレのバーを出し、▶ で再生してボタンのキューに合わせて押す
 
 // 聞こえている音の時刻（スピーカーやイヤホンの遅れと、設定の「タイミング調整」を引く）
-function paTime() {
+// 判定に使う時刻。タッチとボタンで別々にタイミングを調整できる（RHRE fresh のマウスとキーボードと同じ）
+function paTime(touch = false) {
   const ctx = engine.ctx;
-  const lat = (ctx?.outputLatency || 0) + (ctx?.baseLatency || 0) + (Number(settings.paOffset) || 0) / 1000;
+  const offset = Number(touch ? settings.paTouchOffset : settings.paOffset) || 0;
+  const lat = (ctx?.outputLatency || 0) + (ctx?.baseLatency || 0) + offset / 1000;
   return player.time - lat * (player.speed || 1);
 }
 
@@ -1974,7 +1978,7 @@ $('psClose').addEventListener('click', () => setPlayMode(false));
 function resetJudge() {
   $('psMarks').textContent = '';
   for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
-  if (!remix) { judge = null; aTouch.on = false; $('psAB').classList.remove('flick'); updatePlayStage(); return; }
+  if (!remix) { judge = null; layoutPlayStage(false); updatePlayStage(); return; }
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
     a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
@@ -1985,12 +1989,12 @@ function resetJudge() {
   };
   // 要るボタンだけ出す
   const keys = judge.neededKeys();
-  $('psDpad').classList.toggle('off', !['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k)));
-  // タッチのキューがあれば A でも操作できる。払うキューがあれば A を筆の形に
-  aTouch.on = ['TOUCH', 'FLICK', 'SLIDE'].some((k) => keys.has(k));
-  $('psAB').classList.toggle('flick', keys.has('FLICK'));
-  $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A') && !aTouch.on);
+  const dpad = ['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k));
+  $('psDpad').classList.toggle('off', !dpad);
+  $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A'));
   $('psAB').querySelector('.bkey').classList.toggle('off', !keys.has('B'));
+  // タッチの操作があれば、タッチの枠を出す
+  layoutPlayStage(judge.needsTouch, dpad, keys.has('A') || keys.has('B'));
   updatePlayStage();
 }
 // 長押しの最中のキュー（トラックの丸を青くする）。止めたら消す
@@ -2017,7 +2021,6 @@ function addTimingMark(off, timing) {
 function paPress(key) { if (playMode && judge && mode === 'playing') judge.press(key, paTime()); }
 function paRelease(key) { if (playMode && judge && mode === 'playing') judge.release(key, paTime()); }
 
-// 画面のボタン（A・B・十字）
 // ボタンを押したときの小さな振動。Android は vibrate、iPhone（iOS 18 以降）はスイッチを切り替えたときの振動を借りる
 const IS_APPLE_TOUCH = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function haptic() {
@@ -2037,188 +2040,210 @@ function haptic() {
   } catch (_) { /* 振動できない端末 */ }
 }
 
-// 筆の形の A ボタン：丸と尻尾を 1 枚の絵に描く。押すと丸が少し縮み（尻尾はつながったまま）、
-// 指を尻尾の向きへ動かすと丸のふちが引っ張られ、払うと尻尾の先までびよんと伸びて戻る
-const brush = (() => {
-  const svg = $('psAB').querySelector('.fbrush');
-  const tailEl = svg.querySelector('.ft'), blobEl = svg.querySelector('.fb');
-  const letter = $('psAB').querySelector('.akey span');
-  const R = 47;                       // 丸の半径（ボタンの幅＝100）
-  const TIP = { x: 58, y: -128 };     // 尻尾の先（右上。上のトラックにはみ出す）
-  const L = Math.hypot(TIP.x, TIP.y);
-  const ux = TIP.x / L, uy = TIP.y / L;   // 尻尾の向き
-  const vx = uy, vy = -ux;                // それと直角（左上側）
-  const ANG = Math.atan2(uy, ux);
-  const P = (a, b) => ({ x: a * ux + b * vx, y: a * uy + b * vy });
-  const f = (p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-  const st = { r: 1, rT: 1, t: 0, tT: 0, t0: 0, whip: 0, flash: 0, raf: 0, last: 0, x0: 0, y0: 0, px: 1, pressed: false };
-  // 尻尾：丸の上の方から先までほぼまっすぐ（少しふくらむ）、反対側はへこんだ曲線で丸の右に戻る
-  function tailPath(r) {
-    const rr = R * r;
-    const b1 = { x: rr * Math.cos(ANG - 1.1), y: rr * Math.sin(ANG - 1.1) };
-    const b2 = { x: rr * Math.cos(ANG + 0.56), y: rr * Math.sin(ANG + 0.56) };
-    const a1 = 0.45 * rr, s1 = 0.89 * rr;
-    return `M${f(b1)}C${f(P(a1 + (L - a1) / 3, s1 * 2 / 3 + 0.16 * rr))} ${f(P(a1 + 2 * (L - a1) / 3, s1 / 3 + 0.12 * rr))} ${f(P(L, 0))}`
-      + `Q${f(P(L + 2, -2.5))} ${f(P(L - 4, -3))}C${f(P(0.55 * L, -0.08 * rr))} ${f(P(rr * 1.15, -0.2 * rr))} ${f(b2)}Z`;
-  }
-  function blobPath(r, t) {
-    const rr = R * r, N = 72, pts = [];
-    for (let i = 0; i < N; i++) {
-      const th = (i / N) * Math.PI * 2;
-      const c = Math.cos(th - ANG);
-      const rad = Math.max(rr * 0.86, rr + t * (L - 6 - rr) * (c > 0 ? c ** 6 : 0));
-      pts.push({ x: rad * Math.cos(th), y: rad * Math.sin(th) });
-    }
-    let d = `M${f(pts[0])}`;
-    for (let i = 0; i < N; i++) {
-      const p0 = pts[(i - 1 + N) % N], p1 = pts[i], p2 = pts[(i + 1) % N], p3 = pts[(i + 2) % N];
-      d += `C${f({ x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 })} ${f({ x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 })} ${f(p2)}`;
-    }
-    return `${d}Z`;
-  }
-  const mix = (a, b, k) => {
-    const pa = a.match(/\w\w/g).map((h) => parseInt(h, 16)), pb = b.match(/\w\w/g).map((h) => parseInt(h, 16));
-    return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * k)).join(',')})`;
-  };
-  function draw() {
-    tailEl.setAttribute('d', tailPath(st.r));
-    blobEl.setAttribute('d', blobPath(st.r, st.t));
-    tailEl.style.fill = mix('ef7f7b', 'ffe2df', st.flash);
-    blobEl.style.fill = mix('ee6f6a', 'd2524d', st.pressed ? 1 : 0);
-    letter.style.transform = `scale(${st.r.toFixed(3)})`;
-  }
-  function frame(now) {
-    const dt = Math.min(50, st.last ? now - st.last : 16);
-    st.last = now;
-    st.r += (st.rT - st.r) * (1 - Math.exp(-dt / 40));
-    if (st.whip) {
-      // 払った：尻尾の先までさっと伸びて、ぷるんと揺れながら戻る
-      const k = now - st.whip;
-      if (k < 70) st.t = st.t0 + (1 - st.t0) * (1 - (1 - k / 70) ** 2);
-      else {
-        const q = k - 70;
-        st.t = Math.exp(-q / 85) * Math.cos(q / 40);
-        if (q > 520) { st.whip = 0; st.t = 0; st.tT = 0; }
-      }
-    } else st.t += (st.tT - st.t) * (1 - Math.exp(-dt / 45));
-    st.flash = Math.max(0, st.flash - dt / 280);
-    draw();
-    if (!st.whip && Math.abs(st.r - st.rT) < 0.002 && Math.abs(st.t - st.tT) < 0.002 && st.flash <= 0) {
-      st.r = st.rT; st.t = st.tT; st.raf = 0; st.last = 0; draw();
-      return;
-    }
-    st.raf = requestAnimationFrame(frame);
-  }
-  const kick = () => { if (!st.raf) { st.last = 0; st.raf = requestAnimationFrame(frame); } };
-  draw();
-  return {
-    down(e) {
-      st.pressed = true; st.rT = 0.9; st.tT = 0; st.whip = 0;
-      st.x0 = e.clientX; st.y0 = e.clientY;
-      st.px = (svg.getBoundingClientRect().width || 400) / 400;
-      kick();
-    },
-    move(e) {
-      // 尻尾の向きに動かした分だけ、丸のふちが引っ張られる（ゴムのように、伸びるほど重く）
-      const along = ((e.clientX - st.x0) * ux + (e.clientY - st.y0) * uy) / (st.px * L);
-      st.tT = along > 0 ? 0.5 * (1 - Math.exp(-along / 0.35)) : 0;
-      kick();
-    },
-    up(flicked) {
-      st.pressed = false; st.rT = 1;
-      if (flicked) { st.t0 = Math.max(0, st.t); st.whip = performance.now(); st.flash = 1; } else st.tT = 0;
-      kick();
-    },
-  };
-})();
-
-// タッチ（タップ・フリック・スライド）のキューがあるリミックスでは、A ボタンでもタッチの操作ができる
-// （押す＝触れる、そのまま離す＝離す、押したまま払って離す＝フリック）
-const aTouch = { on: false };
+// 画面のボタン（A・B・十字）
 for (const b of document.querySelectorAll('#playStage .pkey')) {
   const key = b.dataset.key;
-  let tp = null;
-  const isBrush = () => key === 'A' && $('psAB').classList.contains('flick');
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { b.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
     b.classList.add('down-now');
     haptic();
     paPress(key);
-    if (key === 'A' && aTouch.on) { tp = touchStart(e); paPress('TOUCH'); }
-    if (isBrush()) brush.down(e);
   });
-  b.addEventListener('pointermove', (e) => {
-    if (!tp) return;
-    touchMove(tp, e);
-    if (isBrush()) brush.move(e);
-  });
-  const up = (e) => {
-    if (!b.classList.contains('down-now')) return;
-    b.classList.remove('down-now');
-    const s = tp;
-    tp = null;
-    const flicked = !!s && e.type === 'pointerup' && isFlick(s, e, performance.now());
-    if (flicked) { paPress('FLICK'); haptic(); }
-    if (isBrush()) brush.up(flicked);
-    paRelease(key);
-    if (s) paRelease('TOUCH');
-  };
+  const up = () => { if (!b.classList.contains('down-now')) return; b.classList.remove('down-now'); paRelease(key); };
   b.addEventListener('pointerup', up);
   b.addEventListener('pointercancel', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-// iPhone で長押ししたときに出る拡大鏡（文字の選択）を止める。やめるボタンは普通に押せるように除く
-for (const el of [$('playStage'), $('touchPad')]) {
-  el.addEventListener('touchstart', (e) => { if (!e.target.closest('#psClose')) e.preventDefault(); }, { passive: false });
-}
+// iPhone で長押ししたときに出る拡大鏡（文字の選択）を止める。上のタブ（やめる・左右）は普通に押せるように除く
+$('playStage').addEventListener('touchstart', (e) => { if (!e.target.closest('#psTabs')) e.preventDefault(); }, { passive: false });
 document.addEventListener('selectstart', (e) => { if (playMode && !e.target.closest?.('input, textarea')) e.preventDefault(); });
-// 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド）。下の段のボタン以外の所も同じ
-// フリックは RHRE fresh と同じく、指を離した瞬間の速さで決める（先に触れておいて、合わせてさっと払っても OK）
-const FLICK_MIN_PX = 18;      // 離す直前に動いた距離
-const FLICK_MIN_SPEED = 0.35; // px/ms（＝ 350px/秒）
-const FLICK_WINDOW = 90;      // 離す直前の何ミリ秒の動きで見るか
-function isFlick(s, e, now) {
-  const recent = s.trail.filter((p) => now - p.t <= FLICK_WINDOW);
-  const p0 = recent[0] || s.trail[s.trail.length - 1];
-  const dist = Math.hypot(e.clientX - p0.x, e.clientY - p0.y);
-  return dist >= FLICK_MIN_PX && dist / Math.max(16, now - p0.t) >= FLICK_MIN_SPEED;
-}
-// 1本の指の動き（フリックの判定に使う、離す直前の軌跡）
-function touchStart(e) {
-  return { x: e.clientX, y: e.clientY, slid: false, trail: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
-}
-function touchMove(s, e) {
-  const now = performance.now();
-  s.trail.push({ x: e.clientX, y: e.clientY, t: now });
-  while (s.trail.length > 2 && now - s.trail[0].t > FLICK_WINDOW * 2) s.trail.shift();
-  if (!s.slid && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 26) { s.slid = true; paPress('SLIDE'); }
-}
-function bindTouchSurface(el, skip) {
-  const touches = new Map();
-  el.addEventListener('pointerdown', (e) => {
-    if (skip?.(e.target)) return;
+
+// ---------------------------------------------------------------- タッチの枠（RHRE fresh の FlickingStage の移植）
+// DS のタッチ操作をそのまま再現する。長さの単位は RHRE fresh の画面（横 1280）で、この端末では 1 単位＝画面の幅÷1280 px。
+//  ・触れる：タッチ（Tap・Tap and Hold・Long Tap）の押し始め
+//  ・はじく：離した瞬間の速さ（1 フレームの動き×25）が秒速 700 単位を超えたら Flick（＝1 フレームで 28 単位。向きは問わない）
+//  ・離す：Tap and Hold などの離す判定。0.1 秒以内に、はじかずに離したときだけ Quick Tap も
+//  ・スライド：触れたまま 1 フレームで 65 単位より速く動いたら Slide（ゆっくりになると、また出せる）
+//  ・見た目：触れた所に目の付いた黒い丸。離すと、その向きへ飛びながら 0.125 秒で小さくなって消える
+const touchBox = (() => {
+  const box = $('psTouch');
+  const cv = box.querySelector('canvas');
+  const g = cv.getContext('2d');
+  const tex = new Image();
+  tex.src = 'assets/playalong/tappoint.png';
+  const FRAME = 1000 / 60;
+  const MAX_LIFE = 0.125;
+  const points = [];
+  let cur = null, raf = 0, last = 0, W = 0, H = 0, dpr = 1;
+  const unit = () => window.innerWidth / 1280;
+  const clampTo = (v, max) => Math.max(0, Math.min(max, v));
+  const judgeTouch = (kind, keys) => { if (playMode && judge && mode === 'playing') judge[kind](keys, paTime(true)); };
+
+  function resize() {
+    const r = box.getBoundingClientRect();
+    dpr = Math.min(3, window.devicePixelRatio || 1);
+    W = r.width; H = r.height;
+    cv.width = Math.max(1, Math.round(W * dpr));
+    cv.height = Math.max(1, Math.round(H * dpr));
+    draw();
+  }
+  try { new ResizeObserver(resize).observe(box); } catch (_) { window.addEventListener('resize', resize); }
+
+  function draw() {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (!points.length) return;
+    const u = unit();
+    const ms = performance.now();
+    // RHRE fresh（Toolboks）の getBaseCosineWave(0.1)：0.1 秒で 1 周する 0〜1 の波
+    const wave = (Math.cos(((ms % 100) / 100) * Math.PI * 2) + 1) / 2;
+    const ready = tex.complete && tex.naturalWidth > 0;
+    for (const p of points) {
+      const rs = Math.max(0, p.life / MAX_LIFE);
+      // 本体：128 単位の黒い丸（不透明度 0.6）
+      const main = 128 * u * rs;
+      g.globalAlpha = 0.6;
+      g.fillStyle = '#000';
+      g.beginPath(); g.arc(p.x, p.y, main / 2, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1;
+      if (!ready) continue;
+      // 目：16 単位。丸のてっぺんの 4 単位上に、左右 12 単位ずつ離して
+      const eye = 16 * u;
+      for (const sign of [-1, 1]) {
+        g.drawImage(tex, 144, 0, 16, 16, p.x + sign * 12 * u - eye / 2, p.y - main / 2 - 4 * u - eye, eye, eye);
+      }
+      // 中の白い丸：30 単位。0.8〜1 倍で細かくふるえる（不透明度 0.8）
+      const inner = 30 * u * rs * (0.8 + 0.2 * wave);
+      g.globalAlpha = 0.8;
+      g.drawImage(tex, 144, 32, 30, 30, p.x - inner / 2, p.y - inner / 2, inner, inner);
+      // 顔：30 単位（小さくなり始めると一緒に縮む）
+      const face = 30 * u * Math.min(1, rs / 0.85);
+      g.globalAlpha = 1;
+      g.drawImage(tex, 176, 32, 30, 30, p.x - face / 2, p.y - face / 2, face, face);
+    }
+    g.globalAlpha = 1;
+  }
+
+  function frame(now) {
+    const dt = last ? Math.min(100, now - last) : FRAME;
+    last = now;
+    if (cur) {
+      // 指について行く（枠の外には出ない）。1 フレームの動きが 65 単位を超えたらスライド
+      const nx = clampTo(cur.rawX, W), ny = clampTo(cur.rawY, H);
+      const per = Math.hypot(nx - cur.x, ny - cur.y) * (FRAME / Math.max(1, dt)) / unit();
+      cur.x = nx; cur.y = ny;
+      if (per > 65) {
+        if (!cur.slid) { cur.slid = true; judgeTouch('press', ['SLIDE']); }
+      } else cur.slid = false;
+    }
+    for (let i = points.length - 1; i >= 0; i--) {
+      const p = points[i];
+      if (p.held) continue;
+      p.x += (p.vx * dt) / 1000;
+      p.y += (p.vy * dt) / 1000;
+      p.life -= dt / 1000;
+      if (p.life <= 0) points.splice(i, 1);
+    }
+    draw();
+    if (cur || points.length) raf = requestAnimationFrame(frame);
+    else { raf = 0; last = 0; }
+  }
+  const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(frame); } };
+
+  box.addEventListener('pointerdown', (e) => {
+    // RHRE fresh と同じく、1 本の指（マウスは左ボタン）だけ
+    if (cur || (e.pointerType === 'mouse' && e.button !== 0)) return;
     e.preventDefault();
-    try { el.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
-    touches.set(e.pointerId, touchStart(e));
-    paPress('TOUCH');
+    try { box.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    const r = box.getBoundingClientRect();
+    const now = performance.now();
+    const x = clampTo(e.clientX - r.left, r.width), y = clampTo(e.clientY - r.top, r.height);
+    cur = {
+      id: e.pointerId, x, y, rawX: x, rawY: y, vx: 0, vy: 0, life: MAX_LIFE, held: true, slid: false,
+      down: now, left: r.left, top: r.top, trail: [{ x: e.clientX, y: e.clientY, t: now }],
+    };
+    points.push(cur);
+    haptic();
+    judgeTouch('press', ['TOUCH', 'QTAP']);
+    kick();
   });
-  el.addEventListener('pointermove', (e) => {
-    const s = touches.get(e.pointerId);
-    if (s) touchMove(s, e);
+  box.addEventListener('pointermove', (e) => {
+    if (!cur || e.pointerId !== cur.id) return;
+    const now = performance.now();
+    cur.rawX = e.clientX - cur.left;
+    cur.rawY = e.clientY - cur.top;
+    cur.trail.push({ x: e.clientX, y: e.clientY, t: now });
+    while (cur.trail.length > 2 && now - cur.trail[1].t > 200) cur.trail.shift();
   });
   const end = (e) => {
-    const s = touches.get(e.pointerId);
-    if (!s) return;
-    touches.delete(e.pointerId);
-    if (e.type === 'pointerup' && isFlick(s, e, performance.now())) paPress('FLICK');
-    paRelease('TOUCH');
+    if (!cur || e.pointerId !== cur.id) return;
+    const p = cur;
+    cur = null;
+    const now = performance.now();
+    // RHRE fresh は「離した位置 − 1 フレーム前の位置」を 25 倍した速さで見る。スマホは離したときの位置が最後に動いた位置と同じなので、
+    // 離す直前 2 フレーム分の動きから 1 フレーム分を求める（止めてから離したら 0）
+    const win = 2 * FRAME;
+    let p0 = p.trail[0];
+    for (const s of p.trail) { if (s.t <= now - win) p0 = s; else break; }
+    const span = p0.t <= now - win ? win : Math.max(FRAME, now - p0.t);
+    const fx = ((e.clientX - p0.x) * FRAME) / span, fy = ((e.clientY - p0.y) * FRAME) / span;
+    const flick = e.type === 'pointerup' && Math.hypot(fx * 25, fy * 25) / unit() > 700;
+    p.held = false;
+    p.vx = fx * 25;
+    p.vy = fy * 25;
+    if (flick) judgeTouch('press', ['FLICK']);
+    const short = !flick && now - p.down <= 100;
+    judgeTouch('release', short ? ['TOUCH', 'QTAP'] : ['TOUCH']);
+    kick();
   };
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
+  box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', end);
+  box.addEventListener('contextmenu', (e) => e.preventDefault());
+  return { resize };
+})();
+
+// 下の段の並び：タッチの操作があるときは、タッチの枠を左か右の端に（要らないボタンは出さない）
+let lastPlayLayout = [false, true, true];
+function layoutPlayStage(touch, showDpad = true, showAB = true) {
+  lastPlayLayout = [touch, showDpad, showAB];
+  const ps = $('playStage');
+  const side = settings.paBoxSide === 'left' ? 'left' : 'right';
+  ps.classList.toggle('touch', touch);
+  ps.classList.toggle('side-left', touch && side === 'left');
+  ps.classList.toggle('side-right', touch && side !== 'left');
+  const parts = { dpad: $('psDpad'), center: ps.querySelector('.ps-center'), ab: $('psAB'), box: $('psTouch') };
+  if (!touch) {
+    ps.style.gridTemplateColumns = '';
+    ps.style.gridTemplateAreas = '';
+    ps.style.gridTemplateRows = '';
+    for (const el of Object.values(parts)) { el.style.gridArea = ''; el.style.display = ''; }
+    return;
+  }
+  const inset = side === 'left' ? 'env(safe-area-inset-left, 0px)' : 'env(safe-area-inset-right, 0px)';
+  const boxCol = `calc(35vw - max(10px, ${inset}))`;
+  const cols = [], areas = [];
+  const add = (a, c) => { areas.push(a); cols.push(c); };
+  if (side === 'left') add('box', boxCol);
+  if (showDpad) add('dpad', 'auto');
+  add('center', 'minmax(0, 1fr)');
+  if (showAB) add('ab', 'auto');
+  if (side !== 'left') add('box', boxCol);
+  ps.style.gridTemplateColumns = cols.join(' ');
+  ps.style.gridTemplateAreas = `"${areas.join(' ')}"`;
+  ps.style.gridTemplateRows = 'minmax(0, 1fr)';
+  for (const [k, el] of Object.entries(parts)) el.style.gridArea = k;
+  parts.dpad.style.display = showDpad ? '' : 'none';
+  parts.ab.style.display = showAB ? '' : 'none';
+  $('psSide').textContent = t(side === 'left' ? 'タッチの枠を右へ' : 'タッチの枠を左へ');
+  requestAnimationFrame(() => touchBox.resize());
 }
-bindTouchSurface($('touchPad'));
-bindTouchSurface($('playStage'), (t) => !!t.closest('.pkey, #psClose'));
+$('psSide').addEventListener('click', () => {
+  settings.paBoxSide = settings.paBoxSide === 'left' ? 'right' : 'left';
+  saveSettings();
+  layoutPlayStage(...lastPlayLayout);
+});
+
 // キーボード（パソコン）：A＝J、B＝K、十字＝WASD・矢印
 const PA_KEYS = { KeyJ: 'A', KeyK: 'B', ArrowUp: 'UP', KeyW: 'UP', ArrowDown: 'DOWN', KeyS: 'DOWN', ArrowLeft: 'LEFT', KeyA: 'LEFT', ArrowRight: 'RIGHT', KeyD: 'RIGHT' };
 window.addEventListener('keydown', (e) => {
@@ -2990,6 +3015,8 @@ function applyBackgroundOptions() {
 }
 $('paOffset').addEventListener('input', () => { settings.paOffset = Number($('paOffset').value); $('paOffsetVal').textContent = `${settings.paOffset}ms`; });
 $('paOffset').addEventListener('change', () => saveSettings());
+$('paTouchOffset').addEventListener('input', () => { settings.paTouchOffset = Number($('paTouchOffset').value); $('paTouchOffsetVal').textContent = `${settings.paTouchOffset}ms`; });
+$('paTouchOffset').addEventListener('change', () => saveSettings());
 $('bgPick').addEventListener('click', () => $('bgInput').click());
 $('bgInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
