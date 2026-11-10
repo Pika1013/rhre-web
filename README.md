@@ -21,6 +21,17 @@
 - プレイモード（ボタンのキューに合わせて押して遊ぶ。RHRE fresh の Playalong と同じ形式。タッチ・はじく・スライドは RHRE fresh と同じ緑のタッチの枠で、左右を切り替えられる。押すと端末が少し振動（Android のみ）。トラックを隠して遊ぶナイトモードつき）、プレゼンテーションモード
 - 再生速度、テーマ（15 色＋カスタム）、背景画像、画面の言語（日本語・English）
 
+## Android アプリ
+
+[GitHub Releases](https://github.com/Pika1013/rhre-web/releases/latest) から **RHRE-Web-Android-….apk** をダウンロードして入れると、Android のアプリとして全画面で使えます（Android 7.0 以上）。
+
+- 中身はこのサイトと同じ（サイトを包む TWA）なので、サイトを更新すればアプリも自動で新しくなります。入れ直しは要りません
+- 一度使ったミニゲームは、ネットにつながっていなくても使えます
+- 入れるときに「提供元不明のアプリ」の許可が必要です
+- アドレスバーを出さないための確認ファイルは [pika1013.github.io](https://github.com/Pika1013/pika1013.github.io) の `.well-known/assetlinks.json` にあります
+
+RHRE Web は、RHRE fresh を元にした非公式のファンメイドです。任天堂とは関係ありません。
+
 ## 効果音と曲について
 
 効果音はこのリポジトリには入っていません。リミックスに記録されたバージョンの [RHRE-database](https://github.com/RHREfresh/RHRE-database) から、使う分だけ jsDelivr 経由で読み込みます。
