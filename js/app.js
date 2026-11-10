@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
+import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=26';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=27';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=27';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=28';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1032,6 +1032,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   updateCtxbar();
   if (note) toast(note, 3500, 'info');
+  if (metronome) loadMetronomeSound();
 }
 
 async function withLoading(name, job, bytes) {
@@ -1603,9 +1604,25 @@ $('fileInput').addEventListener('change', async (e) => {
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
 $('stopBtn').addEventListener('click', stopPlayback);
+// メトロノームの音（RHRE fresh と同じく、データベースの countInEn/cowbell）を読み込んでおく
+async function loadMetronomeSound() {
+  if (!remix) return;
+  try {
+    const id = 'countInEn/cowbell';
+    await remix.db.ensureAll([id]);
+    const o = remix.db.get(id);
+    if (!o) return;
+    const url = remix.db.soundUrl(o);
+    await engine.loadSounds([url], remix.db);
+    player.metronomeUrl = url;
+  } catch (_) { /* 読めなければ、代わりの音で鳴らす */ }
+}
 $('metroBtn').addEventListener('click', () => {
   metronome = !metronome;
   player.metronome = metronome;
+  view.metronome = metronome; // Play-Yan も（RHRE fresh と同じく、メトロノームを入れているときだけ）
+  view.dirty = true;
+  if (metronome) loadMetronomeSound();
   $('metroBtn').classList.toggle('on', metronome);
   $('metroBtn').setAttribute('aria-pressed', String(metronome));
 });
@@ -2480,6 +2497,55 @@ function onPerfectFail() {
     };
     if (perfect.buf) playIt(); else loadPerfectSound()?.then(playIt);
   }
+}
+
+// トラックの左右の端の 0拍目に戻る・高速移動のボタン。
+// 高速移動：タップで 1 画面分（の 8 割）動く。押し続けると、だんだん速く流れ続ける
+$('navZero').addEventListener('click', () => {
+  if (!remix) return;
+  view.momentum = null;
+  view.lastUser = performance.now();
+  view.scrollBeat = -(view.W * 0.1) / view.ppb;
+  view.dirty = true;
+});
+for (const [id, dir] of [['navLeft', -1], ['navRight', 1]]) {
+  const b = $(id);
+  let hold = null;
+  const stop = () => {
+    if (!hold) return;
+    cancelAnimationFrame(hold.raf);
+    // すぐ離したら（タップ）1 画面分
+    if (performance.now() - hold.t0 < 220) {
+      view.scrollBeat += dir * (view.W * 0.8) / view.ppb;
+      view.dirty = true;
+    }
+    hold = null;
+  };
+  b.addEventListener('pointerdown', (e) => {
+    if (!remix) return;
+    e.preventDefault();
+    try { b.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
+    view.momentum = null;
+    hold = { t0: performance.now(), last: performance.now(), raf: 0 };
+    const step = (now) => {
+      if (!hold) return;
+      const held = now - hold.t0;
+      const dt = Math.min(50, now - hold.last);
+      hold.last = now;
+      if (held >= 220) {
+        // 1 秒あたり画面 1.5 枚分から、押しているほど速く（最大 6 枚分）
+        const screens = Math.min(6, 1.5 + (held - 220) / 400);
+        view.scrollBeat += dir * (screens * view.W / view.ppb) * (dt / 1000);
+        view.lastUser = now;
+        view.dirty = true;
+      }
+      hold.raf = requestAnimationFrame(step);
+    };
+    hold.raf = requestAnimationFrame(step);
+  });
+  b.addEventListener('pointerup', stop);
+  b.addEventListener('pointercancel', () => { if (hold) { cancelAnimationFrame(hold.raf); hold = null; } });
+  b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 // ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする

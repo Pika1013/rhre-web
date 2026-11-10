@@ -1,4 +1,4 @@
-# RHRE Web v1.5.0
+# RHRE Web v1.6.0
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
@@ -20,6 +20,7 @@
 - ホーム画面に追加したアプリでは、一度使ったミニゲームはオフラインでも使える（効果音などを端末に保存）
 - プレイモード（ボタンのキューに合わせて押して遊ぶ。RHRE fresh の Playalong と同じ形式。タッチ・はじく・スライドは RHRE fresh と同じ緑のタッチの枠で、左右を切り替えられる。押すと端末が少し振動（Android のみ）。トラックを隠して遊ぶナイトモード、RHRE fresh と同じパーフェクト挑戦つき）、プレゼンテーションモード
 - 再生速度、テーマ（15 色＋カスタム）、背景画像、画面の言語（日本語・English）
+- RHRE fresh と同じメトロノーム（カウベル）と Play-Yan、トラックの左右の端の高速移動・0 拍目に戻るボタン
 
 ## Android アプリ
 
@@ -54,4 +55,4 @@ python3 serve.py 8124 .
 
 GPL-3.0（[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) と同じ）。詳しくは [LICENSE](LICENSE) を見てください。
 
-プレイモードの絵と音（`assets/playalong/` の tappoint・tap_flick・perfect・perfect_hit・perfect_failed・perfect_fail）は RHRE fresh のものをそのまま使っています（GPL-3.0）。
+プレイモードの絵と音（`assets/playalong/` の tappoint・tap_flick・perfect・perfect_hit・perfect_failed・perfect_fail）と、Play-Yan の絵（`assets/playyan/`）は RHRE fresh のものをそのまま使っています（GPL-3.0）。

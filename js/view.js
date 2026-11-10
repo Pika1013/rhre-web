@@ -648,6 +648,9 @@ export class EditorView {
     const pbSec = R.tempo.b2s(pbBeat);
     this.drawFlag(g, L, pbBeat, C.playback, L.top + L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
 
+    // Play-Yan（RHRE fresh と同じく、メトロノームを入れているときだけ）
+    if (this.metronome) this.drawPlayYan(g, L, now);
+
     // 再生位置
     if (this.playhead != null) {
       const x = Math.round(this.x(this.playhead)) + 0.5;
@@ -655,6 +658,37 @@ export class EditorView {
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
     }
+  }
+
+  // RHRE fresh の renderPlayYan の移植。トラックの一番上の線の上に立つ（絵の左端が拍の位置）。
+  // 再生中・一時停止中は拍ごとに跳ねる（スイングのときはホッピング）。止まっているときは再生開始位置で足踏みする
+  drawPlayYan(g, L, now) {
+    const R = this.remix;
+    const s = this.W / 1280;
+    const ready = (img) => img.complete && img.naturalWidth > 0;
+    g.save();
+    g.imageSmoothingEnabled = false;
+    if (this.playhead != null) {
+      const beat = this.playhead;
+      let ts = null;
+      for (const t of R.timeSignatures) { if (t.beat <= beat + 1e-9) ts = t; else break; }
+      const interval = ts ? 4 / (ts.unit || 4) : 1;
+      const tsBeat = ts ? ts.beat : 0;
+      const beatPercent = (beat - tsBeat) % interval;
+      const pbPercent = (R.playbackStart - tsBeat) % interval;
+      const floorPb = Math.floor(pbPercent);
+      const arg = pbPercent > 0 && beat < floorPb + 1 ? (beat - R.playbackStart) / (1 - pbPercent) : beatPercent;
+      const jump = Math.abs(Math.sin((Math.PI / interval) * arg));
+      let swing = 0.5;
+      for (const t of R.tempo.list) { if (t.beat <= beat + 1e-9) swing = t.swing?.ratio ?? 0.5; else break; }
+      const img = Math.abs(swing - 0.5) < 1e-6 ? PLAYYAN.jumping : PLAYYAN.pogo;
+      if (ready(img)) g.drawImage(img, 0, 0, 34, 42, this.x(beat), L.tracksTop - jump * L.rowH - 42 * s, 34 * s, 42 * s);
+    } else {
+      const step = Math.floor(((now % 250) / 250) * 4);
+      if (ready(PLAYYAN.walking)) g.drawImage(PLAYYAN.walking, step * 32, 0, 32, 38, this.x(R.playbackStart), L.tracksTop - 38 * s, 34 * s, 38 * s);
+      this.dirty = true; // 足踏みのために描き続ける
+    }
+    g.restore();
   }
 
   // RHRE fresh の renderBeatLines の移植（太さ・濃さ・位置は同じ。ブロックの下に描く）。太さは RHRE fresh の画面（横 1280）での 2px を、この画面の幅に合わせる
@@ -708,12 +742,43 @@ export class EditorView {
 
   // プレイモード：ボタンのキューの位置に、トラックの高さの真ん中で大きな白い丸（A・B・十字・Tap など）
   drawPlayalongInputs(g, L, b0, b1) {
-    const ents = this.remix.entities.filter((e) => e.type === 'playalongEntity' && e.beat + e.width >= b0 - 2 && e.beat <= b1 + 2);
+    const ents = this.remix.entities
+      .filter((e) => e.type === 'playalongEntity' && e.beat + e.width >= b0 - 2 && e.beat <= b1 + 2)
+      .sort((a, b) => a.beat - b.beat || a.track - b.track);
     if (!ents.length) return;
+    const H = L.tracksBottom - L.tracksTop;
     const cy = (L.tracksTop + L.tracksBottom) / 2;
-    const r = clamp(Math.min((L.tracksBottom - L.tracksTop) * 0.2, this.ppb * 0.42), 10, 72);
+    const r0 = clamp(Math.min(H * 0.2, this.ppb * 0.42), 10, 72);
     const release = (m) => m === 'RELEASE' || m === 'RELEASE_AND_HOLD';
+    // 同じ時に重なるボタン（A と十字の左を同時に、など）は、縦に並べる。
+    // 丸（と長押しの帯）が横に重なるものをひとまとまりにして、空いている段に上から入れる（上の段に置いたものほど上）
+    const halfB = (r0 * 1.25) / this.ppb;
+    const pos = new Map();
+    let group = [], groupEnd = -Infinity;
+    const flush = () => {
+      if (!group.length) return;
+      const laneEnd = [];
+      for (const e of group) {
+        const s = e.beat - halfB;
+        let lane = laneEnd.findIndex((end) => end < s);
+        if (lane < 0) { lane = laneEnd.length; laneEnd.push(0); }
+        laneEnd[lane] = e.beat + e.width + halfB;
+        pos.set(e, lane);
+      }
+      const n = laneEnd.length;
+      const spacing = Math.min(r0 * 2.5, H / n);
+      const r = Math.min(r0, spacing / 2.5);
+      for (const e of group) pos.set(e, { y: cy + (pos.get(e) - (n - 1) / 2) * spacing, r });
+      group = [];
+    };
     for (const e of ents) {
+      if (e.beat - halfB > groupEnd) { flush(); groupEnd = -Infinity; }
+      group.push(e);
+      groupEnd = Math.max(groupEnd, e.beat + e.width + halfB);
+    }
+    flush();
+    for (const e of ents) {
+      const { y: cy, r } = pos.get(e);
       const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
       const instant = e.o.method === 'PRESS' || e.o.method === 'RELEASE';
       // 長押し中は青、終わって上手くいったら緑、失敗したら赤
@@ -1046,6 +1111,12 @@ export class EditorView {
 
 // プレイモードの丸の色：長押し中・成功・失敗（RHRE fresh と同じ）
 const PA_COLOR = { hold: '#3391ff', ok: '#33ff33', miss: '#ff2626' };
+
+// Play-Yan の絵（RHRE fresh のもの）
+const PLAYYAN = (() => {
+  const load = (n) => { const i = new Image(); i.src = `assets/playyan/${n}_pixel.png`; return i; };
+  return { jumping: load('jumping'), pogo: load('pogo'), walking: load('walking') };
+})();
 
 // はじくキューの絵（RHRE fresh の tap_flick.png）。色を付けたものは作っておく
 const FLICK_IMG = new Image();

@@ -236,6 +236,42 @@ export function scheduleEvent(ctx, dest, buffers, ev, when, off, speed = 1) {
   return src;
 }
 
+// メトロノーム（RHRE fresh と同じ）：拍子の拍（下の数で数える。6/8 なら 0.5 拍）が変わるたびに鳴らす。
+// 0 拍目より前は 1 拍ごと。音はデータベースの countInEn/cowbell で、小節の頭は 1.5 倍・それ以外は 1.1 倍の速さ、音量 1.25
+function tsAtBeat(remix, beat) {
+  let ts = null;
+  for (const t of remix.timeSignatures) { if (t.beat <= beat + 1e-9) ts = t; else break; }
+  return ts;
+}
+function metroPart(remix, beat) {
+  if (beat < 0) return -1;
+  const ts = tsAtBeat(remix, beat);
+  if (!ts) return -1;
+  return Math.floor((((beat - ts.beat) / (4 / (ts.unit || 4))) + 1e-9) % ts.perMeasure);
+}
+// beat 以降で最初に鳴らす拍
+function metroTickAtOrAfter(remix, beat) {
+  if (beat <= 0) return Math.min(0, Math.ceil(beat - 1e-9));
+  const ts = tsAtBeat(remix, beat);
+  if (!ts) return Math.ceil(beat - 1e-9);
+  const nf = 4 / (ts.unit || 4);
+  let next = ts.beat + Math.ceil((beat - ts.beat) / nf - 1e-9) * nf;
+  for (const t of remix.timeSignatures) if (t.beat > beat + 1e-9 && t.beat < next) { next = t.beat; break; }
+  return next;
+}
+function scheduleCowbell(ctx, dest, buf, when, accent) {
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = accent ? 1.5 : 1.1;
+  const g = ctx.createGain();
+  g.gain.value = 1.25;
+  src.connect(g);
+  g.connect(dest);
+  src.start(when);
+  src.onended = () => { try { g.disconnect(); } catch (_) { /* 済み */ } };
+}
+
+// カウベルが読めなかったときの代わりの音
 function scheduleClick(ctx, dest, when, accent) {
   const o = ctx.createOscillator();
   const g = ctx.createGain();
@@ -372,7 +408,7 @@ export class Player {
     let lo = 0, hi = this.events.length;
     while (lo < hi) { const m = (lo + hi) >> 1; if (this.events[m].start < fromSec) lo = m + 1; else hi = m; }
     this.idx = lo;
-    this.metroBeat = Math.ceil(remix.tempo.s2b(fromSec) - 1e-6);
+    this.metroBeat = metroTickAtOrAfter(remix, remix.tempo.s2b(fromSec));
     const m = scheduleMusic(ctx, this.out, remix, musicBuf, this.ctxT0, fromSec, this.speed);
     if (m) this.sources.push(m);
     this.playing = true;
@@ -398,14 +434,18 @@ export class Player {
     if (this.metronome) {
       const T = this.remix.tempo;
       while (T.b2s(this.metroBeat) < horizon) {
-        const b = this.metroBeat++;
+        const b = this.metroBeat;
+        this.metroBeat = metroTickAtOrAfter(this.remix, b + 1e-6);
         const at = T.b2s(b);
         if (at < this.t0 - 1e-6) continue;
-        const { beatInMeasure } = this.remix.measureAt(b);
-        scheduleClick(ctx, this.out, this.ctxT0 + (at - this.t0) / this.speed, Math.abs(beatInMeasure) < 1e-6);
+        const when = this.ctxT0 + (at - this.t0) / this.speed;
+        const accent = metroPart(this.remix, b) === 0;
+        const buf = this.metronomeUrl && this.engine.buffers.get(this.metronomeUrl);
+        if (buf) scheduleCowbell(ctx, this.out, buf, when, accent);
+        else scheduleClick(ctx, this.out, when, accent);
       }
     } else {
-      this.metroBeat = Math.ceil(this.remix.tempo.s2b(horizon) - 1e-6);
+      this.metroBeat = metroTickAtOrAfter(this.remix, this.remix.tempo.s2b(horizon));
     }
     if (this.sources.length > 400) this.sources = this.sources.slice(-200);
     if (now >= this.endSec + 0.05) {
