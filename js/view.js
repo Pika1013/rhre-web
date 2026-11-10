@@ -750,33 +750,25 @@ export class EditorView {
     const cy = (L.tracksTop + L.tracksBottom) / 2;
     const r0 = clamp(Math.min(H * 0.2, this.ppb * 0.42), 10, 72);
     const release = (m) => m === 'RELEASE' || m === 'RELEASE_AND_HOLD';
-    // 同じ時に重なるボタン（A と十字の左を同時に、など）は、縦に並べる。
-    // 丸（と長押しの帯）が横に重なるものをひとまとまりにして、空いている段に上から入れる（上の段に置いたものほど上）
-    const halfB = (r0 * 1.25) / this.ppb;
+    // いつもは全部トラックの真ん中に（重なってもいい）。
+    // 同じ拍に違うボタン（A と十字の左を同時に、など）があるときだけ、その拍のボタンを縦に並べる（上の段に置いたものほど上）
     const pos = new Map();
-    let group = [], groupEnd = -Infinity;
-    const flush = () => {
-      if (!group.length) return;
-      const laneEnd = [];
-      for (const e of group) {
-        const s = e.beat - halfB;
-        let lane = laneEnd.findIndex((end) => end < s);
-        if (lane < 0) { lane = laneEnd.length; laneEnd.push(0); }
-        laneEnd[lane] = e.beat + e.width + halfB;
-        pos.set(e, lane);
-      }
-      const n = laneEnd.length;
+    const byBeat = new Map();
+    for (const e of ents) {
+      const key = Math.round(e.beat * 1e6);
+      if (!byBeat.has(key)) byBeat.set(key, []);
+      byBeat.get(key).push(e);
+    }
+    for (const group of byBeat.values()) {
+      const inputs = [...new Set(group.map((e) => e.o.input))];
+      if (inputs.length < 2) { for (const e of group) pos.set(e, { y: cy, r: r0 }); continue; }
+      const top = (inp) => Math.min(...group.filter((e) => e.o.input === inp).map((e) => e.track));
+      inputs.sort((a, b) => top(a) - top(b));
+      const n = inputs.length;
       const spacing = Math.min(r0 * 2.5, H / n);
       const r = Math.min(r0, spacing / 2.5);
-      for (const e of group) pos.set(e, { y: cy + (pos.get(e) - (n - 1) / 2) * spacing, r });
-      group = [];
-    };
-    for (const e of ents) {
-      if (e.beat - halfB > groupEnd) { flush(); groupEnd = -Infinity; }
-      group.push(e);
-      groupEnd = Math.max(groupEnd, e.beat + e.width + halfB);
+      for (const e of group) pos.set(e, { y: cy + (inputs.indexOf(e.o.input) - (n - 1) / 2) * spacing, r });
     }
-    flush();
     for (const e of ents) {
       const { y: cy, r } = pos.get(e);
       const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
