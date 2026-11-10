@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=25';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=26';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=27';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2121,11 +2121,16 @@ $('psClose').addEventListener('click', () => setPlayMode(false));
 
 function resetJudge() {
   $('psMarks').textContent = '';
+  perfectReset();
   for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
   if (!remix) { judge = null; layoutPlayStage(false); updatePlayStage(); return; }
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
     a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
+    // パーフェクト挑戦：1 回でもミスしたら失敗（RHRE fresh の onPerfectFail / onPerfectHit）
+    if (perfect.soFar) {
+      if (timing === 'MISS') { perfect.soFar = false; onPerfectFail(); } else onPerfectHit();
+    }
     // 押したときだけ、ズレのバーに印をつける（左が早い、右が遅い）
     if (!forced) addTimingMark(off / (judge.speed || 1), timing);
     updatePlayStage();
@@ -2405,6 +2410,78 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
   $('psSide').textContent = t(side === 'left' ? 'タッチの枠を右へ' : 'タッチの枠を左へ');
   requestAnimationFrame(() => touchBox.resize());
 }
+// パーフェクト挑戦（RHRE fresh の Perfect Challenge の移植）
+//  ・下の段のタブで入／切（はじめは切）。入れると P のマークと「めざせ パーフェクト!」が出る（再生中は 1.35 秒ごとに 35% の間だけ消える点滅）
+//  ・ミスせずに判定されるたびに、白い P が重なって 0.125 秒で消える
+//  ・1 回でもミスしたら × に変わり、0.5 秒間ガタガタ揺れる。最初の入力より前から再生していたときだけ、失敗の音を鳴らす
+const perfect = { on: false, soFar: true, shakeRaf: 0, buf: null, loading: null };
+const PF_IMG = { ok: 'assets/playalong/perfect.png', fail: 'assets/playalong/perfect_failed.png' };
+function loadPerfectSound() {
+  if (perfect.buf || perfect.loading) return perfect.loading;
+  perfect.loading = fetch('assets/playalong/perfect_fail.ogg')
+    .then((r) => r.arrayBuffer())
+    .then((ab) => engine.decode(ab))
+    .then((b) => { perfect.buf = b; })
+    .catch(() => { perfect.loading = null; });
+  return perfect.loading;
+}
+function setPerfectChallenge(on) {
+  perfect.on = on;
+  $('psPerfect').hidden = !on;
+  $('psPerfectBtn').classList.toggle('on', on);
+  $('psPerfectBtn').setAttribute('aria-pressed', String(on));
+  if (on) loadPerfectSound();
+}
+$('psPerfectBtn').addEventListener('click', () => setPerfectChallenge(!perfect.on));
+function stopPerfectShake() {
+  cancelAnimationFrame(perfect.shakeRaf);
+  perfect.shakeRaf = 0;
+  $('pfBase').parentElement.style.transform = '';
+}
+function perfectReset() {
+  perfect.soFar = true;
+  stopPerfectShake();
+  $('pfBase').src = PF_IMG.ok;
+  $('pfHit').getAnimations?.().forEach((a) => a.cancel());
+  $('pfHit').style.opacity = '0';
+}
+function onPerfectHit() {
+  $('pfBase').src = PF_IMG.ok;
+  $('pfHit').getAnimations?.().forEach((a) => a.cancel());
+  $('pfHit').animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: 125, easing: 'linear' });
+}
+function onPerfectFail() {
+  $('pfHit').getAnimations?.().forEach((a) => a.cancel());
+  $('pfHit').style.opacity = '0';
+  $('pfBase').src = PF_IMG.fail;
+  // 0.5 秒間、毎フレーム 0〜3px ずつ上下左右にずらす
+  stopPerfectShake();
+  const icon = $('pfBase').parentElement;
+  const end = performance.now() + 500;
+  const r = () => (Math.random() < 0.5 ? -1 : 1) * Math.floor(Math.random() * 4);
+  const step = (now) => {
+    if (now >= end) { icon.style.transform = ''; perfect.shakeRaf = 0; return; }
+    icon.style.transform = `translate(${r()}px, ${r()}px)`;
+    perfect.shakeRaf = requestAnimationFrame(step);
+  };
+  perfect.shakeRaf = requestAnimationFrame(step);
+  // 失敗の音：パーフェクト挑戦を入れていて、最初の入力より前から再生していたときだけ
+  const first = judge?.actions[0];
+  if (perfect.on && first && remix && remix.playbackStart < first.ent.beat) {
+    const playIt = () => {
+      if (!perfect.buf) return;
+      try {
+        const ctx = engine.context;
+        const src = ctx.createBufferSource();
+        src.buffer = perfect.buf;
+        src.connect(engine.master);
+        src.start();
+      } catch (_) { /* 鳴らせない */ }
+    };
+    if (perfect.buf) playIt(); else loadPerfectSound()?.then(playIt);
+  }
+}
+
 // ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする
 let nightMode = false;
 function setNightMode(on) {

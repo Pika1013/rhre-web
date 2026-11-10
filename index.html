@@ -521,6 +521,20 @@
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font: 700 11px var(--font);
   }
   #psSide { display: none; }
+  #psTabs button img { width: 14px; height: 14px; vertical-align: -3px; margin-right: 4px; }
+  #psTabs #psPerfectBtn.on { background: #4a1f45; border-color: #ff6ad9; color: #fff; }
+  /* パーフェクト挑戦（RHRE fresh と同じ）：P のマークと「めざせ パーフェクト!」。再生中は文字が点滅する */
+  #psPerfect { align-self: flex-start; display: flex; align-items: center; gap: 6px; }
+  #psPerfect[hidden] { display: none; }
+  .pf-icon { position: relative; flex: none; width: clamp(22px, 5vh, 34px); aspect-ratio: 1; }
+  .pf-icon img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #pfHit { opacity: 0; }
+  #psPerfectText {
+    color: #fff; font: 800 clamp(13px, 3vh, 20px) var(--font); white-space: nowrap;
+    text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000, 0 0 2px #000;
+  }
+  @keyframes pfBlink { 0%, 34.9% { opacity: 0; } 35%, 100% { opacity: 1; } }
+  .pa-playing #psPerfectText { animation: pfBlink 1.35s linear infinite; }
   .playmode #playStage.touch #psSide { display: block; }
   /* 縦向き：スコアとズレのバーを上の段に横いっぱい、十字と A・B はその下 */
   @media (max-width: 640px) {
@@ -813,7 +827,7 @@
   </section>
 
   <section id="playStage" aria-label="プレイモード">
-    <div id="psTabs"><button id="psClose" title="プレイモードをやめる">✕ やめる</button><button id="psSide">タッチの枠を左へ</button><button id="psNight">ナイトモード</button></div>
+    <div id="psTabs"><button id="psClose" title="プレイモードをやめる">✕ やめる</button><button id="psSide">タッチの枠を左へ</button><button id="psNight">ナイトモード</button><button id="psPerfectBtn" aria-pressed="false" title="パーフェクト挑戦の切り替え"><img src="assets/playalong/perfect.png" alt="">パーフェクト挑戦</button></div>
     <div id="psDpad">
       <button class="pkey up" data-key="UP" aria-label="十字の上"><svg viewBox="0 0 24 24"><path d="M12 6l6 9H6z"/></svg></button>
       <button class="pkey left" data-key="LEFT" aria-label="十字の左"><svg viewBox="0 0 24 24"><path d="M6 12l9-6v12z"/></svg></button>
@@ -821,6 +835,7 @@
       <button class="pkey down" data-key="DOWN" aria-label="十字の下"><svg viewBox="0 0 24 24"><path d="M12 18l-6-9h12z"/></svg></button>
     </div>
     <div class="ps-center">
+      <div id="psPerfect" hidden><span class="pf-icon"><img id="pfBase" src="assets/playalong/perfect.png" alt=""><img id="pfHit" src="assets/playalong/perfect_hit.png" alt=""></span><span id="psPerfectText">めざせ パーフェクト!</span></div>
       <div id="psScore">0</div>
       <div id="psAces">0 Aces / 0 Inputs</div>
       <div id="psBar"><span class="z miss"></span><span class="z barely"></span><span class="z good"></span><span class="z ace"></span><span class="z good"></span><span class="z barely"></span><span class="z miss"></span><div id="psMarks"></div></div>
@@ -832,7 +847,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.4.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.5.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1090,7 +1105,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.4.0</h2>
+    <h2>RHRE Web v1.5.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1130,7 +1145,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=62"></script>
+<script type="module" src="js/app.js?v=63"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
