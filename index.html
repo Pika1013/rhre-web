@@ -448,7 +448,28 @@
   #psMarks { position: absolute; inset: -4px 0; pointer-events: none; }
   .ps-mark { position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: #fff; box-shadow: 0 0 0 1.5px #000; animation: psFade 3s linear forwards; }
   @keyframes psFade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
-  #psKeys { font: 700 11px var(--font); color: #9a9a9a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* キーボードのキーの案内（パソコンだけ）。押すと大きな案内が開く */
+  #psKeys {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 12px; max-width: 100%; margin-top: 2px; padding: 3px 10px;
+    border: 1px solid #3a3a3a; border-radius: 8px; background: #1b1b1b; color: #d8d8d8; font: 700 12px var(--font); cursor: pointer;
+  }
+  #psKeys:hover { border-color: #666; }
+  #psKeys .pk { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .kc {
+    display: inline-block; min-width: 1.5em; padding: 1px 5px; box-sizing: border-box; border: 1px solid #777; border-bottom-width: 3px;
+    border-radius: 5px; background: #2c2c2c; color: #fff; font-weight: 800; line-height: 1.25; text-align: center;
+  }
+  .kb { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; font-weight: 900; color: #fff; }
+  .kb.a { background: #d64640; } .kb.b { background: #e2b228; color: #2a2200; } .kb.d { background: #3a3f46; border-radius: 4px; } .kb.t { background: #00bc67; border-radius: 4px; }
+  /* 大きな案内 */
+  #keysModal .card { max-width: 500px; }
+  #keysRows { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: center; margin: 10px 0 12px; font-size: 15px; }
+  #keysRows .kb { width: 2.2em; height: 2.2em; font-size: 15px; }
+  #keysRows .kc { font-size: 17px; min-width: 1.9em; padding: 2px 7px; }
+  #keysRows .name { font-weight: 700; }
+  #keysRows .keys { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+  #keysRows .or { color: #9a9a9a; font-size: 13px; }
+  #keysNote { font-size: 13px !important; color: #ffd27a !important; }
   #psDpad { width: clamp(108px, 22vh, 150px); aspect-ratio: 1; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
   #psAB { position: relative; width: clamp(118px, 25vh, 170px); aspect-ratio: 1.2; }
   #psDpad.off, #psAB .off { visibility: hidden; }
@@ -796,7 +817,7 @@
       <div id="psScore">0</div>
       <div id="psAces">0 Aces / 0 Inputs</div>
       <div id="psBar"><span class="z miss"></span><span class="z barely"></span><span class="z good"></span><span class="z ace"></span><span class="z good"></span><span class="z barely"></span><span class="z miss"></span><div id="psMarks"></div></div>
-      <div id="psKeys">A - J | B - K | + - W A S D / Arrows</div>
+      <button type="button" id="psKeys" title="キーボードの操作を見る"></button>
     </div>
     <div id="psAB">
       <button class="pkey bkey" data-key="B" aria-label="B">B</button>
@@ -804,7 +825,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.7</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.8</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -990,6 +1011,15 @@
   </div>
 </div>
 
+<div class="modal" id="keysModal" hidden role="dialog" aria-labelledby="keysTitle">
+  <div class="card">
+    <h2 id="keysTitle">キーボードで遊ぶとき</h2>
+    <div id="keysRows"></div>
+    <p id="keysNote">RHRE fresh と同じ配置です。A ボタンは J キーです。A キーは十字の左になるので気をつけてください。</p>
+    <p class="hint">この案内は、プレイモードの下の段にあるキーの説明を押すと、いつでも見られます。</p>
+    <div class="row"><button class="btn primary" id="keysOk">閉じる</button></div>
+  </div>
+</div>
 <div class="modal" id="errModal" hidden role="alertdialog" aria-labelledby="errTitle">
   <div class="card">
     <h2 id="errTitle"></h2>
@@ -1053,7 +1083,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.3.7</h2>
+    <h2>RHRE Web v1.3.8</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1092,7 +1122,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=60"></script>
+<script type="module" src="js/app.js?v=61"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

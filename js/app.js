@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=23';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=24';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=27';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.7';
+const VERSION = '1.3.8';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2102,6 +2102,7 @@ function setPlayMode(on) {
     view.stickBottom = true;
     updateCtxbar();
     resetJudge();
+    if (!isTouch && !settings.paKeysSeen) openKeyGuide();
     setStatus(t('プレイモード：▶ で再生して、キューに合わせて押してください'));
   } else {
     setNightMode(false);
@@ -2135,8 +2136,35 @@ function resetJudge() {
   $('psAB').querySelector('.bkey').classList.toggle('off', !keys.has('B'));
   // タッチの操作があれば、タッチの枠を出す
   layoutPlayStage(judge.needsTouch, dpad, keys.has('A') || keys.has('B'));
+  renderKeyGuide(keys);
   updatePlayStage();
 }
+// キーボードの操作の案内（パソコンだけ）。RHRE fresh と同じ配置：A＝J、B＝K、十字＝WASD か矢印、タッチ＝マウス
+const KEY_GUIDE = [
+  { need: (k) => k.has('A'), btn: '<span class="kb a">A</span>', name: 'A ボタン', keys: [['J']] },
+  { need: (k) => k.has('B'), btn: '<span class="kb b">B</span>', name: 'B ボタン', keys: [['K']] },
+  { need: (k) => ['UP', 'DOWN', 'LEFT', 'RIGHT'].some((x) => k.has(x)), btn: '<span class="kb d">+</span>', name: '十字ボタン', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']] },
+  { need: (k) => ['TOUCH', 'QTAP', 'FLICK', 'SLIDE'].some((x) => k.has(x)), btn: '<span class="kb t"></span>', name: 'タッチ・はじく', mouse: true },
+];
+const kc = (k) => `<span class="kc">${esc(k)}</span>`;
+function renderKeyGuide(keys) {
+  const any = KEY_GUIDE.some((g) => g.need(keys));
+  const rows = KEY_GUIDE.filter((g) => !any || g.need(keys));
+  // 下の段の短い案内
+  $('psKeys').innerHTML = rows.map((g) => `<span class="pk">${g.btn}${g.mouse ? esc(t('マウス')) : g.keys[0].map(kc).join('')}</span>`).join('');
+  // 大きな案内
+  $('keysRows').innerHTML = rows.map((g) => `${g.btn}<div><div class="name">${esc(t(g.name))}</div><div class="keys">${g.mouse
+    ? esc(t('マウス（緑の枠の中でクリック・ドラッグ）'))
+    : g.keys.map((set) => set.map(kc).join('')).join(`<span class="or">${esc(t('または'))}</span>`)}</div></div>`).join('');
+  $('keysNote').hidden = !rows.some((g) => g.name === 'A ボタン');
+}
+function openKeyGuide() { $('keysModal').hidden = false; }
+$('psKeys').addEventListener('click', openKeyGuide);
+$('keysOk').addEventListener('click', () => {
+  $('keysModal').hidden = true;
+  if (!settings.paKeysSeen) { settings.paKeysSeen = true; saveSettings(); }
+});
+
 // 長押しの最中のキュー（トラックの丸を青くする）。止めたら消す
 function syncHolding() {
   for (const a of judge.actions) {
@@ -3010,7 +3038,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
     saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose',
-    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk',
+    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
     const card = $(mid)?.querySelector('.card');

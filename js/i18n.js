@@ -2,6 +2,11 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'キーボードで遊ぶとき': 'Playing with a keyboard', 'A ボタン': 'A button', 'B ボタン': 'B button', '十字ボタン': '+ Control Pad',
+  'タッチ・はじく': 'Touch / flick', 'マウス': 'Mouse', 'マウス（緑の枠の中でクリック・ドラッグ）': 'Mouse (click and drag in the green area)', 'または': 'or',
+  'RHRE fresh と同じ配置です。A ボタンは J キーです。A キーは十字の左になるので気をつけてください。': 'Same layout as RHRE fresh. The A button is the J key. Careful: the A key is Left on the + Control Pad.',
+  'この案内は、プレイモードの下の段にあるキーの説明を押すと、いつでも見られます。': 'You can open this guide any time by clicking the key list at the bottom of play mode.',
+  'キーボードの操作を見る': 'Show keyboard controls',
   '好きな段に置けます。左上のメニューの「プレイモード」で遊べます': 'Place them on any track. Start Play mode from the menu at the top left.',
   '詳しい情報': 'Details', '開けませんでした': "Couldn't open the file", '保存できませんでした': "Couldn't save", '保存しました': 'Saved',
   'ファイルが空です（0 バイト）。保存やコピーが途中で止まった可能性があります。': 'The file is empty (0 bytes). Saving or copying may have stopped halfway.',
@@ -198,6 +203,11 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  'キーボードで遊ぶとき': 'Playing with a keyboard', 'A ボタン': 'A button', 'B ボタン': 'B button', '十字ボタン': '+ Control Pad',
+  'タッチ・はじく': 'Touch / flick', 'マウス': 'Mouse', 'マウス（緑の枠の中でクリック・ドラッグ）': 'Mouse (click and drag in the green area)', 'または': 'or',
+  'RHRE fresh と同じ配置です。A ボタンは J キーです。A キーは十字の左になるので気をつけてください。': 'Same layout as RHRE fresh. The A button is the J key. Careful: the A key is Left on the + Control Pad.',
+  'この案内は、プレイモードの下の段にあるキーの説明を押すと、いつでも見られます。': 'You can open this guide any time by clicking the key list at the bottom of play mode.',
+  'キーボードの操作を見る': 'Show keyboard controls',
   'ナイトモード': 'Night Mode', 'ナイトモードをやめる': 'Exit Night Mode', 'ナイトモード挑戦中！': "You're playing in Night Mode!",
   'プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。': 'You can\'t edit in play mode. Tap "Exit" at the bottom to go back and edit.',
   'タッチの枠を左へ': 'Touch area to the left', 'タッチの枠を右へ': 'Touch area to the right',
