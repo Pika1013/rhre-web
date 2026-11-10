@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=29';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=29';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.3';
+const VERSION = '1.7.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2572,9 +2572,12 @@ function onlineDeviceId() {
     return d;
   } catch (_) { return ''; }
 }
+// 画面に出すのは、隠しコマンド（右下の版の表示を 2 秒長押し）で表示を入れた端末だけ。数えるのは今までどおり
+let lastOnline = null;
 function showOnline(n) {
   const el = $('onlineCount');
-  if (typeof n !== 'number') { el.hidden = true; return; }
+  lastOnline = typeof n === 'number' ? n : null;
+  if (lastOnline == null || !settings.showOnline) { el.hidden = true; return; }
   el.hidden = false;
   el.textContent = t('{n} 人がオンライン', { n });
 }
@@ -2622,6 +2625,21 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('online', () => { online.retry = 0; connectOnline(); });
 setTimeout(connectOnline, 1200);
+{
+  let timer = 0;
+  const cancel = () => clearTimeout(timer);
+  $('version').addEventListener('pointerdown', () => {
+    cancel();
+    timer = setTimeout(() => {
+      settings.showOnline = !settings.showOnline;
+      saveSettings();
+      showOnline(lastOnline);
+      toast(settings.showOnline ? t('オンライン人数を表示します（この端末だけ）') : t('オンライン人数を隠しました'), 2500, 'info');
+    }, 2000);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('version').addEventListener(ev, cancel);
+  $('version').addEventListener('contextmenu', (e) => e.preventDefault());
+}
 
 // ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする
 let nightMode = false;

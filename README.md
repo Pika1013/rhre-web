@@ -1,4 +1,4 @@
-# RHRE Web v1.7.3
+# RHRE Web v1.7.4
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
@@ -41,7 +41,7 @@ RHRE Web は、RHRE fresh を元にした非公式のファンメイドです。
 
 ## オンライン人数について
 
-右下に、今 RHRE Web を開いている端末の数（「● 3 人がオンライン」）を出します。数えるサーバーは Cloudflare Workers で動いていて、コードは [`server/online/`](server/online/) にあります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。同じ端末のタブは 1 つと数え、裏に回して 30 秒たったら数えなくなります。
+今 RHRE Web を開いている端末の数を数えています（ふだんは画面に出しません）。数えるサーバーは Cloudflare Workers で動いていて、コードは [`server/online/`](server/online/) にあります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。同じ端末のタブは 1 つと数え、裏に回して 30 秒たったら数えなくなります。
 
 ## アクセス数について
 

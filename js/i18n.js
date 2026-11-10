@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'オンライン人数を表示します（この端末だけ）': 'Showing the online count (on this device only)', 'オンライン人数を隠しました': 'Online count hidden',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
   '{n} 人がオンライン': '{n} online',
   '左へ高速移動（押し続けると流れ続ける）': 'Fast scroll left (hold to keep scrolling)', '右へ高速移動（押し続けると流れ続ける）': 'Fast scroll right (hold to keep scrolling)', '左へ高速移動': 'Fast scroll left', '右へ高速移動': 'Fast scroll right',
