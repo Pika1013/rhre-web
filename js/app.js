@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=22';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=23';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=26';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.4';
+const VERSION = '1.3.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -64,7 +64,7 @@ const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting && !playMode,
   // 再生位置（緑の旗）だけは、プレイモード中も動かせる
   canMovePlayback: () => !!remix && mode !== 'playing' && !loading && !presenting,
-  // プレイモード中はトラックを上下に動かさない（一番下のプレイアロングの段が見えたまま）
+  // プレイモード中はトラックを上下に動かさない
   lockY: () => playMode,
   iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
   playalongLabel: (e) => (getLang() === 'en' ? `Playalong ${e.name}` : objName(e.o)),
@@ -450,7 +450,7 @@ function selectEntity(ent, additive) {
 function placeAt(o, beat, track) {
   if (!o || !remix) return false;
   if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
-  const ent = remix.createEntity(o, beat, o.type === 'playalongEntity' ? remix.trackCount - 1 : track);
+  const ent = remix.createEntity(o, beat, track);
   if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   if (!edit(() => { remix.entities.push(ent); })) return false;
@@ -476,7 +476,7 @@ function armHint() { return t('「{name}」を置く：トラックの空いて�
 function setArmed(o) {
   armed = o;
   if (o) pasteArmed = false;
-  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount), bottom: o.type === 'playalongEntity' } : null;
+  view.armed = o && remix ? { width: remix.model.defaultWidth(o), height: remix.model.height(o, remix.trackCount) } : null;
   view.hover = null;
   view.dirty = true;
   for (const row of $('list').querySelectorAll('.item')) row.classList.toggle('sel', !!o && row.dataset.id === o.id);
@@ -857,7 +857,7 @@ function openPlayalongList() {
   const g = remix.db.games.get(PLAYALONG_GAME_ID);
   if (!g) return;
   showGameList({ id: '__playalong', name: t('プレイアロング'), objects: g.objects });
-  setStatus(t('置くとトラックの一番下に入ります。左上のメニューの「プレイモード」で遊べます'));
+  setStatus(t('好きな段に置けます。左上のメニューの「プレイモード」で遊べます'));
 }
 
 async function openGame(gid, jumpBeat, highlightObj) {

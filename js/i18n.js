@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  '好きな段に置けます。左上のメニューの「プレイモード」で遊べます': 'Place them on any track. Start Play mode from the menu at the top left.',
   '詳しい情報': 'Details', '開けませんでした': "Couldn't open the file", '保存できませんでした': "Couldn't save", '保存しました': 'Saved',
   'ファイルが空です（0 バイト）。保存やコピーが途中で止まった可能性があります。': 'The file is empty (0 bytes). Saving or copying may have stopped halfway.',
   'これは音楽（音声）ファイルです。音楽はメニューの「音楽を選ぶ」から読み込んでください。': 'This is a music (audio) file. Load music from "Choose music" in the menu.',
