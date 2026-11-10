@@ -231,6 +231,7 @@
   .item .nm { overflow-wrap: break-word; }
   .item.cue .nm { color: var(--muted); }
   .item .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .item .ex { font-size: 11px; line-height: 1.3; color: #8a8a8a; overflow-wrap: break-word; }
   .item .kind { font-size: 11px; color: var(--muted); border: 1px solid #555; border-radius: 3px; padding: 0 4px; }
   .item .used { font-size: 11px; color: #121212; background: var(--accent); border-radius: 3px; padding: 0 4px; }
   .item .pv { flex: none; width: 44px; border: 0; background: none; display: grid; place-items: center; }
@@ -459,21 +460,27 @@
   #psAB .pkey { position: absolute; border-radius: 50%; }
   #psAB .akey { width: 56%; aspect-ratio: 1; right: 0; top: 0; background: #d64640; }
   #psAB .bkey { width: 44%; aspect-ratio: 1; left: 0; bottom: 0; background: #e2b228; color: #2a2200; }
-  /* 払う（フリック）があるリミックスでは、A を筆のような形にする。丸を押して、尻尾の向き（右上）へ払う */
-  #psAB .ftail { display: none; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  #psAB.flick .ftail { display: block; }
-  #psAB .ftail path { fill: #ef7f7b; stroke: #f6aaa7; stroke-width: 2.4; stroke-linejoin: round; transition: fill 0.25s; }
-  #psAB.flick .akey { width: 44%; left: 0; right: auto; top: auto; bottom: 0; background: #ee6f6a; border-color: #f6aaa7; }
-  #psAB.flick .bkey { width: 30%; left: auto; right: 0; bottom: 0; }
-  #psAB.flicked .ftail path { fill: #ffd2cf; transition: none; }
+  /* 丸が縦に伸びないように（文字の高さで楕円にならない） */
+  #psAB .pkey { min-height: 0; line-height: 1; }
+  #psAB .akey span { position: relative; z-index: 1; display: inline-block; pointer-events: none; }
+  /* 払う（フリック）があるリミックスでは、A を筆のような形にする（位置はいつもの所、尻尾ははみ出してよい）。
+     丸と尻尾は同じ絵の中に描くので、押して丸が縮んでも尻尾とつながったまま */
+  #psAB .fbrush { display: none; position: absolute; left: 50%; top: 50%; width: 400%; height: 400%; transform: translate(-50%, -50%); overflow: visible; pointer-events: none; }
+  #psAB.flick .fbrush { display: block; }
+  #psAB.flick .akey { background: transparent; border-color: transparent; overflow: visible; }
+  #psAB.flick .akey.down-now { transform: none; filter: none; }
+  #psAB .fbrush .ft { fill: #ef7f7b; stroke: #f6aaa7; stroke-width: 3; stroke-linejoin: round; }
+  #psAB .fbrush .fb { fill: #ee6f6a; stroke: #f6aaa7; stroke-width: 3; stroke-linejoin: round; }
+  /* 尻尾が上のトラックにはみ出しても隠れないように */
+  .playmode #playStage { z-index: 3; }
   .pkey.down-now { filter: brightness(1.45); transform: scale(0.94); }
   /* 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド） */
   #touchPad { display: none; position: absolute; inset: 0; z-index: 4; touch-action: none; }
   .pa-playing #touchPad { display: block; }
-  /* プレイモードの段の右上：やめるボタン */
+  /* プレイモードの段の左上：やめるボタン（右上は筆の尻尾がはみ出すので） */
   .playmode #playStage { position: relative; }
   #psClose {
-    position: absolute; bottom: 100%; right: max(6px, env(safe-area-inset-right, 0px)); z-index: 4; height: 24px; padding: 0 10px;
+    position: absolute; bottom: 100%; left: max(6px, env(safe-area-inset-left, 0px)); z-index: 4; height: 24px; padding: 0 10px;
     border: 1px solid #555; border-bottom: 0; border-radius: 6px 6px 0 0; background: #303030; color: #cfcfcf; font: 700 11px var(--font);
   }
   /* 縦向き：スコアとズレのバーを上の段に横いっぱい、十字と A・B はその下 */
@@ -781,12 +788,11 @@
       <div id="psKeys">A - J | B - K | + - W A S D / Arrows</div>
     </div>
     <div id="psAB">
-      <svg class="ftail" viewBox="0 0 120 100" aria-hidden="true"><path d="M14 50C42 33 78 16 111 6Q119 4 114 11C86 26 58 40 52 64Z"/></svg>
       <button class="pkey bkey" data-key="B" aria-label="B">B</button>
-      <button class="pkey akey" data-key="A" aria-label="A">A</button>
+      <button class="pkey akey" data-key="A" aria-label="A"><svg class="fbrush" viewBox="-200 -200 400 400" aria-hidden="true"><path class="ft"/><path class="fb"/></svg><span>A</span></button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0.8</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.1.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1024,7 +1030,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.0.8</h2>
+    <h2>RHRE Web v1.1.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1063,7 +1069,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=50"></script>
+<script type="module" src="js/app.js?v=51"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'ゲームには無い操作': 'not present in-game', '例：': 'ex: ',
   '0拍目に戻る': 'Back to beat 0', '一時停止': 'Pause', '再生': 'Play', '停止': 'Stop',
   'この端末のアクセスを、また数えるようにしました': 'Visits from this device are counted again.', 'この端末のアクセスを数えないようにしました': 'Visits from this device will no longer be counted.',
   'この端末では切り替えられませんでした': "Couldn't change this on this device.",

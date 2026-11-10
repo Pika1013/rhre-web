@@ -985,7 +985,7 @@ export class EditorView {
     const maxW = x + w - 4 - tx;
     if (maxW > 8) {
       const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}`
-        : e.type === 'playalongEntity' ? `Playalong ${e.name}` : e.name;
+        : e.type === 'playalongEntity' ? (this.h.playalongLabel?.(e) ?? `Playalong ${e.name}`) : e.name;
       const lines = wrap(g, label, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
       lines.forEach((ln, i) => g.fillText(ln, tx, y + 3 + i * (fs + 2)));
     }

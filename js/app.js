@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=11';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=14';
 import { customRegistry } from './db.js?v=8';
-import { t, setLang, applyStatic } from './i18n.js?v=18';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=21';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=19';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=22';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.8';
+const VERSION = '1.1.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -62,6 +62,7 @@ let shownGame = null;
 const view = new EditorView($('view'), {
   canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting,
   iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
+  playalongLabel: (e) => (getLang() === 'en' ? `Playalong ${e.name}` : objName(e.o)),
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => { if (!presenting) selectEntity(ent, additive); },
   onPlace: (beat, track) => (pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track)),
@@ -171,8 +172,8 @@ function updateTimebox(sec, beat) {
 
 function describe(ent) {
   const parts = [];
-  if (ent.game) parts.push(ent.game.name);
-  parts.push(ent.name);
+  if (ent.game) parts.push(ent.o?.type === 'playalongEntity' ? t('プレイアロング') : ent.game.name);
+  parts.push(objName(ent.o) || ent.name);
   parts.push(t('拍 {b}', { b: +ent.beat.toFixed(3) }));
   if (ent.width) parts.push(t('長さ {w}', { w: +ent.width.toFixed(3) }));
   if (ent.semitone) parts.push(t('音程 {s}', { s: `${ent.semitone > 0 ? '+' : ''}${ent.semitone}` }));
@@ -182,6 +183,52 @@ function describe(ent) {
 }
 
 // 「[#FED900]yellow flower[] - launch」の色指定を反映する
+// プレイアロングのキューの日本語名と、使われているゲームの例（RHRE fresh の一覧と同じ。ゲーム名は英語のまま）
+const PA_TEXT = {
+  press_A: ['A を押す', 'Fruit Basket'],
+  press_B: ['B を押す', 'Ringside "pose for the fans"'],
+  press_A_or_Dpad: ['A/十字を押す', "Shoot-'em-Up, First Contact"],
+  press_Dpad: ['十字を押す', 'Blue Bear, Catchy Tune, Sick Beats'],
+  press_Dpad_up: ['十字の上を押す', 'Sick Beats'],
+  press_Dpad_down: ['十字の下を押す', 'Space Dance "let\'s sit down"'],
+  press_Dpad_left: ['十字の左を押す', 'Marching Orders, Sick Beats'],
+  press_Dpad_right: ['十字の右を押す', 'Space Dance "and pose"'],
+  hold_A: ['A を押さえて離す', 'Fillbots, Screwbot Factory'],
+  hold_B: ['B を押さえて離す', 'Flock Step, Super Samurai Slice'],
+  hold_Dpad: ['十字を押さえて離す', null],
+  releaseAndHold_A: ['A を離して押す', 'Glee Club'],
+  releaseAndHold_Dpad: ['十字を離して押す', null],
+  longPress_A: ['A を長押し', 'Glee Club transitions'],
+  longPress_B: ['B を長押し', 'Samurai Slice (Fever) demon horde'],
+  longPress_A_or_Dpad: ['A/十字を長押し', 'Rhythm Tweezers long pull'],
+  longPress_Dpad: ['十字を長押し', null],
+  longPress_Dpad_up: ['十字の上を長押し', null],
+  longPress_Dpad_down: ['十字の下を長押し', null],
+  longPress_Dpad_left: ['十字の左を長押し', 'Sweeper Stars Spin'],
+  longPress_Dpad_right: ['十字の右を長押し', null],
+  touch_tap: ['タッチ', 'Karate Man'],
+  touch_flick: ['はじく', 'Rhythm Rally'],
+  touch_slide: ['スライド', 'Love Lizards, Love Lab'],
+  touch_quick_tap: ['すばやくタッチ', 'Moai Doo-Wop "pah"'],
+  touch_tap_and_hold: ['タッチして離す', 'Fillbots'],
+  touch_release_and_tap: ['離してタッチ', 'Glee Club'],
+  longTap: ['長くタッチ', 'Glee Club transitions'],
+};
+const paText = (o) => (o?.type === 'playalongEntity' && o.id ? PA_TEXT[o.id.slice(PLAYALONG_GAME_ID.length + 1)] : null);
+// 一覧やブロックに出す名前（日本語版ではプレイアロングを日本語に）
+function objName(o) {
+  const pt = paText(o);
+  if (pt && getLang() !== 'en') return pt[0];
+  return o?.name || o?.id || '';
+}
+// 一覧の名前の下に灰色で出す、使われているゲームの例
+function objExample(o) {
+  const pt = paText(o);
+  if (!pt) return '';
+  if (!pt[1]) return t('ゲームには無い操作');
+  return `${t('例：')}${pt[1]}`;
+}
+
 function richName(name) {
   const frag = document.createDocumentFragment();
   const re = /\[(#[0-9a-fA-F]{6}|[A-Z_]+)?\]/g;
@@ -333,7 +380,7 @@ function placeAt(o, beat, track) {
 
 // ---------------------------------------------------------------- 一覧で名前を押してから、トラックをタップして置く
 
-function armHint() { return t('「{name}」を置く：トラックの空いている所をタップ', { name: cleanName(armed.name) }); }
+function armHint() { return t('「{name}」を置く：トラックの空いている所をタップ', { name: cleanName(objName(armed)) }); }
 
 function setArmed(o) {
   armed = o;
@@ -718,7 +765,7 @@ async function openSpecial() {
 function openPlayalongList() {
   const g = remix.db.games.get(PLAYALONG_GAME_ID);
   if (!g) return;
-  showGameList({ id: '__playalong', name: 'Playalong', objects: g.objects });
+  showGameList({ id: '__playalong', name: t('プレイアロング'), objects: g.objects });
   setStatus(t('置くとトラックの一番下に入ります。左上のメニューの「プレイモード」で遊べます'));
 }
 
@@ -800,8 +847,10 @@ function showGameList(game, highlightObj, filter) {
     txt.className = 'txt';
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.appendChild(richName(o.name || o.id));
+    nm.appendChild(richName(objName(o)));
     txt.appendChild(nm);
+    const ex = objExample(o);
+    if (ex) { const exEl = document.createElement('span'); exEl.className = 'ex'; exEl.textContent = ex; txt.appendChild(exEl); }
     if (KIND[o.type] || used.has(o)) {
       const tags = document.createElement('span');
       tags.className = 'tags';
@@ -1969,34 +2018,149 @@ function paPress(key) { if (playMode && judge && mode === 'playing') judge.press
 function paRelease(key) { if (playMode && judge && mode === 'playing') judge.release(key, paTime()); }
 
 // 画面のボタン（A・B・十字）
+// ボタンを押したときの小さな振動。Android は vibrate、iPhone（iOS 18 以降）はスイッチを切り替えたときの振動を借りる
+const IS_APPLE_TOUCH = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function haptic() {
+  try {
+    if (!IS_APPLE_TOUCH && navigator.vibrate) { navigator.vibrate(12); return; }
+    if (!IS_APPLE_TOUCH) return;
+    const label = document.createElement('label');
+    label.ariaHidden = 'true';
+    label.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    label.appendChild(input);
+    document.head.appendChild(label);
+    label.click();
+    label.remove();
+  } catch (_) { /* 振動できない端末 */ }
+}
+
+// 筆の形の A ボタン：丸と尻尾を 1 枚の絵に描く。押すと丸が少し縮み（尻尾はつながったまま）、
+// 指を尻尾の向きへ動かすと丸のふちが引っ張られ、払うと尻尾の先までびよんと伸びて戻る
+const brush = (() => {
+  const svg = $('psAB').querySelector('.fbrush');
+  const tailEl = svg.querySelector('.ft'), blobEl = svg.querySelector('.fb');
+  const letter = $('psAB').querySelector('.akey span');
+  const R = 47;                       // 丸の半径（ボタンの幅＝100）
+  const TIP = { x: 58, y: -128 };     // 尻尾の先（右上。上のトラックにはみ出す）
+  const L = Math.hypot(TIP.x, TIP.y);
+  const ux = TIP.x / L, uy = TIP.y / L;   // 尻尾の向き
+  const vx = uy, vy = -ux;                // それと直角（左上側）
+  const ANG = Math.atan2(uy, ux);
+  const P = (a, b) => ({ x: a * ux + b * vx, y: a * uy + b * vy });
+  const f = (p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  const st = { r: 1, rT: 1, t: 0, tT: 0, t0: 0, whip: 0, flash: 0, raf: 0, last: 0, x0: 0, y0: 0, px: 1, pressed: false };
+  // 尻尾：丸の上の方から先までほぼまっすぐ（少しふくらむ）、反対側はへこんだ曲線で丸の右に戻る
+  function tailPath(r) {
+    const rr = R * r;
+    const b1 = { x: rr * Math.cos(ANG - 1.1), y: rr * Math.sin(ANG - 1.1) };
+    const b2 = { x: rr * Math.cos(ANG + 0.56), y: rr * Math.sin(ANG + 0.56) };
+    const a1 = 0.45 * rr, s1 = 0.89 * rr;
+    return `M${f(b1)}C${f(P(a1 + (L - a1) / 3, s1 * 2 / 3 + 0.16 * rr))} ${f(P(a1 + 2 * (L - a1) / 3, s1 / 3 + 0.12 * rr))} ${f(P(L, 0))}`
+      + `Q${f(P(L + 2, -2.5))} ${f(P(L - 4, -3))}C${f(P(0.55 * L, -0.08 * rr))} ${f(P(rr * 1.15, -0.2 * rr))} ${f(b2)}Z`;
+  }
+  function blobPath(r, t) {
+    const rr = R * r, N = 72, pts = [];
+    for (let i = 0; i < N; i++) {
+      const th = (i / N) * Math.PI * 2;
+      const c = Math.cos(th - ANG);
+      const rad = Math.max(rr * 0.86, rr + t * (L - 6 - rr) * (c > 0 ? c ** 6 : 0));
+      pts.push({ x: rad * Math.cos(th), y: rad * Math.sin(th) });
+    }
+    let d = `M${f(pts[0])}`;
+    for (let i = 0; i < N; i++) {
+      const p0 = pts[(i - 1 + N) % N], p1 = pts[i], p2 = pts[(i + 1) % N], p3 = pts[(i + 2) % N];
+      d += `C${f({ x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 })} ${f({ x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 })} ${f(p2)}`;
+    }
+    return `${d}Z`;
+  }
+  const mix = (a, b, k) => {
+    const pa = a.match(/\w\w/g).map((h) => parseInt(h, 16)), pb = b.match(/\w\w/g).map((h) => parseInt(h, 16));
+    return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * k)).join(',')})`;
+  };
+  function draw() {
+    tailEl.setAttribute('d', tailPath(st.r));
+    blobEl.setAttribute('d', blobPath(st.r, st.t));
+    tailEl.style.fill = mix('ef7f7b', 'ffe2df', st.flash);
+    blobEl.style.fill = mix('ee6f6a', 'd2524d', st.pressed ? 1 : 0);
+    letter.style.transform = `scale(${st.r.toFixed(3)})`;
+  }
+  function frame(now) {
+    const dt = Math.min(50, st.last ? now - st.last : 16);
+    st.last = now;
+    st.r += (st.rT - st.r) * (1 - Math.exp(-dt / 40));
+    if (st.whip) {
+      // 払った：尻尾の先までさっと伸びて、ぷるんと揺れながら戻る
+      const k = now - st.whip;
+      if (k < 70) st.t = st.t0 + (1 - st.t0) * (1 - (1 - k / 70) ** 2);
+      else {
+        const q = k - 70;
+        st.t = Math.exp(-q / 85) * Math.cos(q / 40);
+        if (q > 520) { st.whip = 0; st.t = 0; st.tT = 0; }
+      }
+    } else st.t += (st.tT - st.t) * (1 - Math.exp(-dt / 45));
+    st.flash = Math.max(0, st.flash - dt / 280);
+    draw();
+    if (!st.whip && Math.abs(st.r - st.rT) < 0.002 && Math.abs(st.t - st.tT) < 0.002 && st.flash <= 0) {
+      st.r = st.rT; st.t = st.tT; st.raf = 0; st.last = 0; draw();
+      return;
+    }
+    st.raf = requestAnimationFrame(frame);
+  }
+  const kick = () => { if (!st.raf) { st.last = 0; st.raf = requestAnimationFrame(frame); } };
+  draw();
+  return {
+    down(e) {
+      st.pressed = true; st.rT = 0.9; st.tT = 0; st.whip = 0;
+      st.x0 = e.clientX; st.y0 = e.clientY;
+      st.px = (svg.getBoundingClientRect().width || 400) / 400;
+      kick();
+    },
+    move(e) {
+      // 尻尾の向きに動かした分だけ、丸のふちが引っ張られる（ゴムのように、伸びるほど重く）
+      const along = ((e.clientX - st.x0) * ux + (e.clientY - st.y0) * uy) / (st.px * L);
+      st.tT = along > 0 ? 0.5 * (1 - Math.exp(-along / 0.35)) : 0;
+      kick();
+    },
+    up(flicked) {
+      st.pressed = false; st.rT = 1;
+      if (flicked) { st.t0 = Math.max(0, st.t); st.whip = performance.now(); st.flash = 1; } else st.tT = 0;
+      kick();
+    },
+  };
+})();
+
 // タッチ（タップ・フリック・スライド）のキューがあるリミックスでは、A ボタンでもタッチの操作ができる
 // （押す＝触れる、そのまま離す＝離す、押したまま払って離す＝フリック）
 const aTouch = { on: false };
-let flickedTimer = 0;
 for (const b of document.querySelectorAll('#playStage .pkey')) {
   const key = b.dataset.key;
   let tp = null;
+  const isBrush = () => key === 'A' && $('psAB').classList.contains('flick');
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { b.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
     b.classList.add('down-now');
-    try { navigator.vibrate?.(6); } catch (_) { /* 未対応 */ }
+    haptic();
     paPress(key);
     if (key === 'A' && aTouch.on) { tp = touchStart(e); paPress('TOUCH'); }
+    if (isBrush()) brush.down(e);
   });
-  b.addEventListener('pointermove', (e) => { if (tp) touchMove(tp, e); });
+  b.addEventListener('pointermove', (e) => {
+    if (!tp) return;
+    touchMove(tp, e);
+    if (isBrush()) brush.move(e);
+  });
   const up = (e) => {
     if (!b.classList.contains('down-now')) return;
     b.classList.remove('down-now');
     const s = tp;
     tp = null;
-    if (s && e.type === 'pointerup' && isFlick(s, e, performance.now())) {
-      paPress('FLICK');
-      // 払ったら尻尾を一瞬光らせる
-      $('psAB').classList.add('flicked');
-      clearTimeout(flickedTimer);
-      flickedTimer = setTimeout(() => $('psAB').classList.remove('flicked'), 180);
-    }
+    const flicked = !!s && e.type === 'pointerup' && isFlick(s, e, performance.now());
+    if (flicked) { paPress('FLICK'); haptic(); }
+    if (isBrush()) brush.up(flicked);
     paRelease(key);
     if (s) paRelease('TOUCH');
   };
