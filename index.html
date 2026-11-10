@@ -477,6 +477,8 @@
   .playmode #playStage { position: relative; }
   #psTabs { position: absolute; bottom: 100%; left: max(6px, env(safe-area-inset-left, 0px)); z-index: 7; display: flex; gap: 4px; }
   #psTabs #psNight.on { background: #2b2350; border-color: #7a68e0; color: #fff; }
+  /* 枠が左のときは、十字が枠の真上に来るので、タブは右へ */
+  .playmode #playStage.touch.side-left #psTabs { left: auto; right: max(6px, env(safe-area-inset-right, 0px)); }
   /* ナイトモード：トラックを真っ黒に（上のメニューと下の操作は見える）。ミスしたときだけ一瞬透ける */
   #nightCover { display: none; position: absolute; inset: 0; z-index: 4; background: #000; place-items: center; }
   .playmode.night #nightCover { display: grid; }
@@ -798,7 +800,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.1</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1037,7 +1039,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.3.0</h2>
+    <h2>RHRE Web v1.3.1</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1076,7 +1078,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=53"></script>
+<script type="module" src="js/app.js?v=54"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

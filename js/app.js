@@ -2,11 +2,11 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=21';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=24';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=25';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -62,6 +62,10 @@ let shownGame = null;
 const view = new EditorView($('view'), {
   // プレイモード中とプレゼンテーション中は、トラックを編集できない（見る・スクロールだけ）
   canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting && !playMode,
+  // 再生位置（緑の旗）だけは、プレイモード中も動かせる
+  canMovePlayback: () => !!remix && mode !== 'playing' && !loading && !presenting,
+  // プレイモード中はトラックを上下に動かさない（一番下のプレイアロングの段が見えたまま）
+  lockY: () => playMode,
   iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
   playalongLabel: (e) => (getLang() === 'en' ? `Playalong ${e.name}` : objName(e.o)),
   isStretchable: (e) => !!remix && remix.isStretchable(e),
@@ -75,9 +79,14 @@ const view = new EditorView($('view'), {
     if (edit(() => { ent.beat = b; ent.width = w; })) setStatus(describe(ent));
   },
   onSetPlaybackStart: (beat) => {
-    if (!remix || playMode) return;
+    if (!remix) return;
     remix.playbackStart = beat;
-    if (mode === 'playing') startPlayback(remix.tempo.b2s(beat));
+    if (mode === 'playing') {
+      const sec = remix.tempo.b2s(beat);
+      startPlayback(sec);
+      // プレイモードで途中に飛んだら、判定をそこからやり直す
+      if (playMode) { resetJudge(); judge?.skipBefore(sec - 0.05); }
+    }
     else { mode = 'stopped'; updateButtons(); updateTimebox(remix.tempo.b2s(beat), beat); }
     view.dirty = true;
     scheduleAutosave();
@@ -1968,6 +1977,7 @@ function setPlayMode(on) {
     multiSelect = false;
     view.armed = null;
     view.selection.clear();
+    view.stickBottom = true;
     updateCtxbar();
     resetJudge();
     setStatus(t('プレイモード：▶ で再生して、キューに合わせて押してください'));
@@ -2222,7 +2232,7 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
   ps.classList.toggle('side-left', touch && side === 'left');
   ps.classList.toggle('side-right', touch && side !== 'left');
   const parts = { dpad: $('psDpad'), center: ps.querySelector('.ps-center'), ab: $('psAB'), box: $('psTouch') };
-  const clear = (el) => { el.style.gridArea = ''; el.style.display = ''; el.style.justifySelf = ''; el.style.alignSelf = ''; el.style.zIndex = ''; el.style.position = ''; };
+  const clear = (el) => { el.style.gridArea = ''; el.style.display = ''; el.style.justifySelf = ''; el.style.alignSelf = ''; el.style.zIndex = ''; el.style.position = ''; el.style.transform = ''; };
   for (const el of Object.values(parts)) clear(el);
   if (!touch) {
     ps.style.gridTemplateColumns = '';
@@ -2230,7 +2240,7 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
     ps.style.gridTemplateRows = '';
     return;
   }
-  // 枠が右なら A・B、左なら十字を、枠の上に重ねる（いつもの位置のまま、下に枠が広がる）
+  // 枠が右なら A・B、左なら十字を、枠の真上に置く（上のトラックにはみ出す）
   const inset = side === 'left' ? 'env(safe-area-inset-left, 0px)' : 'env(safe-area-inset-right, 0px)';
   const boxCol = `calc(35vw - max(10px, ${inset}))`;
   const cols = [], areas = [];
@@ -2247,9 +2257,10 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
   const over = side === 'left' ? parts.dpad : parts.ab;
   over.style.gridArea = 'box';
   over.style.justifySelf = side === 'left' ? 'start' : 'end';
-  over.style.alignSelf = 'center';
+  over.style.alignSelf = 'start';
   over.style.position = 'relative';
-  over.style.zIndex = '2';
+  over.style.zIndex = '6';
+  over.style.transform = 'translateY(calc(-100% - 14px))';
   parts.dpad.style.display = showDpad ? '' : 'none';
   parts.ab.style.display = showAB ? '' : 'none';
   $('psSide').textContent = t(side === 'left' ? 'タッチの枠を右へ' : 'タッチの枠を左へ');

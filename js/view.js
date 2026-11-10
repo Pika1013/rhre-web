@@ -213,7 +213,7 @@ export class EditorView {
         // テンポ・音量の印：指は長押しでつかむ、マウスはそのままドラッグ
         const mark = L && !flag && e.offsetY > L.tracksBottom && e.offsetY <= L.tracksBottom + L.tempoH + 6 && this.h.canEdit?.()
           ? this.markerAt(e.offsetX, e.offsetY, L) : null;
-        if (flag && this.h.canEdit?.()) mode = flag;
+        if (flag && (this.h.canEdit?.() || (flag === 'playback' && this.h.canMovePlayback?.()))) mode = flag;
         else if (mark && e.pointerType === 'mouse') mode = 'marker';
         else if (L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom) {
           edge = this.edgeAt(e.offsetX, e.offsetY, L);
@@ -221,7 +221,7 @@ export class EditorView {
           else {
             const hit = this.hitTest(e.offsetX, e.offsetY, L);
             if (hit && this.selection.has(hit) && this.h.canEdit?.()) { mode = 'move'; anchor = hit; }
-            else if (!hit && !this.armed && (e.pointerType === 'mouse' || this.h.isMultiSelect?.())) mode = 'box';
+            else if (!hit && !this.armed && this.h.canEdit?.() && (e.pointerType === 'mouse' || this.h.isMultiSelect?.())) mode = 'box';
           }
         }
         this.drag = { mode, edge, anchor, x0: e.offsetX, y0: e.offsetY, s0: this.scrollBeat, t0: performance.now(), moved: false, vx: 0, lx: e.offsetX, lt: performance.now(), shift: e.shiftKey || e.ctrlKey || e.metaKey };
@@ -340,7 +340,8 @@ export class EditorView {
       } else {
         this.scrollBeat = d.s0 - dx / this.ppb;
         const L2 = this.layout();
-        if (L2.maxScrollY > 0) {
+        if (this.h.lockY?.()) this.stickBottom = true;
+        else if (L2.maxScrollY > 0) {
           if (d.sy0 == null) d.sy0 = this.scrollY;
           this.stickBottom = false;
           this.scrollY = clamp(d.sy0 - dy, 0, L2.maxScrollY);
