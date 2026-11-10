@@ -157,6 +157,8 @@
   .bar { height: 8px; border-radius: 4px; background: #1d1d1d; overflow: hidden; margin-top: 10px; }
   .bar > div { height: 100%; width: 0; background: var(--play); transition: width 0.15s; }
   .err { color: #ff8a8a !important; }
+  #errMsg { font-weight: 700; color: var(--text); }
+  .err-detail { font-size: 12px !important; color: #9a9a9a !important; overflow-wrap: anywhere; }
 
   /* 選択中・配置中に出る編集バー */
   #ctxbar {
@@ -477,6 +479,8 @@
   .playmode #playStage { position: relative; }
   #psTabs { position: absolute; bottom: 100%; left: max(6px, env(safe-area-inset-left, 0px)); z-index: 7; display: flex; gap: 4px; }
   #psTabs #psNight.on { background: #2b2350; border-color: #7a68e0; color: #fff; }
+  /* プレイモードで再生中は、トラックの部分を触れない（上のバーと下の操作は触れる） */
+  .pa-playing #view { pointer-events: none; }
   /* 枠が左のときは、十字が枠の真上に来るので、タブは右へ */
   .playmode #playStage.touch.side-left #psTabs { left: auto; right: max(6px, env(safe-area-inset-right, 0px)); }
   /* ナイトモード：トラックを真っ黒に（上のメニューと下の操作は見える）。ミスしたときだけ一瞬透ける */
@@ -800,7 +804,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.3.3</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -986,6 +990,16 @@
   </div>
 </div>
 
+<div class="modal" id="errModal" hidden role="alertdialog" aria-labelledby="errTitle">
+  <div class="card">
+    <h2 id="errTitle"></h2>
+    <p id="errMsg"></p>
+    <p id="errDetail" class="err-detail"></p>
+    <div class="row">
+      <button class="btn primary" id="errOk">閉じる</button>
+    </div>
+  </div>
+</div>
 <div class="modal" id="saveModal" hidden>
   <div class="card">
     <h2>保存</h2>
@@ -1039,7 +1053,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.3.2</h2>
+    <h2>RHRE Web v1.3.3</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1078,7 +1092,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=55"></script>
+<script type="module" src="js/app.js?v=56"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=12';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=21';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=22';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=25';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -146,12 +146,67 @@ function showLoading(title, msg, frac) {
   $('loadBar').style.width = `${Math.round((frac ?? 0) * 100)}%`;
 }
 
-function showError(msg) {
-  $('loading').hidden = false;
-  $('loadTitle').textContent = '開けませんでした';
-  $('loadMsg').textContent = msg;
-  $('loadMsg').classList.add('err');
-  $('loadBar').style.width = '0';
+// 失敗したときの画面：何が起きたか（原因）と、詳しい情報
+let errAfter = null;
+function showErrorBox(title, cause, err, after) {
+  $('loading').hidden = true;
+  $('errTitle').textContent = title;
+  $('errMsg').textContent = cause;
+  const detail = err ? `${err.name && err.name !== 'Error' ? err.name + ': ' : ''}${err.message || String(err)}` : '';
+  $('errDetail').textContent = detail ? `${t('詳しい情報')}：${detail}` : '';
+  $('errDetail').hidden = !detail;
+  errAfter = after || null;
+  $('errModal').hidden = false;
+}
+$('errOk').addEventListener('click', () => {
+  $('errModal').hidden = true;
+  const f = errAfter;
+  errAfter = null;
+  f?.();
+});
+function showError(msg) { showErrorBox(t('開けませんでした'), msg, null, () => { if (!remix) newRemix(); }); }
+
+// ファイルの先頭を見て、中身の種類を当てる
+function sniffFile(bytes) {
+  const b = bytes || new Uint8Array(0);
+  const at = (i, s) => [...s].every((c, k) => b[i + k] === c.charCodeAt(0));
+  if (!b.length) return 'empty';
+  if (b[0] === 0x50 && b[1] === 0x4b) return 'zip';
+  if (at(0, 'ID3') || at(0, 'OggS') || at(0, 'fLaC') || (at(0, 'RIFF') && at(8, 'WAVE')) || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'audio';
+  if (at(4, 'ftyp')) return 'audio';
+  if ((b[0] === 0x89 && at(1, 'PNG')) || (b[0] === 0xff && b[1] === 0xd8) || at(0, 'GIF8') || (at(0, 'RIFF') && at(8, 'WEBP'))) return 'image';
+  if (at(0, '%PDF')) return 'pdf';
+  for (let i = 0; i < Math.min(b.length, 64); i++) {
+    if (b[i] === 0x7b || b[i] === 0x5b) return 'json';
+    if (![0x20, 0x09, 0x0a, 0x0d, 0xef, 0xbb, 0xbf].includes(b[i])) break;
+  }
+  return 'unknown';
+}
+const isNetworkError = (e) => !navigator.onLine || /Failed to fetch|Load failed|NetworkError|network|を取得できません/i.test(`${e?.name} ${e?.message}`);
+// 開けなかった理由を、分かる言葉に
+function loadErrorCause(e, bytes) {
+  const kind = bytes ? sniffFile(bytes) : null;
+  if (kind === 'empty') return t('ファイルが空です（0 バイト）。保存やコピーが途中で止まった可能性があります。');
+  if (kind === 'audio') return t('これは音楽（音声）ファイルです。音楽はメニューの「音楽を選ぶ」から読み込んでください。');
+  if (kind === 'image') return t('これは画像ファイルです。RHRE fresh か RHRE Web で保存した .rhref ファイルを選んでください。');
+  if (kind === 'pdf' || kind === 'json' || kind === 'unknown') return t('このファイルは .rhref（ZIP 形式）ではありません。RHRE fresh か RHRE Web で保存した .rhref ファイルを選んでください。');
+  const msg = `${e?.message || ''}`;
+  if (/RHRE2/.test(msg)) return t('RHRE2 の古い形式のファイルです。RHRE Web では開けません（RHRE3 / RHRE fresh で保存し直してください）。');
+  if (/remix\.json/.test(msg)) return t('.rhref の中にリミックスのデータ（remix.json）がありません。別のアプリの ZIP か、壊れたファイルです。');
+  if (e instanceof SyntaxError || /JSON/.test(msg)) return t('リミックスのデータ（remix.json）が壊れていて読めません。');
+  if (/圧縮形式/.test(msg)) return t('この .rhref は、RHRE Web が読めない方法で圧縮されています。RHRE fresh で開いて保存し直すと開けるかもしれません。');
+  if (isNetworkError(e)) return t('ミニゲームのデータをダウンロードできませんでした。インターネットにつながっているか確かめて、もう一度開いてください。');
+  if (kind === 'zip') return t('ファイルが壊れているか、途中で切れています（ZIP を展開できませんでした）。');
+  return t('読み込みの途中で問題が起きました。');
+}
+// iPhone のファイルに同じ名前があると「名前.rhref 2」のように拡張子の後ろに番号が付くので、「名前 2.rhref」に直す
+function normalizeRemixName(name) {
+  let n = String(name || '').trim() || 'remix.rhref';
+  const m = /^(.*)\.rhref\s*\(?(\d+)\)?$/i.exec(n);
+  if (m) n = `${m[1]} ${m[2]}.rhref`;
+  n = n.replace(/\.rhref\s*\(?(\d+)\)?\.rhref$/i, ' $1.rhref').replace(/\.rhref\.(zip|bin|txt|dat)$/i, '.rhref');
+  if (!/\.rhref$/i.test(n)) n = `${n.replace(/\.[^.\s]*$/, '')}.rhref`;
+  return n;
 }
 
 function updateButtons() {
@@ -329,10 +384,35 @@ const store = {
   async set(key, val) {
     try {
       const db = await this.open();
-      await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
-    } catch (_) { /* 保存できない環境では何もしない */ }
+      await new Promise((res, rej) => {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(val, key);
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('aborted'));
+      });
+      return true;
+    } catch (e) {
+      storeFailed(key, e);
+      return false;
+    }
   },
 };
+
+// 端末への自動保存に失敗したら、原因を 1 回だけ知らせる（同じ原因で何度も出さない）
+let storeWarned = '';
+function storeFailed(key, e) {
+  console.error('store', key, e);
+  const name = e?.name || 'Error';
+  if (storeWarned === name) return;
+  storeWarned = name;
+  const why = name === 'QuotaExceededError'
+    ? t('端末の空き容量が足りません。')
+    : (name === 'InvalidStateError' || name === 'SecurityError' || name === 'UnknownError')
+      ? t('プライベートブラウズなどで、このサイトがデータを保存することを許可されていません。')
+      : t('端末にデータを書き込めませんでした。');
+  showErrorBox(t('自動保存に失敗しました'), `${why}${t('作業が消えないように、こまめに「保存」で .rhref に保存してください。')}`, e);
+}
 
 let autosaveTimer = 0;
 function scheduleAutosave() {
@@ -898,9 +978,10 @@ async function preview(o) {
 
 // ---------------------------------------------------------------- 読み込み・新規
 
+let musicError = null;
 async function applyLoaded(res, name, { music, extra, note } = {}) {
   remix = res.remix;
-  fileName = name;
+  fileName = normalizeRemixName(name);
   extraFiles = extra || [];
   musicFile = music || null;
   musicBuf = null;
@@ -927,11 +1008,17 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
       const b = musicFile.bytes;
       musicBuf = await engine.decode(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
       musicBuf.rhreLeadIn = rhreMusicLeadIn(b, musicBuf);
-    } catch (_) {
+    } catch (e) {
       failed.push('music');
+      musicError = e;
     }
   }
   $('loading').hidden = true;
+  if (musicError) {
+    const ext = (musicFile?.extension || '').toUpperCase();
+    showErrorBox(t('音楽を読み込めませんでした'), t('リミックスは開けましたが、入っている音楽（{ext}）をこの端末では再生できませんでした。形式が対応していないか、音楽のデータが壊れています。メニューの「音楽を選ぶ」で入れ直せます。', { ext: ext || '?' }), musicError);
+    musicError = null;
+  }
   const notes = [];
   if (res.missing?.length) notes.push(`見つからない ID ${res.missing.length} 件`);
   if (failed.length) notes.push(`読めなかった音 ${failed.length} 件`);
@@ -944,7 +1031,7 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   if (note) toast(note, 3500, 'info');
 }
 
-async function withLoading(name, job) {
+async function withLoading(name, job, bytes) {
   stopPlayback();
   loading = true;
   updateButtons();
@@ -955,7 +1042,7 @@ async function withLoading(name, job) {
     saveMusicToStore();
   } catch (e) {
     console.error(e);
-    showError(e.message || String(e));
+    showErrorBox(t('開けませんでした'), loadErrorCause(e, bytes), e, () => { if (!remix) newRemix(); });
   } finally {
     loading = false;
     updateButtons();
@@ -964,19 +1051,20 @@ async function withLoading(name, job) {
 }
 
 function openBuffer(ab, name) {
+  name = normalizeRemixName(name);
   return withLoading(name, async (onStatus) => {
     const res = await loadRemix(ab, { onStatus });
     await applyLoaded(res, name, { music: res.music, extra: res.extraFiles });
-  });
+  }, new Uint8Array(ab, 0, Math.min(ab.byteLength, 64)));
 }
 
 async function openSample() {
   try {
     const res = await fetch('samples/sample.rhref');
-    if (!res.ok) throw new Error('サンプルが見つかりません');
+    if (!res.ok) throw new Error(`サンプルが見つかりません (${res.status})`);
     await openBuffer(await res.arrayBuffer(), 'sample.rhref');
   } catch (e) {
-    showError(e.message);
+    showErrorBox(t('開けませんでした'), isNetworkError(e) ? t('サンプルをダウンロードできませんでした。インターネットにつながっているか確かめてください。') : t('サンプルを開けませんでした。'), e);
   }
 }
 
@@ -1019,9 +1107,18 @@ function buildRhref() {
 let saveUrl = null;
 function save() {
   if (!remix || loading) return;
-  let name = (fileName || 'remix.rhref').replace(/[\\/:*?"<>|]/g, '_');
-  if (!/\.rhref$/i.test(name)) name = name.replace(/\.[^.]*$/, '') + '.rhref';
-  const blob = buildRhref();
+  const name = normalizeRemixName((fileName || 'remix.rhref').replace(/[\\/:*?"<>|]/g, '_'));
+  let blob;
+  try {
+    blob = buildRhref();
+  } catch (e) {
+    console.error(e);
+    const mem = e instanceof RangeError || /memory|allocation|too large/i.test(e?.message || '');
+    showErrorBox(t('保存できませんでした'), mem
+      ? t('ファイルを作る途中でメモリが足りなくなりました。ほかのアプリやタブを閉じてから、もう一度保存してください。')
+      : t('.rhref ファイルを作る途中で問題が起きました。'), e);
+    return;
+  }
   const size = blob.size > 1048576 ? `${(blob.size / 1048576).toFixed(1)} MB` : `${Math.ceil(blob.size / 1024)} KB`;
   const showLink = () => {
     if (saveUrl) URL.revokeObjectURL(saveUrl);
@@ -1033,26 +1130,39 @@ function save() {
     $('saveModal').hidden = false;
   };
   if (!isTouch || isAndroid) {
-    if (saveUrl) URL.revokeObjectURL(saveUrl);
-    saveUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = saveUrl;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    toast(`保存しました：${name}`, 2500, 'info');
+    try {
+      if (saveUrl) URL.revokeObjectURL(saveUrl);
+      saveUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = saveUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast(`${t('保存しました')}：${name}`, 2500, 'info');
+    } catch (e) {
+      console.error(e);
+      showErrorBox(t('保存できませんでした'), t('ダウンロードを始められませんでした。ブラウザの設定でダウンロードが止められていないか確かめてください。'), e);
+    }
     return;
   }
   try {
     const file = new File([blob], name, { type: 'application/octet-stream' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: name })
-        .then(() => toast(`保存しました：${name}`, 2500, 'info'))
-        .catch((err) => { if (err?.name !== 'AbortError') showLink(); });
+        .then(() => toast(`${t('保存しました')}：${name}`, 2500, 'info'))
+        .catch((err) => {
+          if (err?.name === 'AbortError') return; // 自分で閉じた
+          console.error(err);
+          showLink();
+          const why = err?.name === 'NotAllowedError'
+            ? t('共有の画面を開くことをブラウザに止められました。')
+            : t('共有の画面でエラーが起きました。');
+          $('saveMsg').textContent = `${why}${t('代わりに下のボタンで保存してください。')}（${err?.name || ''}${err?.message ? ': ' + err.message : ''}）`;
+        });
       return;
     }
-  } catch (_) { /* 共有できなければリンクで */ }
+  } catch (e) { console.error(e); /* 共有できなければリンクで */ }
   showLink();
 }
 
@@ -1476,7 +1586,16 @@ $('redoBtn').addEventListener('click', redo);
 $('fileInput').addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
   e.target.value = '';
-  if (f) openBuffer(await f.arrayBuffer(), f.name);
+  if (!f) return;
+  let ab;
+  try {
+    ab = await f.arrayBuffer();
+  } catch (err) {
+    console.error(err);
+    showErrorBox(t('開けませんでした'), t('ファイルを読み取れませんでした。iCloud などにあって端末にまだダウンロードされていないか、読み取りが許可されていない可能性があります。ファイル App で一度開いてから、もう一度選んでください。'), err);
+    return;
+  }
+  openBuffer(ab, f.name);
 });
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
@@ -1882,15 +2001,15 @@ $('customInput').addEventListener('change', async (e) => {
 function openSave() {
   if (!remix || loading) return;
   const inp = $('saveNameInput');
-  inp.value = (fileName || 'remix.rhref').replace(/\.rhref$/i, '');
+  inp.value = normalizeRemixName(fileName).replace(/\.rhref$/i, '');
   $('saveNameModal').hidden = false;
   inp.focus();
   try { inp.select(); } catch (_) { /* 選べない環境 */ }
 }
 function commitSave() {
   // ファイル名に使えない文字は _ に。空なら remix
-  const base = $('saveNameInput').value.trim().replace(/\.rhref$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120).trim() || 'remix';
-  const next = `${base}.rhref`;
+  const base = $('saveNameInput').value.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120).trim() || 'remix';
+  const next = normalizeRemixName(`${base.replace(/\.rhref$/i, '')}.rhref`);
   $('saveNameModal').hidden = true;
   if (next !== fileName) { fileName = next; scheduleAutosave(); setStatus(summaryText()); }
   save();
@@ -2888,7 +3007,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
     saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose',
-    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose',
+    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
     const card = $(mid)?.querySelector('.card');
