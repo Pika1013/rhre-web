@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=30';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.7.6';
+const VERSION = '1.7.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1807,6 +1807,10 @@ $('fsBtn').addEventListener('click', async () => {
 
 function openHelp() {
   $('helpAudio').textContent = `音の状態: ${engine.state} ／ ${inStandalone ? 'ホーム画面アプリ' : 'ブラウザ'} ／ ogg: ${engine.usedWasm ? 'WASM（予備）' : 'ブラウザ内蔵'}`;
+  // 説明は画面の言語に合わせる（翻訳の仕組みでは訳さず、日本語と英語を別に書いてある）
+  const en = settings.uiLang === 'en';
+  $('helpJa').hidden = en;
+  $('helpEn').hidden = !en;
   $('helpModal').hidden = false;
 }
 $('helpBtn').addEventListener('click', openHelp);

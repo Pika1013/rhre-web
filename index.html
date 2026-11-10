@@ -875,7 +875,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.6</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.7</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1133,18 +1133,19 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.7.6</h2>
+    <h2>RHRE Web v1.7.7</h2>
+    <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
-    <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
-    <p class="note">今 RHRE Web を開いている人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
     <p><b>見る</b></p>
     <ul>
-      <li>ホーム画面に追加したアプリや Android アプリでは、一度使ったミニゲームは、ネットにつながっていなくても使えます（最初の 1 回はネットが必要です）</li>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
+      <li>トラックの左右の端のボタン：« » で速く移動（押し続けると流れ続ける）、|◀ で 0 拍目に戻る（再生位置も 0 拍目に）</li>
       <li>上の目盛りをタップ：再生開始位置（緑の旗）を移動</li>
-      <li>一覧の左上の「ゲームを選ぶ」：ゲーム一覧を隠す／出す</li>
       <li>赤い旗（音楽開始）と緑の旗（再生開始）は、横にドラッグして動かせます</li>
       <li>Snap：置く・動かす間隔（1〜1/32）を選ぶ</li>
+      <li>再生速度：時間の表示の右にある虹色のつまみを横にドラッグ（ダブルタップで 1.0 に戻す）</li>
+      <li>メトロノーム：上のバーのボタンで入／切。入れている間は Play-Yan が跳ねます</li>
+      <li>ゲーム一覧：左上の「ゲームを選ぶ」で隠す／出す。境目のつまみをドラッグすると高さを変えられます</li>
     </ul>
     <p><b>編集</b></p>
     <ul>
@@ -1155,15 +1156,80 @@
       <li>動かす：選んだブロックをドラッグ（重なる所には置けません）</li>
       <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
       <li>削除・複製・音程・音量：選ぶと上のツールバーが青い編集バーに変わります（✕ で戻る）</li>
-      <li>テンポ・拍子・音楽の音量：トラックの下（♩=…の段）をタップ。上の切り替えで種類を選びます。テンポは「変化にかける拍数」で徐々に変えたり、スウィングも付けられます</li>
-      <li>字幕・画像：「特殊」タブから置きます。選ぶと「文字を編集」「画像を選ぶ」が出ます</li>
+      <li>テンポ・拍子・音楽の音量：トラックの下（♩=…の段）をタップ。上の切り替えで種類を選びます。テンポは「変化にかける拍数」で徐々に変えたり、スウィングも付けられます。印は長押しでつかんで動かせ、拍子の大きな数字はタップで直接入力できます</li>
+      <li>字幕・画像・プレイアロング：「特殊」タブから置きます。字幕と画像は、選ぶと「文字を編集」「画像を選ぶ」が出ます</li>
       <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加</li>
-      <li>再生速度・テーマ・画面の言語：歯車の設定から。トラックの数・プレゼンテーションモードはメニュー（≡）から</li>
-      <li>保存：メニュー →「保存」。iPhone は共有メニューから「ファイルに保存」</li>
+      <li>保存：保存ボタン（またはメニューの「保存」）を押して名前を決めます。iPhone は共有メニューから「ファイルに保存」</li>
       <li>作業中は自動で保存され、次に開くと続きから始まります</li>
     </ul>
-    <p>まだできないこと：画面揺れ、ピッチベンド、メジャー、プレイアロング、MP3 などでの書き出し、MIDI の読み込み。</p>
-    <p><b>全画面で使うには</b>：Safari の共有ボタン →「ホーム画面に追加」。</p>
+    <p><b>音楽と書き出し</b></p>
+    <ul>
+      <li>メニューの「音楽を選ぶ」：「＋ 曲を追加」で端末の曲を一覧に入れ、「この曲を使う」で選びます（曲は端末の中にだけ保存されます）</li>
+      <li>テンポがわからないときは、メニューの「テンポを測る」で、曲に合わせてタップして測れます</li>
+      <li>メニューの「音楽の開始位置」：秒の数字を入れるか、「曲の始まりを 0 拍目に合わせる」</li>
+      <li>メニューの「WAVに書き出す」：リミックスを音のファイルにします</li>
+    </ul>
+    <p><b>遊ぶ・見せる</b></p>
+    <ul>
+      <li>プレイモード（メニュー）：プレイアロングのキューに合わせて押して遊びます。▶ で再生。タッチ・はじくは下の緑の枠で（「タッチの枠を左へ／右へ」で左右を切り替え）。「ナイトモード」でトラックを隠し、「パーフェクト挑戦」で 1 回もミスしない挑戦ができます</li>
+      <li>パソコンのキーボード：A＝J かスペース、B＝K、十字＝W A S D か矢印キー</li>
+      <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
+      <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の「終わる」で戻ります</li>
+    </ul>
+    <p><b>設定（歯車）</b>：ミニゲームの言語、テーマの色、背景の画像、タイミング調整、画面の言語。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
+    <p>まだできないこと：画面揺れ、ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
+    <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
+    <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
+    <p class="note">今 RHRE Web を開いている人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
+    </div>
+    <div id="helpEn" hidden>
+    <p>RHRE Web opens RHRE fresh .rhref files and plays and edits them with the same rules as the desktop version. Sound effects are loaded from the same database as RHRE fresh, only the ones you use.</p>
+    <p><b>Viewing</b></p>
+    <ul>
+      <li>Drag left/right with one finger to scroll. Pinch with two fingers to zoom.</li>
+      <li>Buttons at the left and right edges of the tracks: « » move quickly (hold to keep scrolling), |◀ goes back to beat 0 (the playback position too).</li>
+      <li>Tap the beat ruler at the top to move the playback start (green flag).</li>
+      <li>Drag the red flag (music start) and the green flag (playback start) sideways to move them.</li>
+      <li>Snap: choose the step for placing and moving (1 to 1/32).</li>
+      <li>Playback speed: drag the rainbow slider to the right of the time display (double-tap to reset to 1.0).</li>
+      <li>Metronome: turn it on/off with its button on the top bar. Play-Yan jumps while it is on.</li>
+      <li>Game list: "Choose a game" at its top left hides/shows it. Drag the grip on the border to change its height.</li>
+    </ul>
+    <p><b>Editing</b></p>
+    <ul>
+      <li>Place: choose a minigame below, tap a pattern name, then tap an empty spot on the tracks (you can keep placing; tap the name again to stop). To change a placed block, tap it to select it.</li>
+      <li>Select: tap a block. Turn on "Multi-select" to add or remove blocks by tapping.</li>
+      <li>Range select: long-press an empty spot on the tracks, then drag (on a computer, just drag).</li>
+      <li>Copy, paste and split: from "…" on the edit bar (Ctrl+C / Ctrl+V also work on a computer).</li>
+      <li>Move: drag a selected block (it can't overlap another block).</li>
+      <li>Resize: blocks that can stretch show white handles at both ends when selected.</li>
+      <li>Delete, duplicate, pitch, volume: selecting a block turns the top bar into the blue edit bar (✕ to go back).</li>
+      <li>Tempo, time signature, music volume: tap the row under the tracks (♩=…) and choose the kind at the top. Tempo can change gradually ("beats to change over") and can have swing. Long-press a marker to drag it, and tap the big time signature numbers to type them.</li>
+      <li>Subtitles, images, Playalong: place them from the "Special" tab. Selecting a subtitle or image shows "Edit text" or "Choose image".</li>
+      <li>Custom sounds: add your own audio files in the "Custom" tab.</li>
+      <li>Save: press the save button (or "Save" in the menu) and choose a name. On iPhone, pick "Save to Files" in the share menu.</li>
+      <li>Your work is saved automatically and continues next time you open the app.</li>
+    </ul>
+    <p><b>Music and export</b></p>
+    <ul>
+      <li>"Choose music" in the menu: add songs from this device with "+ Add songs", then pick one with "Use this song" (songs are stored only on this device).</li>
+      <li>If you don't know the tempo, use "Measure tempo" in the menu and tap along with the song.</li>
+      <li>"Music start position" in the menu: type the seconds, or use "Align song start to beat 0".</li>
+      <li>"Export WAV" in the menu turns your remix into an audio file.</li>
+    </ul>
+    <p><b>Playing and showing</b></p>
+    <ul>
+      <li>Play mode (menu): press along with the Playalong cues. Press ▶ to start. Touch and flick cues use the green area at the bottom ("Touch area to the left/right" switches sides). "Night Mode" hides the tracks, and "Perfect Challenge" lets you try for no misses.</li>
+      <li>Keyboard: A = J or Space, B = K, D-pad = W A S D or the arrow keys.</li>
+      <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
+      <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and "Exit" at the top left to go back.</li>
+    </ul>
+    <p><b>Settings (gear)</b>: minigame language, theme colors, background image, timing offsets, screen language. Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
+    <p>Not available yet: screen shake, pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
+    <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
+    <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
+    <p class="note">To count how many people have RHRE Web open, the app connects to a Cloudflare server while it is open. It sends only a random number for each device, never your name.</p>
+    </div>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
     <p id="helpAudio" style="color:#9a9a9a;font-size:12px"></p>
     <div class="row"><button class="btn" id="helpClose">閉じる</button></div>
@@ -1174,7 +1240,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=72"></script>
+<script type="module" src="js/app.js?v=73"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
