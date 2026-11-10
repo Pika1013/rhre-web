@@ -554,7 +554,9 @@ export class EditorView {
         this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, `rgba(120,230,255,${a})`, `rgba(120,230,255,${Math.min(0.6, a + 0.15)})`);
       }
     }
-    // 拍の番号（拍と小節の縦線は、RHRE fresh と同じくブロックの上に drawBeatLines で描く）
+    // 拍と小節の縦線（ブロックの下）
+    this.drawBeatLines(g, L, b0, b1);
+    // 拍の番号
     for (let b = Math.floor(b0); b <= b1; b++) {
       const { beatInMeasure } = R.measureAt(b);
       const isMeasure = Math.abs(beatInMeasure) < 1e-6;
@@ -598,7 +600,6 @@ export class EditorView {
       this.drawEntity(g, e, L, now);
     }
     g.globalAlpha = 1;
-    this.drawBeatLines(g, L, b0, b1);
     this.drawEditOverlay(g, L);
     if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
@@ -656,15 +657,16 @@ export class EditorView {
     }
   }
 
-  // RHRE fresh の renderBeatLines をそのまま移植（ブロックの上に描く）。太さは RHRE fresh の画面（横 1280）での 2px を、この画面の幅に合わせる
+  // RHRE fresh の renderBeatLines の移植（太さ・濃さ・位置は同じ。ブロックの下に描く）。太さは RHRE fresh の画面（横 1280）での 2px を、この画面の幅に合わせる
   //  1. 整数の拍ごとに細い線。小節の途中の拍は不透明度 25%、小節の頭（とマイナスの拍）は 100%
   //  2. 1/4 拍ずつ見て、拍子の拍（6/8 なら 0.5 拍ごと）が変わる所に線。小節の頭は 3 倍の太さで 100%、途中は 20%
   drawBeatLines(g, L, b0, b1) {
     const R = this.remix;
     const rgb = C.gridRGB;
     const thin = Math.max(1, (2 * this.W) / 1280);
-    const top = L.tracksTop - thin / 2;
-    const h = L.tracksBottom - L.tracksTop + thin;
+    // 一番上と一番下の横線（round(y)+0.5 に太さ 1.5 で描いている）からはみ出さない
+    const top = Math.round(L.tracksTop);
+    const h = Math.round(L.tracksBottom) + 1 - top;
     const tsList = R.timeSignatures;
     const tsAt = (beat) => {
       let cur = null;
