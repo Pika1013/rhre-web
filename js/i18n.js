@@ -2,6 +2,8 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  'ナイトモード': 'Night Mode', 'ナイトモードをやめる': 'Exit Night Mode', 'ナイトモード挑戦中！': "You're playing in Night Mode!",
+  'プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。': 'You can\'t edit in play mode. Tap "Exit" at the bottom to go back and edit.',
   'タッチの枠を左へ': 'Touch area to the left', 'タッチの枠を右へ': 'Touch area to the right',
   'ボタンのタイミング調整': 'Button timing offset', 'タッチのタイミング調整': 'Touch timing offset',
   'タッチの枠（タッチ・はじく・スライド）': 'Touch area (tap, flick, slide)',
@@ -167,6 +169,8 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  'ナイトモード': 'Night Mode', 'ナイトモードをやめる': 'Exit Night Mode', 'ナイトモード挑戦中！': "You're playing in Night Mode!",
+  'プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。': 'You can\'t edit in play mode. Tap "Exit" at the bottom to go back and edit.',
   'タッチの枠を左へ': 'Touch area to the left', 'タッチの枠を右へ': 'Touch area to the right',
   'ボタンのタイミング調整': 'Button timing offset', 'タッチのタイミング調整': 'Touch timing offset',
   'タッチの枠（タッチ・はじく・スライド）': 'Touch area (tap, flick, slide)',

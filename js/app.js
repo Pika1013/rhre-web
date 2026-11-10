@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=12';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=20';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=23';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=21';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=24';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -60,12 +60,13 @@ let judge = null;
 let shownGame = null;
 
 const view = new EditorView($('view'), {
-  canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting,
+  // プレイモード中とプレゼンテーション中は、トラックを編集できない（見る・スクロールだけ）
+  canEdit: () => !!remix && mode !== 'playing' && !loading && !presenting && !playMode,
   iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
   playalongLabel: (e) => (getLang() === 'en' ? `Playalong ${e.name}` : objName(e.o)),
   isStretchable: (e) => !!remix && remix.isStretchable(e),
-  onSelect: (ent, additive) => { if (!presenting) selectEntity(ent, additive); },
-  onPlace: (beat, track) => (pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track)),
+  onSelect: (ent, additive) => { if (!presenting && !playMode) selectEntity(ent, additive); },
+  onPlace: (beat, track) => { if (playMode) return; pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track); },
   validateMove: (dB, dT) => moveValid(dB, dT),
   onMove: (dB, dT) => doMove(dB, dT),
   validateResize: (ent, b, w) => !remix.collides(b, ent.track, w, ent.height, new Set([ent])),
@@ -74,19 +75,19 @@ const view = new EditorView($('view'), {
     if (edit(() => { ent.beat = b; ent.width = w; })) setStatus(describe(ent));
   },
   onSetPlaybackStart: (beat) => {
-    if (!remix) return;
+    if (!remix || playMode) return;
     remix.playbackStart = beat;
     if (mode === 'playing') startPlayback(remix.tempo.b2s(beat));
     else { mode = 'stopped'; updateButtons(); updateTimebox(remix.tempo.b2s(beat), beat); }
     view.dirty = true;
     scheduleAutosave();
   },
-  onMarkerTap: (beat, snapped, tol) => openMarker(beat, snapped, tol),
+  onMarkerTap: (beat, snapped, tol) => { if (!playMode) openMarker(beat, snapped, tol); },
   onMarkerGrab: (kind) => setStatus(t(kind === 'tempo' ? 'テンポの印をつかみました。左右に動かしてください' : '音量の印をつかみました。左右に動かしてください')),
   validateMarkerMove: (kind, from, to) => !!remix && !(kind === 'tempo' ? remix.tempoTrackers : remix.musicVolumes)
     .some((m) => Math.abs(m.beat - to) < 1e-6 && Math.abs(m.beat - from) > 1e-6),
   onMoveMarker: (kind, from, to) => moveMarker(kind, from, to),
-  onTimeSigTap: (box) => openTsEditor(box),
+  onTimeSigTap: (box) => { if (!playMode) openTsEditor(box); },
   isMultiSelect: () => multiSelect,
   onBoxStart: () => { multiSelect = true; updateCtxbar(); setStatus(t('範囲を指でなぞって選んでください')); },
   onBoxSelect: (hits, additive) => {
@@ -99,7 +100,7 @@ const view = new EditorView($('view'), {
   },
   textureImage: (ent) => textureImages.get(ent.extra?.texHash) || null,
   onSetMusicStart: (beat) => {
-    if (!remix) return;
+    if (!remix || playMode) return;
     // 秒を丸めると目盛りから少しずれるので、そのままの値で持つ
     const sec = remix.tempo.b2s(beat);
     if (edit(() => { remix.musicStartSec = sec; })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
@@ -253,6 +254,7 @@ function richName(name) {
 
 function edit(fn) {
   if (!remix || loading) return false;
+  if (playMode) { toast(t('プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。'), 3500, 'info'); return false; }
   if (mode === 'playing') { toast('再生中は編集できません。■ で止めてから編集してください。', 3500, 'info'); return false; }
   const snap = remix.snapshot();
   const r = fn();
@@ -277,7 +279,7 @@ function afterEdit() {
 }
 
 function undo() {
-  if (!remix || !undoStack.length) return;
+  if (!remix || !undoStack.length || playMode) return;
   if (mode === 'playing') { toast('再生中は元に戻せません。', 2500, 'info'); return; }
   redoStack.push(remix.snapshot());
   remix.restore(undoStack.pop());
@@ -286,7 +288,7 @@ function undo() {
 }
 
 function redo() {
-  if (!remix || !redoStack.length) return;
+  if (!remix || !redoStack.length || playMode) return;
   if (mode === 'playing') return;
   undoStack.push(remix.snapshot());
   remix.restore(redoStack.pop());
@@ -1962,9 +1964,15 @@ function setPlayMode(on) {
   view.playMode = on;
   if (on) {
     if (armed) setArmed(null);
+    pasteArmed = false;
+    multiSelect = false;
+    view.armed = null;
+    view.selection.clear();
+    updateCtxbar();
     resetJudge();
     setStatus(t('プレイモード：▶ で再生して、キューに合わせて押してください'));
   } else {
+    setNightMode(false);
     judge = null;
     for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
     $('psMarks').textContent = '';
@@ -1982,6 +1990,7 @@ function resetJudge() {
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
     a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
+    if (timing === 'MISS') nightFlash();
     // 押したときだけ、ズレのバーに印をつける（左が早い、右が遅い）
     if (!forced) addTimingMark(off / (judge.speed || 1), timing);
     updatePlayStage();
@@ -2213,31 +2222,63 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
   ps.classList.toggle('side-left', touch && side === 'left');
   ps.classList.toggle('side-right', touch && side !== 'left');
   const parts = { dpad: $('psDpad'), center: ps.querySelector('.ps-center'), ab: $('psAB'), box: $('psTouch') };
+  const clear = (el) => { el.style.gridArea = ''; el.style.display = ''; el.style.justifySelf = ''; el.style.alignSelf = ''; el.style.zIndex = ''; el.style.position = ''; };
+  for (const el of Object.values(parts)) clear(el);
   if (!touch) {
     ps.style.gridTemplateColumns = '';
     ps.style.gridTemplateAreas = '';
     ps.style.gridTemplateRows = '';
-    for (const el of Object.values(parts)) { el.style.gridArea = ''; el.style.display = ''; }
     return;
   }
+  // 枠が右なら A・B、左なら十字を、枠の上に重ねる（いつもの位置のまま、下に枠が広がる）
   const inset = side === 'left' ? 'env(safe-area-inset-left, 0px)' : 'env(safe-area-inset-right, 0px)';
   const boxCol = `calc(35vw - max(10px, ${inset}))`;
   const cols = [], areas = [];
   const add = (a, c) => { areas.push(a); cols.push(c); };
   if (side === 'left') add('box', boxCol);
-  if (showDpad) add('dpad', 'auto');
+  if (showDpad && side !== 'left') add('dpad', 'auto');
   add('center', 'minmax(0, 1fr)');
-  if (showAB) add('ab', 'auto');
+  if (showAB && side === 'left') add('ab', 'auto');
   if (side !== 'left') add('box', boxCol);
   ps.style.gridTemplateColumns = cols.join(' ');
   ps.style.gridTemplateAreas = `"${areas.join(' ')}"`;
   ps.style.gridTemplateRows = 'minmax(0, 1fr)';
   for (const [k, el] of Object.entries(parts)) el.style.gridArea = k;
+  const over = side === 'left' ? parts.dpad : parts.ab;
+  over.style.gridArea = 'box';
+  over.style.justifySelf = side === 'left' ? 'start' : 'end';
+  over.style.alignSelf = 'center';
+  over.style.position = 'relative';
+  over.style.zIndex = '2';
   parts.dpad.style.display = showDpad ? '' : 'none';
   parts.ab.style.display = showAB ? '' : 'none';
   $('psSide').textContent = t(side === 'left' ? 'タッチの枠を右へ' : 'タッチの枠を左へ');
   requestAnimationFrame(() => touchBox.resize());
 }
+// ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする。
+// ミスすると一瞬だけトラックが見え、0.5 秒後に 0.7 秒かけてまた真っ黒に戻る
+let nightMode = false;
+let nightAnim = null;
+function setNightMode(on) {
+  nightMode = on && playMode;
+  root.classList.toggle('night', nightMode);
+  $('psNight').textContent = t(nightMode ? 'ナイトモードをやめる' : 'ナイトモード');
+  $('psNight').classList.toggle('on', nightMode);
+  nightAnim?.cancel();
+  nightAnim = null;
+}
+function nightFlash() {
+  if (!nightMode) return;
+  nightAnim?.cancel();
+  const total = 60 + 500 + 700;
+  nightAnim = $('nightCover').animate([
+    { opacity: 1 },
+    { opacity: 0.08, offset: 60 / total },
+    { opacity: 0.08, offset: 560 / total, easing: 'ease-in-out' },
+    { opacity: 1 },
+  ], { duration: total });
+}
+$('psNight').addEventListener('click', () => setNightMode(!nightMode));
 $('psSide').addEventListener('click', () => {
   settings.paBoxSide = settings.paBoxSide === 'left' ? 'right' : 'left';
   saveSettings();

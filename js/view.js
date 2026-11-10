@@ -242,7 +242,7 @@ export class EditorView {
           }, 420);
         }
         if (mode === 'scroll' && e.pointerType !== 'mouse' && L && e.offsetY >= L.tracksTop && e.offsetY <= L.tracksBottom && !this.armed
-          && !this.hitTest(e.offsetX, e.offsetY, L)) {
+          && this.h.canEdit?.() && !this.hitTest(e.offsetX, e.offsetY, L)) {
           const d = this.drag;
           this.longTimer = setTimeout(() => {
             if (this.drag !== d || d.moved || this.pointers.size !== 1) return;
