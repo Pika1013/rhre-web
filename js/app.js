@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=25';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2000,7 +2000,6 @@ function resetJudge() {
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
     a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
-    if (timing === 'MISS') nightFlash();
     // 押したときだけ、ズレのバーに印をつける（左が早い、右が遅い）
     if (!forced) addTimingMark(off / (judge.speed || 1), timing);
     updatePlayStage();
@@ -2040,23 +2039,10 @@ function addTimingMark(off, timing) {
 function paPress(key) { if (playMode && judge && mode === 'playing') judge.press(key, paTime()); }
 function paRelease(key) { if (playMode && judge && mode === 'playing') judge.release(key, paTime()); }
 
-// ボタンを押したときの小さな振動。Android は vibrate、iPhone（iOS 18 以降）はスイッチを切り替えたときの振動を借りる
-const IS_APPLE_TOUCH = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// ボタンを押したときの小さな振動（Android だけ）。
+// iPhone の Safari には振動の仕組みがなく、代わりの方法も指を離したときにしか振動しないので、iPhone では振動させない
 function haptic() {
-  try {
-    if (!IS_APPLE_TOUCH && navigator.vibrate) { navigator.vibrate(12); return; }
-    if (!IS_APPLE_TOUCH) return;
-    const label = document.createElement('label');
-    label.ariaHidden = 'true';
-    label.style.display = 'none';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.setAttribute('switch', '');
-    label.appendChild(input);
-    document.head.appendChild(label);
-    label.click();
-    label.remove();
-  } catch (_) { /* 振動できない端末 */ }
+  try { navigator.vibrate?.(12); } catch (_) { /* 振動できない端末 */ }
 }
 
 // 画面のボタン（A・B・十字）
@@ -2266,28 +2252,13 @@ function layoutPlayStage(touch, showDpad = true, showAB = true) {
   $('psSide').textContent = t(side === 'left' ? 'タッチの枠を右へ' : 'タッチの枠を左へ');
   requestAnimationFrame(() => touchBox.resize());
 }
-// ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする。
-// ミスすると一瞬だけトラックが見え、0.5 秒後に 0.7 秒かけてまた真っ黒に戻る
+// ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする
 let nightMode = false;
-let nightAnim = null;
 function setNightMode(on) {
   nightMode = on && playMode;
   root.classList.toggle('night', nightMode);
   $('psNight').textContent = t(nightMode ? 'ナイトモードをやめる' : 'ナイトモード');
   $('psNight').classList.toggle('on', nightMode);
-  nightAnim?.cancel();
-  nightAnim = null;
-}
-function nightFlash() {
-  if (!nightMode) return;
-  nightAnim?.cancel();
-  const total = 60 + 500 + 700;
-  nightAnim = $('nightCover').animate([
-    { opacity: 1 },
-    { opacity: 0.08, offset: 60 / total },
-    { opacity: 0.08, offset: 560 / total, easing: 'ease-in-out' },
-    { opacity: 1 },
-  ], { duration: total });
 }
 $('psNight').addEventListener('click', () => setNightMode(!nightMode));
 $('psSide').addEventListener('click', () => {
