@@ -1,12 +1,12 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=12';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=15';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=22';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=25';
+import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=26';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.3.3';
+const VERSION = '1.3.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);

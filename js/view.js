@@ -554,22 +554,10 @@ export class EditorView {
         this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, `rgba(120,230,255,${a})`, `rgba(120,230,255,${Math.min(0.6, a + 0.15)})`);
       }
     }
-    // 拍の線と小節の線は縮小しても消さない（番号だけ間引く）。小節の線は太く
-    const beatAlpha = clamp(this.ppb / 70, 0.2, 0.5);
+    // 拍の番号（拍と小節の縦線は、RHRE fresh と同じくブロックの上に drawBeatLines で描く）
     for (let b = Math.floor(b0); b <= b1; b++) {
       const { beatInMeasure } = R.measureAt(b);
       const isMeasure = Math.abs(beatInMeasure) < 1e-6;
-      if (isMeasure) {
-        const x = Math.round(this.x(b));
-        g.strokeStyle = `rgba(${C.gridRGB},0.95)`;
-        g.lineWidth = 2;
-        g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
-      } else {
-        const x = Math.round(this.x(b)) + 0.5;
-        g.strokeStyle = `rgba(${C.gridRGB},${beatAlpha})`;
-        g.lineWidth = 1;
-        g.beginPath(); g.moveTo(x, L.tracksTop); g.lineTo(x, L.tracksBottom); g.stroke();
-      }
       const x = Math.round(this.x(b)) + 0.5;
       if (b % step === 0) {
         // 小節の 1 拍目の数字ははっきり、それ以外の拍は薄く
@@ -610,6 +598,7 @@ export class EditorView {
       this.drawEntity(g, e, L, now);
     }
     g.globalAlpha = 1;
+    this.drawBeatLines(g, L, b0, b1);
     this.drawEditOverlay(g, L);
     if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
@@ -664,6 +653,54 @@ export class EditorView {
       g.strokeStyle = C.playhead;
       g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
+    }
+  }
+
+  // RHRE fresh の renderBeatLines をそのまま移植（ブロックの上に描く）。太さは RHRE fresh の画面（横 1280）での 2px を、この画面の幅に合わせる
+  //  1. 整数の拍ごとに細い線。小節の途中の拍は不透明度 25%、小節の頭（とマイナスの拍）は 100%
+  //  2. 1/4 拍ずつ見て、拍子の拍（6/8 なら 0.5 拍ごと）が変わる所に線。小節の頭は 3 倍の太さで 100%、途中は 20%
+  drawBeatLines(g, L, b0, b1) {
+    const R = this.remix;
+    const rgb = C.gridRGB;
+    const thin = Math.max(1, (2 * this.W) / 1280);
+    const top = L.tracksTop - thin / 2;
+    const h = L.tracksBottom - L.tracksTop + thin;
+    const tsList = R.timeSignatures;
+    const tsAt = (beat) => {
+      let cur = null;
+      for (const t of tsList) { if (t.beat <= beat + 1e-9) cur = t; else break; }
+      return cur;
+    };
+    // RHRE fresh の getMeasurePart：小節の中で何番目の拍（拍子の下の数で数える）か。マイナスの拍は -1
+    const partOf = (beat) => {
+      if (beat < 0) return -1;
+      const t = tsAt(beat);
+      if (!t) return -1;
+      return Math.floor((((beat - t.beat) / (4 / t.unit)) % t.perMeasure) + 1e-9);
+    };
+    // 小節が変わったか見分けるための番号（拍子ごと × 小節）
+    const measureKey = (beat) => {
+      if (beat < 0) return -1;
+      const t = tsAt(beat);
+      if (!t) return -1;
+      const len = (4 / t.unit) * t.perMeasure;
+      return tsList.indexOf(t) * 1e6 + Math.floor((beat - t.beat) / len + 1e-9);
+    };
+    const line = (beat, alpha, w) => {
+      g.fillStyle = `rgba(${rgb},${alpha})`;
+      g.fillRect(this.x(beat) - w / 2, top, w, h);
+    };
+    for (let i = Math.floor(b0) - 1; i <= Math.ceil(b1) + 1; i++) line(i, partOf(i) > 0 ? 0.25 : 1, thin);
+    const step = 0.25;
+    let lastPart = -1, lastMeasure = -1;
+    // 画面の左端より 2 拍前から数え始める（最初の 1 本が画面に出ないように）
+    for (let i = Math.floor(b0) - 2; i <= Math.ceil(b1) + 1 + 1e-9; i += step) {
+      const p = partOf(i), m = measureKey(i);
+      if (p === lastPart && m === lastMeasure) continue;
+      lastPart = p;
+      lastMeasure = m;
+      if (p > 0) line(i, 0.2, thin);
+      else line(i, 1, p === 0 ? thin * 3 : thin);
     }
   }
 
@@ -788,7 +825,7 @@ export class EditorView {
     for (const [s, e] of spans) {
       const m0 = R.measureAt(s);
       const m1 = R.measureAt(e - 1e-6);
-      out.push([s - m0.beatInMeasure, e - 1e-6 - m1.beatInMeasure + m1.perMeasure]);
+      out.push([s - m0.beatInMeasure, e - 1e-6 - m1.beatInMeasure + m1.length]);
     }
     out.sort((a, b) => a[0] - b[0]);
     const merged = [];

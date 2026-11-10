@@ -715,21 +715,23 @@ export class Remix {
   }
 
   measureAt(beat) {
-    // 拍 → 小節番号（1始まり）と小節内の拍
+    // 拍 → 小節番号（1始まり）と小節内の拍。1 小節の長さは RHRE fresh と同じく「4÷下の数 × 上の数」拍（6/8 なら 3 拍）
     let measure = 1;
     const ts = this.timeSignatures;
+    const lenOf = (t) => (4 / (t.unit || 4)) * t.perMeasure;
     for (let i = 0; i < ts.length; i++) {
       const cur = ts[i];
       const next = ts[i + 1];
+      const len = lenOf(cur);
       if (next && beat >= next.beat) {
-        measure += Math.ceil((next.beat - cur.beat) / cur.perMeasure - 1e-9);
+        measure += Math.ceil((next.beat - cur.beat) / len - 1e-9);
         continue;
       }
       const rel = beat - cur.beat;
-      const m = Math.floor(rel / cur.perMeasure);
-      return { measure: measure + m, beatInMeasure: rel - m * cur.perMeasure, perMeasure: cur.perMeasure };
+      const m = Math.floor(rel / len + 1e-9);
+      return { measure: measure + m, beatInMeasure: rel - m * len, perMeasure: cur.perMeasure, length: len };
     }
-    return { measure: 1, beatInMeasure: beat, perMeasure: 4 };
+    return { measure: 1, beatInMeasure: beat, perMeasure: 4, length: 4 };
   }
 }
 
