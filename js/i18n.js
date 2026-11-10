@@ -2,6 +2,7 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  '{n} 人がオンライン': '{n} online',
   '左へ高速移動（押し続けると流れ続ける）': 'Fast scroll left (hold to keep scrolling)', '右へ高速移動（押し続けると流れ続ける）': 'Fast scroll right (hold to keep scrolling)', '左へ高速移動': 'Fast scroll left', '右へ高速移動': 'Fast scroll right',
   'パーフェクト挑戦': 'Perfect Challenge', 'めざせ パーフェクト!': 'Go for a Perfect!', 'パーフェクト挑戦の切り替え': 'Toggle Perfect Challenge',
   'キーボードで遊ぶとき': 'Playing with a keyboard', 'A ボタン': 'A button', 'B ボタン': 'B button', '十字ボタン': '+ Control Pad',

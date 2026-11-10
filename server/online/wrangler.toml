@@ -1,0 +1,13 @@
+# RHRE Web のオンライン人数のサーバー（Cloudflare Workers + Durable Objects）
+# 公開：cd server/online && wrangler deploy
+name = "rhre-web-online"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+[[durable_objects.bindings]]
+name = "ONLINE"
+class_name = "OnlineCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OnlineCounter"]

@@ -1,12 +1,12 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
 import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=27';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=28';
 import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=28';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2547,6 +2547,71 @@ for (const [id, dir] of [['navLeft', -1], ['navRight', 1]]) {
   b.addEventListener('pointercancel', () => { if (hold) { cancelAnimationFrame(hold.raf); hold = null; } });
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
+
+// ---------------------------------------------------------------- オンライン人数
+// Cloudflare のサーバー（server/online）に WebSocket でつないで、今 RHRE Web を開いている端末の数を右下に出す。
+// 送るのは端末ごとのランダムな番号だけ。30 秒ごとに ping、60 秒ごとに人数を聞き直す。
+// 裏に回って 30 秒たったら切り、戻ってきたらつなぎ直す。つながらないときは出さない
+const ONLINE_URL = (location.hostname === 'localhost' && new URLSearchParams(location.search).get('online')) // 手元で試すとき
+  || 'wss://rhre-web-online.pika1013.workers.dev/ws';
+const online = { ws: null, retry: 0, ping: 0, poll: 0, again: 0, hideTimer: 0 };
+function onlineDeviceId() {
+  try {
+    let d = localStorage.getItem('rhre-device');
+    if (!d) { d = (crypto.randomUUID?.() || String(Math.random()).slice(2)).replace(/-/g, ''); localStorage.setItem('rhre-device', d); }
+    return d;
+  } catch (_) { return ''; }
+}
+function showOnline(n) {
+  const el = $('onlineCount');
+  if (typeof n !== 'number') { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = t('{n} 人がオンライン', { n });
+}
+function connectOnline() {
+  if (online.ws || document.hidden || !ONLINE_URL) return;
+  clearTimeout(online.again);
+  let ws;
+  try { ws = new WebSocket(`${ONLINE_URL}?d=${encodeURIComponent(onlineDeviceId())}`); } catch (_) { return; }
+  online.ws = ws;
+  ws.onopen = () => {
+    online.retry = 0;
+    online.ping = setInterval(() => { try { ws.send('ping'); } catch (_) { /* 閉じかけ */ } }, 30000);
+    online.poll = setInterval(() => { try { ws.send('count'); } catch (_) { /* 閉じかけ */ } }, 60000);
+  };
+  ws.onmessage = (e) => {
+    if (e.data === 'pong') return;
+    try { const m = JSON.parse(e.data); if (typeof m.online === 'number') showOnline(m.online); } catch (_) { /* 知らない形 */ }
+  };
+  ws.onclose = () => {
+    clearInterval(online.ping);
+    clearInterval(online.poll);
+    if (online.ws !== ws) return;
+    online.ws = null;
+    showOnline(null);
+    // 自分で切ったのでなければ、少し待ってつなぎ直す（2 秒、4 秒…最大 60 秒）
+    if (!document.hidden) {
+      const wait = Math.min(60000, 2000 * 2 ** online.retry++);
+      online.again = setTimeout(connectOnline, wait);
+    }
+  };
+}
+function disconnectOnline() {
+  const ws = online.ws;
+  online.ws = null;
+  clearInterval(online.ping);
+  clearInterval(online.poll);
+  clearTimeout(online.again);
+  try { ws?.close(1000, 'hidden'); } catch (_) { /* もう閉じている */ }
+  showOnline(null);
+}
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(online.hideTimer);
+  if (document.hidden) online.hideTimer = setTimeout(disconnectOnline, 30000);
+  else { online.retry = 0; connectOnline(); }
+});
+window.addEventListener('online', () => { online.retry = 0; connectOnline(); });
+setTimeout(connectOnline, 1200);
 
 // ナイトモード（目押し対策）：トラックを真っ黒に隠して、上のメニューと下の操作だけにする
 let nightMode = false;

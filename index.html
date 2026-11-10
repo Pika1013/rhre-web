@@ -272,6 +272,9 @@
   }
   #statusText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #version { color: var(--muted); white-space: nowrap; }
+  /* オンライン人数（今 RHRE Web を開いている端末の数） */
+  #onlineCount { color: var(--muted); white-space: nowrap; margin-left: auto; margin-right: 10px; }
+  #onlineCount::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #3fd16b; vertical-align: 1px; }
 
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
   .modal .card { max-height: 84vh; max-height: 84dvh; overflow-y: auto; }
@@ -864,7 +867,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.6.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1122,9 +1125,10 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.6.0</h2>
+    <h2>RHRE Web v1.7.0</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
+    <p class="note">右下のオンライン人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
     <p><b>見る</b></p>
     <ul>
       <li>ホーム画面に追加したアプリや Android アプリでは、一度使ったミニゲームは、ネットにつながっていなくても使えます（最初の 1 回はネットが必要です）</li>
@@ -1162,7 +1166,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=64"></script>
+<script type="module" src="js/app.js?v=66"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
