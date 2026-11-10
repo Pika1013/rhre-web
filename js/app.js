@@ -6,7 +6,7 @@ import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=21';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=2';
 
-const VERSION = '1.0.7';
+const VERSION = '1.0.8';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1925,7 +1925,7 @@ $('psClose').addEventListener('click', () => setPlayMode(false));
 function resetJudge() {
   $('psMarks').textContent = '';
   for (const e of remix?.entities || []) { e.judge = null; e.paHold = false; }
-  if (!remix) { judge = null; updatePlayStage(); return; }
+  if (!remix) { judge = null; aTouch.on = false; $('psAB').classList.remove('flick'); updatePlayStage(); return; }
   judge = new PlayalongJudge(remix, player.speed || Number(settings.speed) || 1);
   judge.onJudge = (a, timing, isEnd, off, forced) => {
     a.ent.judge = a.ent.judge === 'MISS' ? 'MISS' : timing;
@@ -1937,7 +1937,10 @@ function resetJudge() {
   // 要るボタンだけ出す
   const keys = judge.neededKeys();
   $('psDpad').classList.toggle('off', !['UP', 'DOWN', 'LEFT', 'RIGHT'].some((k) => keys.has(k)));
-  $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A'));
+  // タッチのキューがあれば A でも操作できる。払うキューがあれば A を筆の形に
+  aTouch.on = ['TOUCH', 'FLICK', 'SLIDE'].some((k) => keys.has(k));
+  $('psAB').classList.toggle('flick', keys.has('FLICK'));
+  $('psAB').querySelector('.akey').classList.toggle('off', !keys.has('A') && !aTouch.on);
   $('psAB').querySelector('.bkey').classList.toggle('off', !keys.has('B'));
   updatePlayStage();
 }
@@ -1966,16 +1969,37 @@ function paPress(key) { if (playMode && judge && mode === 'playing') judge.press
 function paRelease(key) { if (playMode && judge && mode === 'playing') judge.release(key, paTime()); }
 
 // 画面のボタン（A・B・十字）
+// タッチ（タップ・フリック・スライド）のキューがあるリミックスでは、A ボタンでもタッチの操作ができる
+// （押す＝触れる、そのまま離す＝離す、押したまま払って離す＝フリック）
+const aTouch = { on: false };
+let flickedTimer = 0;
 for (const b of document.querySelectorAll('#playStage .pkey')) {
   const key = b.dataset.key;
+  let tp = null;
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { b.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
     b.classList.add('down-now');
     try { navigator.vibrate?.(6); } catch (_) { /* 未対応 */ }
     paPress(key);
+    if (key === 'A' && aTouch.on) { tp = touchStart(e); paPress('TOUCH'); }
   });
-  const up = () => { if (!b.classList.contains('down-now')) return; b.classList.remove('down-now'); paRelease(key); };
+  b.addEventListener('pointermove', (e) => { if (tp) touchMove(tp, e); });
+  const up = (e) => {
+    if (!b.classList.contains('down-now')) return;
+    b.classList.remove('down-now');
+    const s = tp;
+    tp = null;
+    if (s && e.type === 'pointerup' && isFlick(s, e, performance.now())) {
+      paPress('FLICK');
+      // 払ったら尻尾を一瞬光らせる
+      $('psAB').classList.add('flicked');
+      clearTimeout(flickedTimer);
+      flickedTimer = setTimeout(() => $('psAB').classList.remove('flicked'), 180);
+    }
+    paRelease(key);
+    if (s) paRelease('TOUCH');
+  };
   b.addEventListener('pointerup', up);
   b.addEventListener('pointercancel', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1996,23 +2020,28 @@ function isFlick(s, e, now) {
   const dist = Math.hypot(e.clientX - p0.x, e.clientY - p0.y);
   return dist >= FLICK_MIN_PX && dist / Math.max(16, now - p0.t) >= FLICK_MIN_SPEED;
 }
+// 1本の指の動き（フリックの判定に使う、離す直前の軌跡）
+function touchStart(e) {
+  return { x: e.clientX, y: e.clientY, slid: false, trail: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
+}
+function touchMove(s, e) {
+  const now = performance.now();
+  s.trail.push({ x: e.clientX, y: e.clientY, t: now });
+  while (s.trail.length > 2 && now - s.trail[0].t > FLICK_WINDOW * 2) s.trail.shift();
+  if (!s.slid && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 26) { s.slid = true; paPress('SLIDE'); }
+}
 function bindTouchSurface(el, skip) {
   const touches = new Map();
   el.addEventListener('pointerdown', (e) => {
     if (skip?.(e.target)) return;
     e.preventDefault();
     try { el.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントなど */ }
-    const now = performance.now();
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, slid: false, trail: [{ x: e.clientX, y: e.clientY, t: now }] });
+    touches.set(e.pointerId, touchStart(e));
     paPress('TOUCH');
   });
   el.addEventListener('pointermove', (e) => {
     const s = touches.get(e.pointerId);
-    if (!s) return;
-    const now = performance.now();
-    s.trail.push({ x: e.clientX, y: e.clientY, t: now });
-    while (s.trail.length > 2 && now - s.trail[0].t > FLICK_WINDOW * 2) s.trail.shift();
-    if (!s.slid && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 26) { s.slid = true; paPress('SLIDE'); }
+    if (s) touchMove(s, e);
   });
   const end = (e) => {
     const s = touches.get(e.pointerId);

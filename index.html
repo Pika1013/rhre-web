@@ -459,6 +459,13 @@
   #psAB .pkey { position: absolute; border-radius: 50%; }
   #psAB .akey { width: 56%; aspect-ratio: 1; right: 0; top: 0; background: #d64640; }
   #psAB .bkey { width: 44%; aspect-ratio: 1; left: 0; bottom: 0; background: #e2b228; color: #2a2200; }
+  /* 払う（フリック）があるリミックスでは、A を筆のような形にする。丸を押して、尻尾の向き（右上）へ払う */
+  #psAB .ftail { display: none; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  #psAB.flick .ftail { display: block; }
+  #psAB .ftail path { fill: #ef7f7b; stroke: #f6aaa7; stroke-width: 2.4; stroke-linejoin: round; transition: fill 0.25s; }
+  #psAB.flick .akey { width: 44%; left: 0; right: auto; top: auto; bottom: 0; background: #ee6f6a; border-color: #f6aaa7; }
+  #psAB.flick .bkey { width: 30%; left: auto; right: 0; bottom: 0; }
+  #psAB.flicked .ftail path { fill: #ffd2cf; transition: none; }
   .pkey.down-now { filter: brightness(1.45); transform: scale(0.94); }
   /* 再生中はトラックの上どこでもタッチ（タップ・フリック・スライド） */
   #touchPad { display: none; position: absolute; inset: 0; z-index: 4; touch-action: none; }
@@ -774,11 +781,12 @@
       <div id="psKeys">A - J | B - K | + - W A S D / Arrows</div>
     </div>
     <div id="psAB">
+      <svg class="ftail" viewBox="0 0 120 100" aria-hidden="true"><path d="M14 50C42 33 78 16 111 6Q119 4 114 11C86 26 58 40 52 64Z"/></svg>
       <button class="pkey bkey" data-key="B" aria-label="B">B</button>
       <button class="pkey akey" data-key="A" aria-label="A">A</button>
     </div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0.7</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="version">RHRE Web v1.0.8</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1016,7 +1024,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.0.7</h2>
+    <h2>RHRE Web v1.0.8</h2>
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p><b>見る</b></p>
@@ -1055,7 +1063,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=49"></script>
+<script type="module" src="js/app.js?v=50"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
