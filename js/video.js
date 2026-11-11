@@ -1,4 +1,5 @@
-// 動画の書き出し：再生開始位置から最後までを、プレゼンテーションモードと同じ見た目の動画にする。
+// 動画の書き出し：0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にする。
+// 最初の lead 秒（2 秒）は 0 拍目で止まった画面のまま音もなく、そのあと再生が始まる。
 //  ・計算で作る（WebCodecs）：音は WAV と同じく計算で一気に作り、映像は 1 コマずつ決まった時刻の絵を描いて固める。
 //    コマ落ちせず、たいてい再生するより速く終わる。mp4（H.264 + AAC）
 //  ・録画で作る（MediaRecorder）：音を mp4 用に固める部品（AudioEncoder）がない端末（iOS 26 より前の iPhone など）では、
@@ -21,7 +22,7 @@ export function canRecord() {
 }
 
 // 動画用の画面を作る。今の画面と同じ拡大率（見えている拍の数）・背景の画像で、文字は出さずアイコンだけ
-function makeStage(deps, main, w, h) {
+function makeStage(deps, main, w, h, fromSec) {
   const scale = h / LOGICAL_H;
   const W = Math.round(w / scale), H = LOGICAL_H;
   const cv = document.createElement('canvas');
@@ -33,7 +34,8 @@ function makeStage(deps, main, w, h) {
   v.remix = main.remix;
   v.snap = main.snap;
   v.ppb = clamp(W / clamp(main.visibleBeats, 4, 64), 6, 600);
-  v.scrollBeat = main.remix.playbackStart - (W * 0.3) / v.ppb;
+  v.scrollBeat = main.remix.tempo.s2b(fromSec) - (W * 0.3) / v.ppb;
+  v.noFlags = true; // 動画は 0 拍目から始まるので、赤と緑の旗は出さない
   // 背景の画像は、縮めた絵の取り置きが今の画面とぶつからないように別の入れ物にする
   v.bgImage = main.bgImage?.img ? { img: main.bgImage.img, fit: main.bgImage.fit, alpha: main.bgImage.alpha } : null;
   v.metronome = false;
@@ -113,13 +115,17 @@ async function prepare(deps, main, opts) {
   const toSec = remix.durationSec + 1.0;
   const audio = await deps.renderMix(fromSec, opts.sampleRate || 48000);
   const [w, h] = VIDEO_SIZES[opts.size] || VIDEO_SIZES[720];
-  const st = makeStage(deps, main, w, h);
+  const st = makeStage(deps, main, w, h, fromSec);
   const vis = visualEvents(remix, fromSec, toSec);
+  const lead = opts.lead ?? 0;
   let k = 0;
-  // 時刻 t（秒）の絵を描く。光り方の時計は、本物の時計の代わりに t から作る（0 だと「光っていない」なので大きな数を足す）
-  const renderAt = (t) => {
-    const nowMs = 1e7 + t * 1000;
-    while (k < vis.length && vis[k].t <= t) {
+  // 動画の時刻 vt（秒）の絵を描く。最初の lead 秒は 0 拍目で止まったまま（光らせない）。
+  // 光り方の時計は、本物の時計の代わりに vt から作る（0 だと「光っていない」なので大きな数を足す）
+  const renderAt = (vt) => {
+    const nowMs = 1e7 + vt * 1000;
+    const live = vt >= lead;
+    const t = fromSec + Math.max(0, vt - lead);
+    while (live && k < vis.length && vis[k].t <= t) {
       const { ent, leaf } = vis[k++];
       if (!leaf || (leaf.beat >= ent.beat - 1e-6 && leaf.beat < ent.beat + ent.width + 1e-6)) ent.flashAt = nowMs;
       if (leaf) (ent.leafFlash ||= []).push({ ...leaf, at: nowMs });
@@ -134,7 +140,8 @@ async function prepare(deps, main, opts) {
   const cleanup = () => {
     for (const e of remix.entities) { e.flashAt = 0; e.leafFlash = []; }
   };
-  return { remix, fromSec, toSec, audio, st, w, h, renderAt, cleanup };
+  // 動画の長さ：待つ時間 ＋ 0 拍目から最後まで
+  return { remix, fromSec, toSec, lead, length: lead + (toSec - fromSec), audio, st, w, h, renderAt, cleanup };
 }
 
 // H.264 の設定を選ぶ（大きさとなめらかさに合うレベル。High → Main → Baseline の順に試す）
@@ -186,41 +193,86 @@ export async function renderVideoFast(deps, main, opts, onProgress, signal) {
       firstTimestampBehavior: 'offset',
     });
     let failure = null;
+    const diag = { method: 'fast', video: vcfg.codec, audio: ainfo.config.codec, sampleRate: P.audio.sampleRate, audioChunks: 0, audioDesc: false };
 
     // 音
-    const aenc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { failure = e; } });
+    // iPhone（Safari）の AAC は、区切りの長さ（duration）が付いてこないことがある。そのまま渡すと mp4 にまとめる部品が
+    // 例外を出して、その音を黙って捨ててしまう（＝音のない動画になる）。長さは自分で入れて、まとめるときの失敗も拾う。
+    // AAC の「読み方の情報」（description）も端末ごとに形が違うことがあるので使わず、部品が作る AAC-LC の標準のものにする
+    const isAac = ainfo.mux === 'aac';
+    const aDur = isAac ? (1024 * 1e6) / P.audio.sampleRate : 20000;
+    let aShift = null; // 最初の区切りの時刻がマイナス（AAC の頭の準備分）のときにずらす量
+    const aenc = new AudioEncoder({
+      output: (chunk, meta) => {
+        try {
+          diag.audioChunks++;
+          if (meta?.decoderConfig?.description) diag.audioDesc = true;
+          if (chunk.duration == null) diag.noDuration = true;
+          const data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          if (aShift === null) aShift = Math.max(0, -chunk.timestamp);
+          const ts = Math.max(0, chunk.timestamp + aShift);
+          const dur = chunk.duration ?? aDur;
+          let m = meta;
+          if (isAac && meta?.decoderConfig) {
+            const { description, ...rest } = meta.decoderConfig; // description は使わない
+            m = { ...meta, decoderConfig: rest };
+          }
+          muxer.addAudioChunkRaw(data, chunk.type, ts, dur, m);
+          diag.audioAdded = (diag.audioAdded || 0) + 1;
+        } catch (e) { failure ||= e; }
+      },
+      error: (e) => { failure = e; },
+    });
     aenc.configure(ainfo.config);
     const buf = P.audio;
     const sr = buf.sampleRate;
     const c0 = buf.getChannelData(0), c1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : c0;
     const STEP = 4096;
-    for (let off = 0; off < buf.length; off += STEP) {
+    const pad = Math.round(P.lead * sr); // 最初に待つ分は無音
+    const totalFrames = pad + buf.length;
+    for (let off = 0; off < totalFrames; off += STEP) {
       if (signal?.aborted) throw abortError();
       if (failure) throw failure;
-      const n = Math.min(STEP, buf.length - off);
+      const n = Math.min(STEP, totalFrames - off);
       const data = new Float32Array(n * 2);
-      data.set(c0.subarray(off, off + n), 0);
-      data.set(c1.subarray(off, off + n), n);
+      // この区切りのうち、音のある所だけ写す（無音の所は 0 のまま）
+      const from = Math.max(off, pad), to = off + n;
+      if (to > from) {
+        data.set(c0.subarray(from - pad, to - pad), from - off);
+        data.set(c1.subarray(from - pad, to - pad), n + (from - off));
+      }
       const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((off * 1e6) / sr), data });
       aenc.encode(ad);
       ad.close();
       while (aenc.encodeQueueSize > 16) await tick();
-      if ((off / STEP) % 64 === 0) { onProgress?.(0.05 * (off / buf.length), 'audio'); await tick(); }
+      if ((off / STEP) % 64 === 0) { onProgress?.(0.05 * (off / totalFrames), 'audio'); await tick(); }
     }
     await aenc.flush();
     aenc.close();
 
     // 映像（1 コマずつ、決まった時刻の絵を描いて固める。2 秒ごとに区切りのコマ）
-    const venc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
-    venc.configure(vcfg);
-    const total = P.toSec - P.fromSec;
-    const n = Math.max(1, Math.ceil(total * fps));
     const dur = Math.round(1e6 / fps);
+    // 映像も同じく、長さが付いてこない端末のために自分で入れて、まとめるときの失敗を拾う
+    const venc = new VideoEncoder({
+      output: (chunk, meta) => {
+        try {
+          const data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          muxer.addVideoChunkRaw(data, chunk.type, chunk.timestamp, chunk.duration ?? dur, meta);
+          diag.videoAdded = (diag.videoAdded || 0) + 1;
+        } catch (e) { failure ||= e; }
+      },
+      error: (e) => { failure = e; },
+    });
+    venc.configure(vcfg);
+    const total = P.length;
+    const n = Math.max(1, Math.ceil(total * fps));
     let lastShow = 0;
     for (let i = 0; i < n; i++) {
       if (signal?.aborted) throw abortError();
       if (failure) throw failure;
-      P.renderAt(P.fromSec + i / fps);
+      P.renderAt(i / fps);
       const frame = new VideoFrame(P.st.cv, { timestamp: Math.round((i * 1e6) / fps), duration: dur });
       venc.encode(frame, { keyFrame: i % (fps * 2) === 0 });
       frame.close();
@@ -233,7 +285,8 @@ export async function renderVideoFast(deps, main, opts, onProgress, signal) {
     if (failure) throw failure;
     muxer.finalize();
     onProgress?.(1, 'done', P.st.cv);
-    return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), ext: 'mp4', seconds: total };
+    if (!diag.audioAdded) throw new Error('音を動画用に固められませんでした（この端末の音の部品が何も返しませんでした）');
+    return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), ext: 'mp4', seconds: total, diag };
   } finally {
     P.cleanup();
   }
@@ -253,27 +306,27 @@ export async function recordVideoRealtime(deps, main, opts, onProgress, signal) 
   src.connect(ctx.destination); // 録りながら聞こえるように
   // 絵は画面に置いたキャンバスに描く（端末によっては、画面に無いキャンバスは録れないため）
   opts.host?.replaceChildren(P.st.cv);
-  P.renderAt(P.fromSec);
+  P.renderAt(0);
   const vstream = P.st.cv.captureStream(fps);
   const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
   const rec = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: P.h >= 1080 ? 8_000_000 : 4_000_000, audioBitsPerSecond: 192_000 });
   const chunks = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   const stopped = new Promise((r) => { rec.onstop = r; });
-  const total = P.toSec - P.fromSec;
+  const total = P.length;
   let raf = 0, aborted = false;
   try {
     if (ctx.state !== 'running') await ctx.resume().catch(() => {});
     rec.start(1000);
     const t0 = ctx.currentTime + 0.15;
-    src.start(t0);
+    src.start(t0 + P.lead); // 最初に待つ分だけ遅らせて流す
     await new Promise((resolve) => {
       const step = () => {
         if (signal?.aborted) { aborted = true; resolve(); return; }
-        const t = P.fromSec + Math.max(0, ctx.currentTime - t0);
-        P.renderAt(t);
-        onProgress?.(Math.min(1, (t - P.fromSec) / total), 'record');
-        if (t >= P.toSec) { resolve(); return; }
+        const vt = Math.max(0, ctx.currentTime - t0);
+        P.renderAt(vt);
+        onProgress?.(Math.min(1, vt / total), 'record');
+        if (vt >= total) { resolve(); return; }
         raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);
@@ -289,5 +342,5 @@ export async function recordVideoRealtime(deps, main, opts, onProgress, signal) 
   }
   if (aborted) throw abortError();
   const type = (rec.mimeType || mime || 'video/webm').split(';')[0];
-  return { blob: new Blob(chunks, { type }), ext: type.includes('mp4') ? 'mp4' : 'webm', seconds: total };
+  return { blob: new Blob(chunks, { type }), ext: type.includes('mp4') ? 'mp4' : 'webm', seconds: total, diag: { method: 'record', mime: rec.mimeType || mime } };
 }

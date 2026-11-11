@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.8.1', date: '2026-11-11',
+    ja: [
+      'iPhone で書き出した動画に音が入っていなかったのを直しました',
+      '動画の書き出しは、いつも 0 拍目から始まるようにしました。最初に 2 秒、止まった画面のまま待ってから再生します。動画には赤と緑の旗は出ません',
+      'iPhone で「ファイルに保存」をすると、名前の書かれた .txt も一緒に保存されていたのを直しました',
+    ],
+    en: [
+      'Fixed videos exported on iPhone having no sound.',
+      'Video export now always starts from beat 0. It shows a still screen for 2 seconds before playback starts. The red and green flags are not shown in the video.',
+      'Fixed an extra .txt file with the name being saved along with your file when using "Save to Files" on iPhone.',
+    ],
+  },
+  {
     v: '1.8.0', date: '2026-11-11',
     ja: [
       '動画で書き出せるようになりました（メニューの「動画で書き出す」）。再生開始位置から最後までを、プレゼンテーションモードと同じ見た目の mp4 にします',

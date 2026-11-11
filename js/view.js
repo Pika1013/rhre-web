@@ -651,14 +651,16 @@ export class EditorView {
       g.fillText(`${LABELS.volume} ${mv.volume}%`, x + 7, yb);
     }
 
-    // 音楽開始（赤）と再生開始（緑）の旗
+    // 音楽開始（赤）と再生開始（緑）の旗（動画の書き出しでは出さない）
     const fd = this.flagDrag;
+    if (!this.noFlags) {
     const musicBeat = fd?.kind === 'music' ? fd.beat : R.tempo.s2b(R.musicStartSec);
     const musicSec = fd?.kind === 'music' ? R.tempo.b2s(fd.beat) : R.musicStartSec;
     this.drawFlag(g, L, musicBeat, C.music, L.top + 4, LABELS.music, [fmtTime(musicSec)], R.musicPresent || fd?.kind === 'music');
     const pbBeat = fd?.kind === 'playback' ? fd.beat : R.playbackStart;
     const pbSec = R.tempo.b2s(pbBeat);
     this.drawFlag(g, L, pbBeat, C.playback, L.top + L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
+    }
 
     // Play-Yan（RHRE fresh と同じく、メトロノームを入れているときだけ）
     if (this.metronome) this.drawPlayYan(g, L, now);

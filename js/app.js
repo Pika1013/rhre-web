@@ -2,13 +2,13 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=17';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT } from './view.js?v=31';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT } from './view.js?v=32';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=1';
-import { CHANGELOG } from './changelog.js?v=1';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=2';
+import { CHANGELOG } from './changelog.js?v=2';
 
-const VERSION = '1.8.0';
+const VERSION = '1.8.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1157,7 +1157,7 @@ function save() {
   try {
     const file = new File([blob], name, { type: 'application/octet-stream' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name })
+      navigator.share({ files: [file] }) // 文字（title）は渡さない。渡すと iPhone の「ファイルに保存」で .txt も保存される
         .then(() => toast(`${t('保存しました')}：${name}`, 2500, 'info'))
         .catch((err) => {
           if (err?.name === 'AbortError') return; // 自分で閉じた
@@ -1873,7 +1873,8 @@ $('exportClose').addEventListener('click', () => { $('exportModal').hidden = tru
 // ---------------------------------------------------------------- 動画で書き出す
 // 計算で作れる端末（WebCodecs の映像と音の部品がある）では 1 コマずつ計算で、ない端末では流しながら録画で
 let videoJob = null; // 書き出し中 { ctrl }
-let videoBlob = null, videoName = '';
+let videoBlob = null, videoName = '', videoDiag = null;
+const VIDEO_LEAD = 2; // 動画は 0 拍目から。最初に 2 秒、止まった画面のまま待ってから再生する
 const videoMethod = () => (canRenderFast() ? 'fast' : canRecord() ? 'record' : null);
 function openVideoExport() {
   if (!remix) return;
@@ -1886,11 +1887,12 @@ function openVideoExport() {
   $('videoFps').value = String(Number(settings.videoFps) === 60 ? 60 : 30);
   $('videoPreview').replaceChildren();
   $('videoBar').style.width = '0%';
+  $('videoInfo').textContent = '';
   $('videoSave').hidden = true;
   $('videoStop').hidden = true;
   $('videoStart').hidden = !m;
-  const from = remix.tempo.b2s(remix.playbackStart);
-  $('videoMsg').textContent = t('再生開始位置（緑の旗）から最後まで（{d}）を、プレゼンテーションモードと同じ見た目の動画にします。', { d: fmtTime(Math.max(0, remix.durationSec + 1 - from)) });
+  const from = remix.tempo.b2s(0);
+  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, remix.durationSec + 1 - from)) });
   $('videoNote').textContent = m === 'fast'
     ? t('計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。')
     : m === 'record'
@@ -1930,7 +1932,7 @@ $('videoStart').addEventListener('click', async () => {
       textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
       audioContext: () => engine.context,
     };
-    const opts = { fromSec: remix.tempo.b2s(remix.playbackStart), size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
+    const opts = { fromSec: remix.tempo.b2s(0), lead: VIDEO_LEAD, size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
     const onProgress = (f, phase) => {
       const p = Math.floor(f * 100);
       $('videoBar').style.width = `${Math.max(1, p)}%`;
@@ -1942,6 +1944,12 @@ $('videoStart').addEventListener('click', async () => {
       ? await renderVideoFast(deps, view, opts, onProgress, ctrl.signal)
       : await recordVideoRealtime(deps, view, opts, onProgress, ctrl.signal);
     videoBlob = res.blob;
+    videoDiag = res.diag || null;
+    // 何で作ったかを小さく出す（音が入らないなどのときに、教えてもらう手がかり）
+    const d = videoDiag || {};
+    $('videoInfo').textContent = d.method === 'fast'
+      ? `${t('計算で作成')}・${d.video}・${d.audio} ${d.sampleRate}Hz（${d.audioAdded || 0}/${d.audioChunks || 0}）`
+      : `${t('録画で作成')}・${d.mime || ''}`;
     videoName = `${fileName.replace(/\.[^.]+$/, '')}.${res.ext}`;
     $('videoBar').style.width = '100%';
     $('videoMsg').textContent = t('書き出しました（{mb} MB、{s} 秒かかりました）。「動画を保存」で保存できます。', {
@@ -1980,7 +1988,7 @@ $('videoSave').addEventListener('click', () => {
     try {
       const file = new File([videoBlob], name, { type: videoBlob.type || 'video/mp4' });
       if (navigator.canShare?.({ files: [file] })) {
-        navigator.share({ files: [file], title: name })
+        navigator.share({ files: [file] }) // 文字（title）は渡さない。渡すと iPhone の「ファイルに保存」で .txt も保存される
           .then(() => toast(`${t('保存しました')}：${name}`, 2500, 'info'))
           .catch((err) => { if (err?.name !== 'AbortError') console.error(err); });
         return;
@@ -3749,7 +3757,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; } };
 
 applySettings();
 (async () => {
