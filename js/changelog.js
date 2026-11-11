@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.3', date: '2026-11-11',
+    ja: ['動画の書き出しで、End Remix の所で再生のバーが止まり、1 秒待ってから動画が終わるようにしました（音楽もそこで止まり、鳴っている効果音の余韻は残ります）'],
+    en: ['In video export, the playback bar now stops at End Remix and the video ends 1 second later (the music stops there too; sound effects already playing ring out).'],
+  },
+  {
     v: '1.9.2', date: '2026-11-11',
     ja: [
       '小節の途中の拍の縦線を、少し濃くしました',

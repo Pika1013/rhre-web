@@ -191,8 +191,10 @@ function drawOverlay(deps, st, remix, beat) {
 async function prepare(deps, main, opts) {
   const remix = main.remix;
   const fromSec = opts.fromSec;
-  const toSec = deps.mixEndSec(remix); // End Remix があればそこで終わる（音と同じ）
-  const audio = await deps.renderMix(fromSec, opts.sampleRate || 48000);
+  const toSec = deps.mixEndSec(remix); // End Remix があればそこで再生が止まる
+  // End Remix があるときは、そこでバーを止めて 1 秒待ってから動画を終える（音楽は止め、鳴っている効果音の余韻は残す）
+  const hold = remix.hasEndEntity ? 1 : 0;
+  const audio = await deps.renderMix(fromSec, opts.sampleRate || 48000, { tail: hold, stopMusicAt: remix.hasEndEntity ? toSec : null });
   const [w, h] = VIDEO_SIZES[opts.size] || VIDEO_SIZES[720];
   const st = makeStage(deps, main, w, h, fromSec);
   const vis = visualEvents(remix, fromSec, toSec);
@@ -208,7 +210,7 @@ async function prepare(deps, main, opts) {
   const renderAt = (vt) => {
     const nowMs = 1e7 + vt * 1000;
     const live = vt >= lead;
-    const t = fromSec + Math.max(0, vt - lead);
+    const t = Math.min(toSec, fromSec + Math.max(0, vt - lead)); // End Remix で止まる
     while (live && k < vis.length && vis[k].t <= t) {
       const { ent, leaf } = vis[k++];
       if (!leaf || (leaf.beat >= ent.beat - 1e-6 && leaf.beat < ent.beat + ent.width + 1e-6)) ent.flashAt = nowMs;
@@ -227,8 +229,8 @@ async function prepare(deps, main, opts) {
   const cleanup = () => {
     for (const e of remix.entities) { e.flashAt = 0; e.leafFlash = []; }
   };
-  // 動画の長さ：待つ時間 ＋ 0 拍目から最後まで
-  return { remix, fromSec, toSec, lead, length: lead + (toSec - fromSec), audio, st, w, h, renderAt, cleanup };
+  // 動画の長さ：待つ時間 ＋ 0 拍目から最後まで ＋ End Remix のあと待つ 1 秒
+  return { remix, fromSec, toSec, lead, length: lead + (toSec - fromSec) + hold, audio, st, w, h, renderAt, cleanup };
 }
 
 // H.264 の設定を選ぶ（大きさとなめらかさに合うレベル。High → Main → Baseline の順に試す）

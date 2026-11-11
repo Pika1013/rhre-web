@@ -1,15 +1,15 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=15';
 import { analyzeTempo } from './tempo.js?v=2';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=19';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=20';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=33';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=37';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=5';
-import { CHANGELOG } from './changelog.js?v=9';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=6';
+import { CHANGELOG } from './changelog.js?v=10';
 
-const VERSION = '1.9.2';
+const VERSION = '1.9.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1938,7 +1938,7 @@ function openVideoExport() {
   $('videoStop').hidden = true;
   $('videoStart').hidden = !m;
   const from = remix.tempo.b2s(0);
-  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, mixEndSec(remix) - from)) });
+  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, mixEndSec(remix) - from) + (remix.hasEndEntity ? 1 : 0)) });
   $('videoNote').textContent = m === 'fast'
     ? t('計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。')
     : m === 'record'
@@ -1975,7 +1975,7 @@ $('videoStart').addEventListener('click', async () => {
     $('videoMsg').textContent = t('音を作っています…');
     const deps = {
       EditorView, FONT,
-      renderMix: (fromSec, sr) => renderMix(engine, remix, musicBuf, fromSec, sr),
+      renderMix: (fromSec, sr, o) => renderMix(engine, remix, musicBuf, fromSec, sr, o),
       mixEndSec,
       textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
       audioContext: () => engine.context,

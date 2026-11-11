@@ -557,9 +557,11 @@ export async function renderWav(engine, remix, musicBuf, fromSec) {
   return encodeWav(await renderMix(engine, remix, musicBuf, fromSec));
 }
 
-// 再生開始位置から最後（End Remix か最後の音）の 1 秒後までを、計算で一気に鳴らした音（WAV と動画で使う）
-export async function renderMix(engine, remix, musicBuf, fromSec, sr = 44100) {
-  const toSec = mixEndSec(remix);
+// 再生開始位置から最後（End Remix か最後の音）の 1 秒後までを、計算で一気に鳴らした音（WAV と動画で使う）。
+// opts.tail：終わりのあとに足す秒数（動画で End Remix のあとに待つ分。鳴っている効果音の余韻はそのまま残す）
+// opts.stopMusicAt：この秒で音楽を止める（End Remix で再生が止まるのと同じ）
+export async function renderMix(engine, remix, musicBuf, fromSec, sr = 44100, opts = {}) {
+  const toSec = mixEndSec(remix) + (opts.tail || 0);
   const length = Math.max(1, Math.ceil((toSec - fromSec) * sr));
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   const octx = new OAC(2, length, sr);
@@ -572,7 +574,10 @@ export async function renderMix(engine, remix, musicBuf, fromSec, sr = 44100) {
       scheduleEvent(octx, octx.destination, engine.buffers, ev, ev.start - fromSec, 0);
     }
   }
-  scheduleMusic(octx, octx.destination, remix, musicBuf, 0, fromSec);
+  const music = scheduleMusic(octx, octx.destination, remix, musicBuf, 0, fromSec);
+  if (music && opts.stopMusicAt != null && opts.stopMusicAt > fromSec) {
+    try { music.stop(opts.stopMusicAt - fromSec); } catch (_) { /* 止められないときはそのまま */ }
+  }
   return octx.startRendering();
 }
 
