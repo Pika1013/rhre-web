@@ -2,13 +2,13 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=17';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT } from './view.js?v=32';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=33';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=2';
-import { CHANGELOG } from './changelog.js?v=2';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=3';
+import { CHANGELOG } from './changelog.js?v=3';
 
-const VERSION = '1.8.1';
+const VERSION = '1.8.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1931,6 +1931,12 @@ $('videoStart').addEventListener('click', async () => {
       renderMix: (fromSec, sr) => renderMix(engine, remix, musicBuf, fromSec, sr),
       textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
       audioContext: () => engine.context,
+      loadIcon,
+      // 左上に出すゲームの名前（言語違いはまとめた名前）と、出さないゲーム（特殊・カウントなど）か
+      gameInfo: (gid) => {
+        const g = gamesIndex.find((x) => x.id === gid);
+        return g ? { name: g.group || g.name, noDisplay: !!g.noDisplay } : null;
+      },
     };
     const opts = { fromSec: remix.tempo.b2s(0), lead: VIDEO_LEAD, size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
     const onProgress = (f, phase) => {

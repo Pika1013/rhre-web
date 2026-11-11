@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.8.2', date: '2026-11-11',
+    ja: [
+      '動画の左上に、今のゲームのアイコンと名前を出すようにしました（RHRE fresh と同じ）',
+      '動画の再生位置の線の上に、テンポ・拍・時間を出すようにしました',
+      '動画の最初のほうで、ブロックにゲームのアイコンが出ていなかったのを直しました',
+    ],
+    en: [
+      'Videos now show the current game\'s icon and name in the top left, like RHRE fresh.',
+      'Videos now show the tempo, beat and time above the playback line.',
+      'Fixed game icons missing from blocks at the start of a video.',
+    ],
+  },
+  {
     v: '1.8.1', date: '2026-11-11',
     ja: [
       'iPhone で書き出した動画に音が入っていなかったのを直しました',

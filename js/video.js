@@ -36,6 +36,7 @@ function makeStage(deps, main, w, h, fromSec) {
   v.ppb = clamp(W / clamp(main.visibleBeats, 4, 64), 6, 600);
   v.scrollBeat = main.remix.tempo.s2b(fromSec) - (W * 0.3) / v.ppb;
   v.noFlags = true; // 動画は 0 拍目から始まるので、赤と緑の旗は出さない
+  v.playheadInfo = true; // 再生位置の線の上に、テンポ・拍・時間
   // 背景の画像は、縮めた絵の取り置きが今の画面とぶつからないように別の入れ物にする
   v.bgImage = main.bgImage?.img ? { img: main.bgImage.img, fit: main.bgImage.fit, alpha: main.bgImage.alpha } : null;
   v.metronome = false;
@@ -43,11 +44,76 @@ function makeStage(deps, main, w, h, fromSec) {
   return { cv, v, W, H, scale };
 }
 
+// 今のゲーム（RHRE fresh の Remix.gameSections / getGameSection と同じ作り）。
+// End Remix より前の、表示しないゲーム（特殊・カウントなど）以外のブロックを後ろから見て、同じゲームが続く所を 1 つの区間にする。
+// ある拍のゲームは「その拍より前に始まった区間のうち一番あと」のもの（最後の区間はそのあともずっと続く）
+function gameSections(remix, info) {
+  const sorted = remix.entities.slice().sort((a, b) => a.beat - b.beat);
+  const endIdx = sorted.findIndex((e) => e.type === 'endEntity');
+  const before = endIdx >= 0 ? sorted.slice(0, endIdx) : sorted;
+  const shown = before.filter((e) => e.game && info(e.game.id) && !info(e.game.id).noDisplay).reverse();
+  const end = endIdx >= 0 ? sorted[endIdx].beat : Math.max(0, ...remix.entities.map((e) => e.beat + e.width));
+  const out = [];
+  let cur = null, curEnd = end;
+  shown.forEach((e, i) => {
+    if (e.game.id !== cur?.id) {
+      const prevGame = cur;
+      cur = e.game;
+      if (prevGame) {
+        const prev = shown[i - 1];
+        out.push({ start: prev.beat, end: curEnd, game: prevGame });
+        curEnd = prev.beat;
+      }
+    }
+  });
+  if (cur) out.push({ start: shown[shown.length - 1].beat, end: curEnd, game: shown[shown.length - 1].game });
+  return out.sort((a, b) => a.start - b.start);
+}
+function sectionAt(sections, beat) {
+  let found = null;
+  for (const s of sections) { if (s.start < beat) found = s; else break; }
+  return found;
+}
+
 // 発音した瞬間にブロックを光らせるための一覧（再生と同じ作り）
 function visualEvents(remix, fromSec, toSec) {
   return remix.buildSoundEvents()
     .filter((e) => e.ent && e.start >= fromSec - 1e-6 && e.start <= toSec)
     .map((e) => ({ t: e.start, ent: e.ent, leaf: e.leaf }));
+}
+
+// 左上の今のゲーム（RHRE fresh の GameDisplayStage と同じく、アイコンとゲームの名前。名前は白に黒いふち）
+function drawGameDisplay(deps, st, sec, icons) {
+  if (!sec) return;
+  const g = st.v.ctx;
+  const size = 28, x = 8, y = 8;
+  const icon = icons.get(sec.game.icon);
+  if (icon) {
+    g.save();
+    g.imageSmoothingEnabled = false;
+    g.drawImage(icon, x, y, size, size);
+    g.restore();
+  }
+  const name = deps.gameInfo(sec.game.id)?.name || sec.game.name;
+  const fs = 17;
+  const tx = x + size * 1.25;
+  // 再生位置の文字とぶつからないように、入りきらない名前は横に縮める（RHRE fresh の drawCompressed と同じ考え）
+  const maxW = Math.max(60, st.v.W * 0.3 - 10 - tx);
+  g.save();
+  g.font = `700 ${fs}px ${deps.FONT}`;
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = 3.5;
+  g.strokeStyle = 'rgba(0,0,0,0.9)';
+  g.fillStyle = '#ffffff';
+  const w = g.measureText(name).width;
+  const sx = w > maxW ? maxW / w : 1;
+  g.translate(tx, y + size / 2);
+  g.scale(sx, 1);
+  g.strokeText(name, 0, 0);
+  g.fillText(name, 0, 0);
+  g.restore();
 }
 
 // 字幕と「特殊」の画像を、画面の中央下に（再生中の画面と同じ並び・大きさ）
@@ -117,6 +183,11 @@ async function prepare(deps, main, opts) {
   const [w, h] = VIDEO_SIZES[opts.size] || VIDEO_SIZES[720];
   const st = makeStage(deps, main, w, h, fromSec);
   const vis = visualEvents(remix, fromSec, toSec);
+  // アイコンは最初のコマから出るように、全部読み終わってから描き始める
+  const iconUrls = [...new Set(remix.entities.filter((e) => e.game?.icon && e.type !== 'playalongEntity').map((e) => e.game.icon))];
+  const icons = new Map();
+  await Promise.all(iconUrls.map(async (u) => { const img = await deps.loadIcon(u); if (img) icons.set(u, img); }));
+  const sections = gameSections(remix, deps.gameInfo);
   const lead = opts.lead ?? 0;
   let k = 0;
   // 動画の時刻 vt（秒）の絵を描く。最初の lead 秒は 0 拍目で止まったまま（光らせない）。
@@ -135,6 +206,8 @@ async function prepare(deps, main, opts) {
     st.v.follow(beat);
     st.v.draw(nowMs);
     drawOverlay(deps, st, remix, beat);
+    // 今のゲームは、再生が始まってから（最初に待っている間は出さない。RHRE fresh も止まっているときは出さない）
+    if (live) drawGameDisplay(deps, st, sectionAt(sections, beat), icons);
   };
   // 書き出しのあと、今の画面の光り方の記録を空にする（動画用の時計の値が残らないように）
   const cleanup = () => {

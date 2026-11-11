@@ -77,6 +77,20 @@ function getIcon(url, onload) {
 }
 export { getIcon };
 
+// アイコンを読み終わるまで待つ（動画の書き出しで、最初のコマからアイコンが出るように）。読めなければ null
+export function loadIcon(url, timeoutMs = 8000) {
+  return new Promise((res) => {
+    if (!url) { res(null); return; }
+    const now = getIcon(url);
+    if (now) { res(now); return; }
+    const e = iconCache.get(url);
+    const done = () => { clearTimeout(timer); res(e.ok || (e.img.complete && e.img.naturalWidth) ? e.img : null); };
+    const timer = setTimeout(done, timeoutMs);
+    e.img.addEventListener('load', () => { e.ok = true; done(); }, { once: true });
+    e.img.addEventListener('error', done, { once: true });
+  });
+}
+
 export class EditorView {
   // fixed：動画の書き出し用。画面に置かないキャンバスに、決めた大きさ（W×H を scale 倍）で描く。触る操作は付けない
   constructor(canvas, handlers = {}, fixed = null) {
@@ -668,9 +682,29 @@ export class EditorView {
     // 再生位置
     if (this.playhead != null) {
       const x = Math.round(this.x(this.playhead)) + 0.5;
+      // 動画の書き出し：RHRE fresh の再生中と同じく、線の上にテンポ・拍・時間を出す（線は黄色のまま、文字も同じ色で黒いふち）
+      let lines = null, fs = 0, lh = 0, yTop = L.top + L.infoH;
+      if (this.playheadInfo) {
+        fs = clamp(L.infoH * 0.2, 11, 15);
+        lh = fs + 2;
+        lines = [`♩=${R.tempo.tempoAt(this.playhead).toFixed(1)}`, `Beat ${this.playhead.toFixed(3)}`, fmtTime(R.tempo.b2s(this.playhead))];
+        yTop = L.top + L.infoH - lines.length * lh - 2;
+      }
       g.strokeStyle = C.playhead;
       g.lineWidth = 2;
-      g.beginPath(); g.moveTo(x, L.top + L.infoH); g.lineTo(x, L.tracksBottom); g.stroke();
+      g.beginPath(); g.moveTo(x, yTop); g.lineTo(x, L.tracksBottom); g.stroke();
+      if (lines) {
+        g.save();
+        g.font = `700 ${fs}px ${FONT}`;
+        g.textAlign = 'left';
+        g.textBaseline = 'top';
+        g.lineJoin = 'round';
+        g.lineWidth = 3;
+        g.strokeStyle = 'rgba(0,0,0,0.9)';
+        g.fillStyle = C.playhead;
+        lines.forEach((t, i) => { g.strokeText(t, x + 4, yTop + i * lh); g.fillText(t, x + 4, yTop + i * lh); });
+        g.restore();
+      }
     }
   }
 
