@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.8.4', date: '2026-11-11',
+    ja: [
+      'DJ School の「Music Distortion」を置けるようにしました（パターンの下にあります）。その範囲だけ、音楽が細い音になります（RHRE fresh と同じ）',
+      'Rockers のギターのコードなど、言語に関係ない音を、各言語の一覧の一番下に並べました',
+      'どの効果音でも音程を変えられるようにしました（RHRE fresh の「Ignore pitch restrictions」と同じ）',
+    ],
+    en: [
+      'You can now place DJ School\'s "Music Distortion" (below the patterns). The music sounds thin within its range, like in RHRE fresh.',
+      'Rockers\' guitar chords and other language-independent sounds are now listed at the bottom of each language\'s list.',
+      'You can now change the pitch of any sound effect (same as RHRE fresh\'s "Ignore pitch restrictions").',
+    ],
+  },
+  {
     v: '1.8.3', date: '2026-11-11',
     ja: [
       '動画の書き出しが終わったら、進み具合のバーの場所に「動画を保存」ボタンが出るようにしました（小さい画面でボタンが隠れていたため）',

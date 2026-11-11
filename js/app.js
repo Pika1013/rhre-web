@@ -1,14 +1,14 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=17';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=14';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=18';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=33';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=31';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=34';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=4';
-import { CHANGELOG } from './changelog.js?v=4';
+import { CHANGELOG } from './changelog.js?v=5';
 
-const VERSION = '1.8.3';
+const VERSION = '1.8.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -868,8 +868,15 @@ async function openGame(gid, jumpBeat, highlightObj) {
   if (gid === CUSTOM_GAME_ID && customRegistry.game) { showGameList(customRegistry.game, highlightObj); return; }
   setStatus('読み込み中…');
   try {
+    // Rockers の言語のない版（ギターのコードなど）は、言語の版の一番下に入れてあるので、言語の版を開く
+    const base = sharedBaseOf(gid);
+    if (base && gid === base) {
+      const langs = variantsOf(gid).filter((v) => v.id !== base);
+      gid = (langs.find((v) => v.language === settings.lang) || langs.find((v) => v.language === 'en') || langs[0])?.id || gid;
+    }
     const game = await remix.db.loadGame(gid);
-    showGameList(game, highlightObj);
+    const extra = base && gid !== base ? (await remix.db.loadGame(base).catch(() => null))?.objects : null;
+    showGameList(game, highlightObj, null, extra);
     setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: game.name }));
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
@@ -877,7 +884,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
   }
 }
 
-const KIND = { pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像', playalongEntity: 'ボタン' };
+const KIND = { musicDistortEntity: '特殊', pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像', playalongEntity: 'ボタン' };
 const PV_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
 
 function renderListHead(game) {
@@ -903,7 +910,8 @@ function renderListHead(game) {
   title.className = 'lh-title';
   title.textContent = game.name;
   head.appendChild(title);
-  const vs = variantsOf(game.id);
+  // 言語のない版（Rockers の「標準」）は言語の版に入っているので、切り替えには出さない
+  const vs = variantsOf(game.id).filter((v) => sharedBaseOf(v.id) !== v.id);
   if (vs.length > 1) {
     for (const v of [...vs].sort((a, b) => (a.language ? 0 : 1) - (b.language ? 0 : 1) || String(a.language).localeCompare(String(b.language)))) {
       const c = document.createElement('button');
@@ -916,7 +924,23 @@ function renderListHead(game) {
   }
 }
 
-function showGameList(game, highlightObj, filter) {
+// 一覧に出す項目と並び：パターンなど → Music Distortion（DJ School）→ キューなど
+const LIST_TYPES = ['endEntity', 'subtitleEntity', 'textureEntity', 'playalongEntity', 'musicDistortEntity'];
+const listRank = (o) => (isMulti(o) ? 0 : o.type === 'musicDistortEntity' ? 1 : 2);
+function listObjects(objs, filter) {
+  let out = objs.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || LIST_TYPES.includes(o.type)));
+  if (filter) out = out.filter(filter);
+  return out.sort((a, b) => listRank(a) - listRank(b));
+}
+
+// 言語ごとの版の一番下に、言語のない版の項目（Rockers のギターのコードなど）も並べるゲーム（グループの名前 → 言語のない版）
+const SHARED_BASE = { Rockers: 'rockers' };
+function sharedBaseOf(gid) {
+  const me = gamesIndex.find((g) => g.id === gid);
+  return me ? SHARED_BASE[me.group] || null : null;
+}
+
+function showGameList(game, highlightObj, filter, extra) {
   // 別のミニゲームに変えたときは、右のリストを一番上から（同じゲームを描き直すときは、そのままの位置）
   const changed = !shownGame || shownGame.id !== game.id;
   shownGame = game;
@@ -924,9 +948,8 @@ function showGameList(game, highlightObj, filter) {
   const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
   for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
-  let objs = game.objects.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || ['endEntity', 'subtitleEntity', 'textureEntity', 'playalongEntity'].includes(o.type)));
-  if (filter) objs = objs.filter(filter);
-  objs.sort((a, b) => (isMulti(b) ? 1 : 0) - (isMulti(a) ? 1 : 0));
+  const objs = listObjects(game.objects, filter);
+  if (extra) objs.push(...listObjects(extra, filter).filter((o) => !objs.includes(o)));
   const list = $('list');
   list.textContent = '';
   for (const o of objs) {

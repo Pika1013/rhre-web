@@ -25,6 +25,7 @@ export const C = {
     pitchDependent: '#a3dcff',
     special: '#9b9b9b',
     playalongEntity: '#86dcb6',
+    musicDistortEntity: '#d6d6d6', // RHRE fresh と同じくキューの色
     missing: '#ff4d4d',
   },
 };
@@ -621,8 +622,11 @@ export class EditorView {
     }
 
     // エンティティ
+    const iconsOnly = this.h.iconsOnly?.();
     for (const e of R.entities) {
       if (e.minBeat > b1 || e.maxBeat < b0) continue;
+      // Music Distortion は、プレゼンテーション（と動画）では出さない（RHRE fresh の hideInPresentationMode）
+      if (iconsOnly && e.type === 'musicDistortEntity') continue;
       this.drawEntity(g, e, L, now);
     }
     g.globalAlpha = 1;

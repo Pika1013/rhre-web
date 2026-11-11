@@ -159,7 +159,7 @@ class Model {
       case 'keepTheBeat': return true;
       case 'pattern': case 'equidistant': case 'randomCue': case 'multiCue': return !!o.stretchable;
       case 'pitchDependent': return this.options(o).some((c) => { const x = this.db.get(c.id); return x?.type === 'cue' && !!x.stretchable; });
-      case 'subtitleEntity': case 'textureEntity': case 'shakeEntity': return true;
+      case 'subtitleEntity': case 'textureEntity': case 'shakeEntity': case 'musicDistortEntity': return true;
       case 'playalongEntity': return !!o.stretchable;
       default: return false;
     }
@@ -174,7 +174,7 @@ class Model {
 
   defaultWidth(o) {
     if (o.type === 'multiCue' && Number(o.width) > 0) return Number(o.width);
-    if (o.type === 'subtitleEntity' || o.type === 'textureEntity' || o.type === 'shakeEntity') return 1;
+    if (o.type === 'subtitleEntity' || o.type === 'textureEntity' || o.type === 'shakeEntity' || o.type === 'musicDistortEntity') return 1;
     return this.duration(o);
   }
 
@@ -187,7 +187,7 @@ class Model {
       if (!co) return;
       out.push({
         datamodel: co.id, beat: cx, track: cy, width: cw, height: this.height(co, trackCount),
-        semitone: Number(c.semitone || 0) + (this.canRepitch(co) ? semi : 0),
+        semitone: Number(c.semitone || 0) + semi, // 音程の制限なし（RHRE fresh の Ignore pitch restrictions と同じ）
         volume: Math.round(volPct * (c.volume != null ? Number(c.volume) : 100) / 100),
       });
     };
@@ -232,10 +232,12 @@ class Model {
       return;
     }
     if (!isMulti(o)) return; // 特殊エンティティは音を出さない
+    // 音程の制限なし：パターンの中の音すべてにかける。
+    // ただし「音程別」は、音程に合った音を選んでいるので、選んだ音が音程を変えられない音なら重ねてかけない（音が 2 回ずれないように）
     const child = (c, cx, cy, cw) => {
       const co = this.db.get(c.id);
       if (!co) return;
-      const cs = Number(c.semitone || 0) + (this.canRepitch(co) ? semi : 0);
+      const cs = Number(c.semitone || 0) + (t !== 'pitchDependent' || this.canRepitch(co) ? semi : 0);
       const cv = vol * (c.volume != null ? Number(c.volume) : 100) / 100;
       this.expand(co, cx, cy, cw, cs, cv, rng, out);
     };
@@ -492,7 +494,8 @@ export class Remix {
   }
 
   isStretchable(ent) { return this.model.stretchable(ent.o); }
-  canRepitch(ent) { return ent.o?.type === 'cue' ? true : this.model.canRepitch(ent.o); }
+  // 音の出るブロックなら、どれでも音程を変えられる（RHRE fresh の Ignore pitch restrictions を入れたのと同じ）
+  canRepitch(ent) { return this.model.hasSound(ent.o); }
   hasVolume(ent) { return this.model.hasSound(ent.o); }
 
   // 別のエンティティと重なるか（RHRE では重ねて置けない）

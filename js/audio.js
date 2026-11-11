@@ -343,6 +343,46 @@ export function rhreMusicLeadIn(bytes, buf) {
   }
 }
 
+// RHRE fresh（Beads の BiquadFilter）と同じ 2 次のベッセルフィルタ。係数も同じ式
+function besselFilter(ctx, type, freq) {
+  const w = Math.tan((Math.PI * freq) / ctx.sampleRate);
+  if (type === 'lp') {
+    const b0 = 3 * w * w;
+    return ctx.createIIRFilter([b0, 2 * b0, b0], [1 + 3 * w + b0, -2 + 2 * b0, 1 - 3 * w + b0]);
+  }
+  const w2 = w * w;
+  return ctx.createIIRFilter([3, -6, 3], [w2 + 3 * w + 3, 2 * w2 - 6, w2 - 3 * w + 3]);
+}
+
+// Music Distortion（DJ School）：その範囲（始まりから終わりまで、両端を含む）だけ、音楽を細い音にする。
+// RHRE fresh と同じく、高域通過 1500Hz → 低域通過 1000Hz → 1.5 倍に切り替える。範囲がなければそのままつなぐ
+function connectDistortion(ctx, input, dest, remix, ctxStart, fromSec, speed) {
+  const ents = remix.entities.filter((e) => e.type === 'musicDistortEntity');
+  if (!ents.length || !ctx.createIIRFilter) { input.connect(dest); return; }
+  const T = remix.tempo;
+  // 重なる範囲はまとめる（秒）
+  const spans = ents.map((e) => [T.b2s(e.beat), T.b2s(e.beat + e.width)]).sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [s, e] of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e); else merged.push([s, e]);
+  }
+  const dry = ctx.createGain(), wet = ctx.createGain();
+  const hp = besselFilter(ctx, 'hp', 1500), lp = besselFilter(ctx, 'lp', 1000);
+  input.connect(dry); dry.connect(dest);
+  input.connect(hp); hp.connect(lp); lp.connect(wet); wet.connect(dest);
+  const set = (on, at) => {
+    dry.gain.setValueAtTime(on ? 0 : 1, at);
+    wet.gain.setValueAtTime(on ? 1.5 : 0, at);
+  };
+  const inside = merged.some(([s, e]) => fromSec >= s && fromSec <= e);
+  set(inside, ctxStart);
+  for (const [s, e] of merged) {
+    if (s > fromSec) set(true, ctxStart + (s - fromSec) / speed);
+    if (e > fromSec) set(false, ctxStart + (e - fromSec) / speed);
+  }
+}
+
 function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1) {
   if (!musicBuf) return null;
   const src = ctx.createBufferSource();
@@ -357,7 +397,7 @@ function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1)
     else g.gain.setValueAtTime(p.v, at);
   }
   src.connect(g);
-  g.connect(dest);
+  connectDistortion(ctx, g, dest, remix, ctxStart, fromSec, speed);
   // RHRE fresh と同じ聞こえ方にするための遅れ（mp3 のとき）
   const off = fromSec - (remix.musicStartSec + (musicBuf.rhreLeadIn || 0));
   if (off >= 0) {
