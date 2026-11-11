@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.2', date: '2026-11-11',
+    ja: [
+      '小節の途中の拍の縦線を、少し濃くしました',
+      '小節の途中で拍子を変えたとき、編集中の小節のハイライトがずれていたのを直しました',
+      '動画（と WAV）の書き出しは、End Remix があればそこでぴったり終わるようにしました（1 秒ほど通り過ぎていました）',
+    ],
+    en: [
+      'Beat lines in the middle of a measure are a little darker.',
+      'Fixed the measure highlight while editing being off when the time signature changes mid-measure.',
+      'Video (and WAV) export now ends exactly at End Remix (it used to run about 1 second past it).',
+    ],
+  },
+  {
     v: '1.9.1', date: '2026-11-11',
     ja: [
       'テンポの自動検出で、アウフタクト（小節の頭より前から鳴り始める）の曲は、2 小節目の頭から本編が始まるように音楽開始を合わせるようにしました（頭が切れないように）',

@@ -732,9 +732,12 @@ export class Remix {
       }
       const rel = beat - cur.beat;
       const m = Math.floor(rel / len + 1e-9);
-      return { measure: measure + m, beatInMeasure: rel - m * len, perMeasure: cur.perMeasure, length: len };
+      // 小節の始まりと終わり（途中で拍子が変わる小節は、そこで切れる）
+      const start = cur.beat + m * len;
+      const end = next ? Math.min(start + len, next.beat) : start + len;
+      return { measure: measure + m, beatInMeasure: rel - m * len, perMeasure: cur.perMeasure, length: len, start, end };
     }
-    return { measure: 1, beatInMeasure: beat, perMeasure: 4, length: 4 };
+    return { measure: 1, beatInMeasure: beat, perMeasure: 4, length: 4, start: Math.floor(beat / 4) * 4, end: Math.floor(beat / 4) * 4 + 4 };
   }
 }
 

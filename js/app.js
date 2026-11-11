@@ -1,15 +1,15 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=14';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=15';
 import { analyzeTempo } from './tempo.js?v=2';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=18';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=19';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=33';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=36';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=37';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=4';
-import { CHANGELOG } from './changelog.js?v=8';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=5';
+import { CHANGELOG } from './changelog.js?v=9';
 
-const VERSION = '1.9.1';
+const VERSION = '1.9.2';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1896,7 +1896,7 @@ async function exportWav() {
   $('exportSave').hidden = true;
   $('exportBar').style.width = '10%';
   const from = remix.tempo.b2s(remix.playbackStart);
-  $('exportMsg').textContent = `再生開始位置（${fmtTime(from)}）から最後まで、${fmtTime(remix.durationSec - from)} を書き出しています…`;
+  $('exportMsg').textContent = `再生開始位置（${fmtTime(from)}）から最後まで、${fmtTime(mixEndSec(remix) - from)} を書き出しています…`;
   try {
     await engine.loadSounds([...remix.allSoundCues().keys()], remix.db);
     const blob = await renderWav(engine, remix, musicBuf, from);
@@ -1938,7 +1938,7 @@ function openVideoExport() {
   $('videoStop').hidden = true;
   $('videoStart').hidden = !m;
   const from = remix.tempo.b2s(0);
-  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, remix.durationSec + 1 - from)) });
+  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, mixEndSec(remix) - from)) });
   $('videoNote').textContent = m === 'fast'
     ? t('計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。')
     : m === 'record'
@@ -1976,6 +1976,7 @@ $('videoStart').addEventListener('click', async () => {
     const deps = {
       EditorView, FONT,
       renderMix: (fromSec, sr) => renderMix(engine, remix, musicBuf, fromSec, sr),
+      mixEndSec,
       textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
       audioContext: () => engine.context,
       loadIcon,

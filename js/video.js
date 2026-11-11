@@ -191,7 +191,7 @@ function drawOverlay(deps, st, remix, beat) {
 async function prepare(deps, main, opts) {
   const remix = main.remix;
   const fromSec = opts.fromSec;
-  const toSec = remix.durationSec + 1.0;
+  const toSec = deps.mixEndSec(remix); // End Remix があればそこで終わる（音と同じ）
   const audio = await deps.renderMix(fromSec, opts.sampleRate || 48000);
   const [w, h] = VIDEO_SIZES[opts.size] || VIDEO_SIZES[720];
   const st = makeStage(deps, main, w, h, fromSec);

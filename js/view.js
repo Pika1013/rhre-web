@@ -766,8 +766,8 @@ export class EditorView {
   }
 
   // RHRE fresh の renderBeatLines の移植（太さ・濃さ・位置は同じ。ブロックの下に描く）。太さは RHRE fresh の画面（横 1280）での 2px を、この画面の幅に合わせる
-  //  1. 整数の拍ごとに細い線。小節の途中の拍は不透明度 25%、小節の頭（とマイナスの拍）は 100%
-  //  2. 1/4 拍ずつ見て、拍子の拍（6/8 なら 0.5 拍ごと）が変わる所に線。小節の頭は 3 倍の太さで 100%、途中は 20%
+  //  1. 整数の拍ごとに細い線。小節の途中の拍は不透明度 38%（RHRE fresh は 25%。本人の希望で少し濃く）、小節の頭（とマイナスの拍）は 100%
+  //  2. 1/4 拍ずつ見て、拍子の拍（6/8 なら 0.5 拍ごと）が変わる所に線。小節の頭は 3 倍の太さで 100%、途中は 28%（RHRE fresh は 20%）
   drawBeatLines(g, L, b0, b1) {
     const R = this.remix;
     const rgb = C.gridRGB;
@@ -800,7 +800,7 @@ export class EditorView {
       g.fillStyle = `rgba(${rgb},${alpha})`;
       g.fillRect(this.x(beat) - w / 2, top, w, h);
     };
-    for (let i = Math.floor(b0) - 1; i <= Math.ceil(b1) + 1; i++) line(i, partOf(i) > 0 ? 0.25 : 1, thin);
+    for (let i = Math.floor(b0) - 1; i <= Math.ceil(b1) + 1; i++) line(i, partOf(i) > 0 ? 0.38 : 1, thin);
     const step = 0.25;
     let lastPart = -1, lastMeasure = -1;
     // 画面の左端より 2 拍前から数え始める（最初の 1 本が画面に出ないように）
@@ -809,7 +809,7 @@ export class EditorView {
       if (p === lastPart && m === lastMeasure) continue;
       lastPart = p;
       lastMeasure = m;
-      if (p > 0) line(i, 0.2, thin);
+      if (p > 0) line(i, 0.28, thin);
       else line(i, 1, p === 0 ? thin * 3 : thin);
     }
   }
@@ -956,9 +956,8 @@ export class EditorView {
     if (this.drop) add(this.drop.beat, this.drop.width);
     const out = [];
     for (const [s, e] of spans) {
-      const m0 = R.measureAt(s);
-      const m1 = R.measureAt(e - 1e-6);
-      out.push([s - m0.beatInMeasure, e - 1e-6 - m1.beatInMeasure + m1.length]);
+      // 小節の始まりから終わりまで（途中で拍子が変わる小節は、拍子が変わる所で切る）
+      out.push([R.measureAt(s).start, R.measureAt(e - 1e-6).end]);
     }
     out.sort((a, b) => a[0] - b[0]);
     const merged = [];

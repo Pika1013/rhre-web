@@ -547,6 +547,11 @@ export class Previewer {
   }
 }
 
+// 書き出しの終わり：End Remix があればそこでぴったり終わる。なければ最後の音の 1 秒あとまで（余韻を残す）
+export function mixEndSec(remix) {
+  return remix.hasEndEntity ? remix.durationSec : remix.durationSec + 1.0;
+}
+
 // 再生開始位置から最後までを WAV に書き出す
 export async function renderWav(engine, remix, musicBuf, fromSec) {
   return encodeWav(await renderMix(engine, remix, musicBuf, fromSec));
@@ -554,7 +559,7 @@ export async function renderWav(engine, remix, musicBuf, fromSec) {
 
 // 再生開始位置から最後（End Remix か最後の音）の 1 秒後までを、計算で一気に鳴らした音（WAV と動画で使う）
 export async function renderMix(engine, remix, musicBuf, fromSec, sr = 44100) {
-  const toSec = remix.durationSec + 1.0;
+  const toSec = mixEndSec(remix);
   const length = Math.max(1, Math.ceil((toSec - fromSec) * sr));
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   const octx = new OAC(2, length, sr);
