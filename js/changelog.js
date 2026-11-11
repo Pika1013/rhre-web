@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.8.5', date: '2026-11-11',
+    ja: ['Guitar Lessons も、ギターの音（Assorted・Built to Scale・Glee Club）を各言語の一覧の一番下に並べました'],
+    en: ['Guitar Lessons now also lists its guitar sounds (Assorted, Built to Scale, Glee Club) at the bottom of each language\'s list.'],
+  },
+  {
     v: '1.8.4', date: '2026-11-11',
     ja: [
       'DJ School の「Music Distortion」を置けるようにしました（パターンの下にあります）。その範囲だけ、音楽が細い音になります（RHRE fresh と同じ）',

@@ -6,9 +6,9 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=4';
-import { CHANGELOG } from './changelog.js?v=5';
+import { CHANGELOG } from './changelog.js?v=6';
 
-const VERSION = '1.8.4';
+const VERSION = '1.8.5';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -868,14 +868,19 @@ async function openGame(gid, jumpBeat, highlightObj) {
   if (gid === CUSTOM_GAME_ID && customRegistry.game) { showGameList(customRegistry.game, highlightObj); return; }
   setStatus('読み込み中…');
   try {
-    // Rockers の言語のない版（ギターのコードなど）は、言語の版の一番下に入れてあるので、言語の版を開く
-    const base = sharedBaseOf(gid);
-    if (base && gid === base) {
-      const langs = variantsOf(gid).filter((v) => v.id !== base);
+    // Rockers・Guitar Lessons の言語のない版（ギターのコードなど）は、言語の版の一番下に入れてあるので、言語の版を開く
+    const bases = sharedBasesOf(gid);
+    if (bases && bases.includes(gid)) {
+      const langs = variantsOf(gid).filter((v) => !bases.includes(v.id));
       gid = (langs.find((v) => v.language === settings.lang) || langs.find((v) => v.language === 'en') || langs[0])?.id || gid;
     }
     const game = await remix.db.loadGame(gid);
-    const extra = base && gid !== base ? (await remix.db.loadGame(base).catch(() => null))?.objects : null;
+    let extra = null;
+    if (bases && !bases.includes(gid)) {
+      const all = variantsOf(gid);
+      const sets = await Promise.all(bases.map((id) => remix.db.loadGame(id).catch(() => null)));
+      extra = sets.filter(Boolean).map((g) => ({ title: variantLabel(all.find((v) => v.id === g.id) || g, all).replace(/^[-–\s]+/, ''), objects: g.objects }));
+    }
     showGameList(game, highlightObj, null, extra);
     setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: game.name }));
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
@@ -910,8 +915,8 @@ function renderListHead(game) {
   title.className = 'lh-title';
   title.textContent = game.name;
   head.appendChild(title);
-  // 言語のない版（Rockers の「標準」）は言語の版に入っているので、切り替えには出さない
-  const vs = variantsOf(game.id).filter((v) => sharedBaseOf(v.id) !== v.id);
+  // 言語のない版（Rockers の「標準」など）は言語の版に入っているので、切り替えには出さない
+  const vs = variantsOf(game.id).filter((v) => !isSharedBase(v.id));
   if (vs.length > 1) {
     for (const v of [...vs].sort((a, b) => (a.language ? 0 : 1) - (b.language ? 0 : 1) || String(a.language).localeCompare(String(b.language)))) {
       const c = document.createElement('button');
@@ -933,13 +938,18 @@ function listObjects(objs, filter) {
   return out.sort((a, b) => listRank(a) - listRank(b));
 }
 
-// 言語ごとの版の一番下に、言語のない版の項目（Rockers のギターのコードなど）も並べるゲーム（グループの名前 → 言語のない版）
-const SHARED_BASE = { Rockers: 'rockers' };
-function sharedBaseOf(gid) {
+// 言語ごとの版の一番下に、言語のない版の項目（ギターのコードなど）も並べるゲーム（グループの名前 → 言語のない版。この順に並べる）
+const SHARED_BASE = {
+  Rockers: ['rockers'],
+  'Guitar Lessons': ['guitarLessonDist', 'guitarLessonDoremi', 'guitarLessonEnv'],
+};
+function sharedBasesOf(gid) {
   const me = gamesIndex.find((g) => g.id === gid);
-  return me ? SHARED_BASE[me.group] || null : null;
+  return (me && SHARED_BASE[me.group]) || null;
 }
+const isSharedBase = (gid) => !!sharedBasesOf(gid)?.includes(gid);
 
+// extra：一番下に足す項目のまとまり [{ title, objects }]。2 つ以上あるときは、まとまりごとに見出しを付ける
 function showGameList(game, highlightObj, filter, extra) {
   // 別のミニゲームに変えたときは、右のリストを一番上から（同じゲームを描き直すときは、そのままの位置）
   const changed = !shownGame || shownGame.id !== game.id;
@@ -949,10 +959,21 @@ function showGameList(game, highlightObj, filter, extra) {
   for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
   const objs = listObjects(game.objects, filter);
-  if (extra) objs.push(...listObjects(extra, filter).filter((o) => !objs.includes(o)));
+  const heads = new Map(); // この項目の前に見出しを出す
+  for (const set of extra || []) {
+    const add = listObjects(set.objects || [], filter).filter((o) => !objs.includes(o));
+    if (add.length && extra.length > 1) heads.set(add[0], set.title);
+    objs.push(...add);
+  }
   const list = $('list');
   list.textContent = '';
   for (const o of objs) {
+    if (heads.has(o)) {
+      const h = document.createElement('div');
+      h.className = 'list-sec';
+      h.textContent = heads.get(o);
+      list.appendChild(h);
+    }
     const row = document.createElement('div');
     // パターンなどではない、ただのキューは文字を灰色に
     row.className = 'item' + (o.type === 'cue' ? ' cue' : '') + ((armed ? armed === o : o === highlightObj) ? ' sel' : '');
