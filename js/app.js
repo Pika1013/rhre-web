@@ -7,9 +7,9 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=6';
-import { CHANGELOG } from './changelog.js?v=10';
+import { CHANGELOG } from './changelog.js?v=11';
 
-const VERSION = '1.9.3';
+const VERSION = '1.9.4';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1442,11 +1442,32 @@ function watchAudio() {
   }, 900);
 }
 
+// 再生中は画面が消えないようにする（Screen Wake Lock。iPhone は iOS 16.4 以降の Safari、ホーム画面のアプリは iOS 18.4 以降）。
+// 一時停止・停止・最後まで行ったら放す。アプリが裏に回ると端末が自動で放すので、戻ってきて再生中ならまた頼む
+let playWake = null, playWakeAsking = false;
+async function keepScreenOn() {
+  if (playWake || playWakeAsking || !navigator.wakeLock || document.hidden) return;
+  playWakeAsking = true;
+  try {
+    const w = await navigator.wakeLock.request('screen');
+    w.addEventListener('release', () => { if (playWake === w) playWake = null; });
+    if (mode === 'playing') playWake = w; else w.release().catch(() => {});
+  } catch (_) { /* できない端末・ブラウザでは何もしない */ }
+  playWakeAsking = false;
+}
+function letScreenSleep() {
+  const w = playWake;
+  playWake = null;
+  w?.release().catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && mode === 'playing') keepScreenOn(); });
+
 function startPlayback(fromSec) {
   previewer.stop();
   player.metronome = metronome;
   player.onEnd = () => {
     mode = 'stopped';
+    letScreenSleep();
     view.playhead = null;
     view.dirty = true;
     engine.stopKeepAlive();
@@ -1456,6 +1477,7 @@ function startPlayback(fromSec) {
   };
   player.start(remix, musicBuf, fromSec);
   mode = 'playing';
+  keepScreenOn();
   updateButtons();
   updateCtxbar();
   watchAudio();
@@ -1502,6 +1524,7 @@ function pause() {
   player.pause();
   pausedSec = player.pausedAt;
   mode = 'paused';
+  letScreenSleep();
   engine.stopKeepAlive();
   updateButtons();
   updateCtxbar();
@@ -1517,6 +1540,7 @@ function stopPlayback() {
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   }
   mode = 'stopped';
+  letScreenSleep();
   view.playhead = null;
   view.dirty = true;
   $('subtitle').hidden = true;
