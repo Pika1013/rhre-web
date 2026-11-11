@@ -47,7 +47,7 @@ export function fmtTime(sec) {
 }
 
 // キャンバスに描く言葉（設定で英語にできる）
-export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量' };
+export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量', tempoHint: 'ここをタップで音量、テンポ、拍子を変更できます→' };
 
 // テーマ（色）。トラックまわりの色を入れ替える
 const THEMES = {
@@ -667,6 +667,28 @@ export class EditorView {
       // 上向きの三角：てっぺんが置いた拍
       g.beginPath(); g.moveTo(x, yb - 9); g.lineTo(x - 5.5, yb); g.lineTo(x + 5.5, yb); g.closePath(); g.fill();
       g.fillText(`${LABELS.volume} ${mv.volume}%`, x + 7, yb);
+    }
+
+    // テンポの段の、0 拍目の手前（-6 拍目あたり）に「ここをタップで…」を小さく出す。
+    // ふだんの編集画面だけ（プレゼンテーション・プレイモード・動画の書き出しでは出さない）。0 拍目の印の手前で終わるように右寄せ
+    if (!this.playMode && !this.fixed && !this.h.iconsOnly?.() && LABELS.tempoHint) {
+      const x0 = this.x(-6), x1 = this.x(0) - 8;
+      if (x1 > 0 && x0 < W) {
+        g.save();
+        const fs = clamp(L.tempoH * 0.32, 9, 12);
+        g.font = `700 ${fs}px ${FONT}`;
+        const tw = g.measureText(LABELS.tempoHint).width;
+        const room = x1 - Math.max(x0, 2);
+        const sx = tw > room ? Math.max(0.55, room / tw) : 1; // 入りきらないときは横に縮める（縮めすぎるなら左にはみ出してよい）
+        g.translate(x1, L.tracksBottom + L.tempoH / 2 + 1);
+        g.scale(sx, 1);
+        g.textAlign = 'right';
+        g.textBaseline = 'middle';
+        g.fillStyle = C.beatNum;
+        g.globalAlpha = 0.55;
+        g.fillText(LABELS.tempoHint, 0, 0);
+        g.restore();
+      }
     }
 
     // 音楽開始（赤）と再生開始（緑）の旗（動画の書き出しでは出さない）

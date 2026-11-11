@@ -13,7 +13,16 @@ const EN = {
   'アプリが裏に回ったので、録画をやめました。': 'Recording stopped because the app went to the background.',
   '書き出しをやめました。': 'Export cancelled.', '動画を作れませんでした': "Couldn't make the video",
   'この端末では、この大きさの動画（H.264）を作れません': "This device can't make H.264 video at this size", 'この端末では、動画の音（AAC）を作れません': "This device can't encode the video's audio (AAC)",
-  'アップデートしました！（v{v}）': 'Updated! (v{v})', '計算で作成': 'Rendered', '録画で作成': 'Recorded',
+  'アップデートしました！（v{v}）': 'Updated! (v{v})',
+  'ここをタップで音量、テンポ、拍子を変更できます→': 'Tap here to change volume, tempo and time signature →',
+  '自動検出：♩={b}。': 'Detected: ♩={b}. ', 'テンポは最後まで一定です。': 'The tempo stays the same to the end. ',
+  '拍 {beat} から {w} 拍かけて ♩={b}': 'from beat {beat} over {w} beats to ♩={b}', '拍 {beat} で ♩={b}': 'at beat {beat} to ♩={b}',
+  '途中で {n} 回テンポが変わります（{list}{more}）。決定すると、テンポの変更も置きます（今あるテンポの変更は置き換わります）。': 'The tempo changes {n} times ({list}{more}). OK also places these tempo changes (replacing existing ones). ',
+  '倍や半分に聞こえるときは ×2・÷2 で直せます。': 'If it sounds double or half, fix it with ×2 / ÷2.',
+  '曲を調べています…': 'Analyzing the song…',
+  'テンポを見つけられませんでした。「テンポがわからない」で、曲に合わせてタップして測ってください。': "Couldn't find the tempo. Use \"I don't know the tempo\" to tap along with the song.",
+  '最初のテンポを {b} にして、途中のテンポの変更を {n} か所に置きました': 'Set the first tempo to {b} and placed {n} tempo changes',
+  '計算で作成': 'Rendered', '録画で作成': 'Recorded',
   '音を動画用に固められませんでした（この端末の音の部品が何も返しませんでした）': "Couldn't encode the audio for the video (this device's audio encoder returned nothing)",
   'オンライン人数を表示します（この端末だけ）': 'Showing the online count (on this device only)', 'オンライン人数を隠しました': 'Online count hidden',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
@@ -221,7 +230,7 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
-  '動画で書き出す': 'Export video', '更新内容': "What's new", 'アップデートしました！': 'Updated!', '内容を確認': "See what's new",
+  '自動検出': 'Auto-detect', '動画で書き出す': 'Export video', '更新内容': "What's new", 'アップデートしました！': 'Updated!', '内容を確認': "See what's new",
   '0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生）。': 'Makes a video from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts).',
   '大きさ': 'Size', 'なめらかさ': 'Smoothness', '30 コマ／秒': '30 fps', '60 コマ／秒': '60 fps', '書き出す': 'Export', '動画を保存': 'Save video',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',

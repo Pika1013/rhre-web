@@ -900,7 +900,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.8.5</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -932,7 +932,8 @@
     <h2>曲のテンポ</h2>
     <p id="tempoAskInfo">この曲のテンポ（BPM）を教えてください。</p>
     <div class="field"><label for="tempoAskInput">BPM</label><input id="tempoAskInput" type="number" inputmode="decimal" step="0.01" min="20" max="400"></div>
-    <div class="row tight"><button class="btn" id="tempoAskTap" type="button">テンポがわからない</button></div>
+    <div class="row tight"><button class="btn" id="tempoAskTap" type="button">テンポがわからない</button><button class="btn" id="tempoAskAuto" type="button">自動検出</button></div>
+    <div class="row tight" id="tempoAskScale" hidden><button class="btn" id="tempoAskX2" type="button">×2</button><button class="btn" id="tempoAskHalf" type="button">÷2</button></div>
     <div class="row"><button class="btn primary" id="tempoAskOk" type="button">決定</button><button class="btn" id="tempoAskSkip" type="button">やめる</button></div>
   </div>
 </div>
@@ -1189,7 +1190,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.8.5</h2>
+    <h2>RHRE Web v1.9.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1221,7 +1222,7 @@
     <p><b>音楽と書き出し</b></p>
     <ul>
       <li>メニューの「音楽を選ぶ」：「＋ 曲を追加」で端末の曲を一覧に入れ、「この曲を使う」で選びます（曲は端末の中にだけ保存されます）</li>
-      <li>テンポがわからないときは、メニューの「テンポを測る」で、曲に合わせてタップして測れます</li>
+      <li>テンポがわからないときは、曲を選んだときの「自動検出」でテンポとその変化を自動で見つけるか、メニューの「テンポを測る」で曲に合わせてタップして測れます</li>
       <li>メニューの「音楽の開始位置」：秒の数字を入れるか、「曲の始まりを 0 拍目に合わせる」</li>
       <li>メニューの「WAVに書き出す」：リミックスを音のファイルにします</li>
       <li>メニューの「動画で書き出す」：0 拍目から最後までを、プレゼンテーションモードと同じ見た目の mp4 にします。最初に 2 秒待ってから再生します（大きさとなめらかさを選べます）</li>
@@ -1271,7 +1272,7 @@
     <p><b>Music and export</b></p>
     <ul>
       <li>"Choose music" in the menu: add songs from this device with "+ Add songs", then pick one with "Use this song" (songs are stored only on this device).</li>
-      <li>If you don't know the tempo, use "Measure tempo" in the menu and tap along with the song.</li>
+      <li>If you don't know the tempo, use "Auto-detect" when choosing a song to find the tempo and its changes automatically, or use "Measure tempo" in the menu and tap along with the song.</li>
       <li>"Music start position" in the menu: type the seconds, or use "Align song start to beat 0".</li>
       <li>"Export WAV" in the menu turns your remix into an audio file.</li>
       <li>"Export video" in the menu turns the remix, from beat 0 to the end, into an mp4 that looks like presentation mode. It waits 2 seconds before playback starts (you can choose the size and smoothness).</li>
@@ -1300,7 +1301,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=79"></script>
+<script type="module" src="js/app.js?v=80"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

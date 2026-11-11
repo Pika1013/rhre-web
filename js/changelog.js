@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.0', date: '2026-11-11',
+    ja: [
+      '曲のテンポの「自動検出」を付けました（曲を選んだときのテンポの画面）。テンポは整数で見つけ、曲の途中で急に変わる所・だんだん変わる所には、テンポの変更も自動で置きます。倍や半分に聞こえるときは ×2・÷2 で直せます',
+      'テンポの段の 0 拍目の手前に「ここをタップで音量、テンポ、拍子を変更できます」と小さく出すようにしました',
+    ],
+    en: [
+      'Added tempo "Auto-detect" (on the song tempo screen). It finds the tempo as a whole number and also places tempo changes where the song suddenly or gradually changes tempo. Use ×2 / ÷2 if it sounds double or half.',
+      'The tempo row now shows a small "Tap here to change volume, tempo and time signature" just before beat 0.',
+    ],
+  },
+  {
     v: '1.8.5', date: '2026-11-11',
     ja: ['Guitar Lessons も、ギターの音（Assorted・Built to Scale・Glee Club）を各言語の一覧の一番下に並べました'],
     en: ['Guitar Lessons now also lists its guitar sounds (Assorted, Built to Scale, Glee Club) at the bottom of each language\'s list.'],

@@ -1,14 +1,15 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=14';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=14';
+import { analyzeTempo } from './tempo.js?v=1';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=18';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=31';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=34';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=32';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=35';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=4';
-import { CHANGELOG } from './changelog.js?v=6';
+import { CHANGELOG } from './changelog.js?v=7';
 
-const VERSION = '1.8.5';
+const VERSION = '1.9.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -3209,8 +3210,13 @@ async function loadMusicBytes(bytes, filename, opts = {}) {
 // ---------------------------------------------------------------- 曲のテンポを聞く ／ タップでテンポを測る
 
 let tempoAskSong = null;
+let tempoDetect = null; // 自動検出の結果 { base（見つけた最初のテンポ）, changes: [{ time, bpm, width }] }
 function askTempo(songMetaItem) {
   tempoAskSong = songMetaItem || null;
+  tempoDetect = null;
+  $('tempoAskScale').hidden = true;
+  // チュートリアルでは、自分でテンポを入れてもらうので出さない
+  $('tempoAskAuto').hidden = guide.on || !musicBuf;
   const known = songMetaItem?.bpm;
   $('tempoAskInput').value = known ? String(known) : (guide.on ? '' : String(+remix.tempo.tempoAt(0).toFixed(2)));
   $('tempoAskInfo').textContent = guide.on
@@ -3219,6 +3225,71 @@ function askTempo(songMetaItem) {
   $('tempoAskModal').hidden = false;
 }
 $('tempoAskTap').addEventListener('click', () => openTapTempo('ask'));
+
+// 自動検出で見つけたテンポの変化を、リミックスの拍に直す（最初のテンポを bpm にしたとき）。
+// 曲の中の時刻 → リミックスの秒（音楽開始と mp3 の頭のずれを足す）→ その時点までのテンポで拍に直して、整数の拍に丸める
+function planTempoChanges(bpm) {
+  if (!tempoDetect || !musicBuf) return [];
+  const f = bpm / tempoDetect.base; // 倍・半分などに直したときは、変化も同じ割合で
+  const trackers = [{ beat: 0, bpm, width: 0 }];
+  const out = [];
+  for (const c of tempoDetect.changes) {
+    const T = new TempoMap(trackers, bpm);
+    const sec = c.time + remix.musicStartSec + (musicBuf.rhreLeadIn || 0);
+    const beat = Math.round(T.s2b(sec));
+    const prev = trackers[trackers.length - 1];
+    if (beat <= 0 || beat <= prev.beat + prev.width) continue;
+    const ch = { beat, bpm: Math.max(20, Math.min(400, Math.round(c.bpm * f))), width: Math.max(0, Math.round(c.width * f)) };
+    trackers.push(ch);
+    out.push(ch);
+  }
+  return out;
+}
+function tempoDetectInfo() {
+  const bpm = parseFloat($('tempoAskInput').value) || tempoDetect.base;
+  const plan = planTempoChanges(bpm);
+  let s = t('自動検出：♩={b}。', { b: tempoDetect.base });
+  if (!plan.length) s += t('テンポは最後まで一定です。');
+  else {
+    const list = plan.slice(0, 3).map((c) => (c.width > 0
+      ? t('拍 {beat} から {w} 拍かけて ♩={b}', { beat: c.beat, w: c.width, b: c.bpm })
+      : t('拍 {beat} で ♩={b}', { beat: c.beat, b: c.bpm })));
+    s += t('途中で {n} 回テンポが変わります（{list}{more}）。決定すると、テンポの変更も置きます（今あるテンポの変更は置き換わります）。', {
+      n: plan.length, list: list.join('、'), more: plan.length > 3 ? '…' : '',
+    });
+  }
+  s += t('倍や半分に聞こえるときは ×2・÷2 で直せます。');
+  return s;
+}
+$('tempoAskAuto').addEventListener('click', () => {
+  if (!musicBuf) return;
+  $('tempoAskInfo').textContent = t('曲を調べています…');
+  $('tempoAskAuto').disabled = true;
+  // 計算の前に、画面に「調べています」を出す
+  setTimeout(() => {
+    let r = null;
+    try { r = analyzeTempo(musicBuf); } catch (e) { console.error(e); }
+    $('tempoAskAuto').disabled = false;
+    if (!r) {
+      tempoDetect = null;
+      $('tempoAskInfo').textContent = t('テンポを見つけられませんでした。「テンポがわからない」で、曲に合わせてタップして測ってください。');
+      return;
+    }
+    tempoDetect = { base: r.bpm, changes: r.changes };
+    $('tempoAskInput').value = String(r.bpm);
+    $('tempoAskScale').hidden = false;
+    $('tempoAskInfo').textContent = tempoDetectInfo();
+  }, 30);
+});
+$('tempoAskInput').addEventListener('input', () => { if (tempoDetect) $('tempoAskInfo').textContent = tempoDetectInfo(); });
+const scaleTempoInput = (f) => {
+  const v = parseFloat($('tempoAskInput').value);
+  if (!(v > 0)) return;
+  $('tempoAskInput').value = String(Math.round(v * f * 100) / 100);
+  if (tempoDetect) $('tempoAskInfo').textContent = tempoDetectInfo();
+};
+$('tempoAskX2').addEventListener('click', () => scaleTempoInput(2));
+$('tempoAskHalf').addEventListener('click', () => scaleTempoInput(0.5));
 $('tempoAskOk').addEventListener('click', () => {
   const v = parseFloat($('tempoAskInput').value);
   if (!(v >= 20 && v <= 400)) { toast(t('テンポは 20〜400 の数で入れてください'), 2500); return; }
@@ -3227,8 +3298,19 @@ $('tempoAskOk').addEventListener('click', () => {
   // 次に同じ曲を選んだときのために覚えておく
   if (tempoAskSong && tempoAskSong.bpm !== bpm) { tempoAskSong.bpm = bpm; saveSongMeta(); }
   if (guide.on && guide.step === 'song') { guide.bpm = bpm; guideGo('tempo'); return; }
-  edit(() => remix.setTempo(0, bpm));
-  setStatus(t('最初のテンポを {b} にしました', { b: bpm }));
+  const plan = planTempoChanges(bpm);
+  edit(() => {
+    if (plan.length) {
+      // 見つけたテンポの変化を置く（今ある 0 拍目より後のテンポの変更は置き換える）
+      for (const tk of [...remix.tempoTrackers]) if (tk.beat > 1e-6) remix.removeTempo(tk.beat);
+    }
+    remix.setTempo(0, bpm);
+    for (const c of plan) remix.setTempo(c.beat, c.bpm, { width: c.width });
+  });
+  tempoDetect = null;
+  setStatus(plan.length
+    ? t('最初のテンポを {b} にして、途中のテンポの変更を {n} か所に置きました', { b: bpm, n: plan.length })
+    : t('最初のテンポを {b} にしました', { b: bpm }));
 });
 $('tempoAskSkip').addEventListener('click', () => { $('tempoAskModal').hidden = true; if (guide.on) guideRender(); });
 
@@ -3654,6 +3736,7 @@ function applySettings() {
   LABELS.music = t('音楽開始');
   LABELS.playback = t('再生開始');
   LABELS.volume = t('音量');
+  LABELS.tempoHint = t('ここをタップで音量、テンポ、拍子を変更できます→');
   applyStatic(document.body);
   for (const b of document.querySelectorAll('#tabs .tab')) b.textContent = t(b.dataset.ja);
   const sp = Number(settings.speed) || 1;
@@ -3812,7 +3895,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null) };
 
 applySettings();
 (async () => {
