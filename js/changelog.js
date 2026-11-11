@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.1', date: '2026-11-11',
+    ja: [
+      'テンポの自動検出で、アウフタクト（小節の頭より前から鳴り始める）の曲は、2 小節目の頭から本編が始まるように音楽開始を合わせるようにしました（頭が切れないように）',
+      'テンポの段の案内を「ここをタップでテンポ、拍子、音量を変更できます→」にして、文の終わりが -1 拍目に来るようにしました',
+    ],
+    en: [
+      'Tempo auto-detect now handles songs that start with a pickup: the music start is set so the song proper begins at measure 2, so the pickup isn\'t cut off.',
+      'The tempo row hint now reads "Tap here to change tempo, time signature and volume →" and ends at beat -1.',
+    ],
+  },
+  {
     v: '1.9.0', date: '2026-11-11',
     ja: [
       '曲のテンポの「自動検出」を付けました（曲を選んだときのテンポの画面）。テンポは整数で見つけ、曲の途中で急に変わる所・だんだん変わる所には、テンポの変更も自動で置きます。倍や半分に聞こえるときは ×2・÷2 で直せます',

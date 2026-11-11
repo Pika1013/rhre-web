@@ -47,7 +47,7 @@ export function fmtTime(sec) {
 }
 
 // キャンバスに描く言葉（設定で英語にできる）
-export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量', tempoHint: 'ここをタップで音量、テンポ、拍子を変更できます→' };
+export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量', tempoHint: 'ここをタップでテンポ、拍子、音量を変更できます→' };
 
 // テーマ（色）。トラックまわりの色を入れ替える
 const THEMES = {
@@ -669,10 +669,10 @@ export class EditorView {
       g.fillText(`${LABELS.volume} ${mv.volume}%`, x + 7, yb);
     }
 
-    // テンポの段の、0 拍目の手前（-6 拍目あたり）に「ここをタップで…」を小さく出す。
-    // ふだんの編集画面だけ（プレゼンテーション・プレイモード・動画の書き出しでは出さない）。0 拍目の印の手前で終わるように右寄せ
+    // テンポの段の、0 拍目の手前に「ここをタップで…」を小さく出す。文の終わり（→）が -1 拍目に来るように右寄せ。
+    // ふだんの編集画面だけ（プレゼンテーション・プレイモード・動画の書き出しでは出さない）
     if (!this.playMode && !this.fixed && !this.h.iconsOnly?.() && LABELS.tempoHint) {
-      const x0 = this.x(-6), x1 = this.x(0) - 8;
+      const x0 = this.x(-7), x1 = this.x(-1);
       if (x1 > 0 && x0 < W) {
         g.save();
         const fs = clamp(L.tempoH * 0.32, 9, 12);

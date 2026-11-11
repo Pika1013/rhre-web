@@ -13,21 +13,24 @@ const BPM_MIN = 50, BPM_MAX = 220;
 
 // ---------------------------------------------------------------- 下ごしらえ
 
+// 頭に 0.5 秒の無音を足す（曲が 0 秒ちょうどから鳴り始めると、最初の立ち上がりが取れないため）。pad はその秒数
+const PAD_SEC = 0.5;
 function monoDown(buf) {
   const d = Math.max(1, Math.round(buf.sampleRate / TARGET_FS));
   const fs = buf.sampleRate / d;
   const chans = [];
   for (let c = 0; c < buf.numberOfChannels; c++) chans.push(buf.getChannelData(c));
   const n = Math.floor(buf.length / d);
-  const out = new Float32Array(n);
+  const pad = Math.round(PAD_SEC * fs);
+  const out = new Float32Array(n + pad);
   const k = 1 / (d * chans.length);
   for (let i = 0; i < n; i++) {
     let s = 0;
     const o = i * d;
     for (const ch of chans) for (let j = 0; j < d; j++) s += ch[o + j];
-    out[i] = s * k;
+    out[pad + i] = s * k;
   }
-  return { x: out, fs };
+  return { x: out, fs, pad: pad / fs };
 }
 
 // 実数の FFT（長さ N の複素 FFT を使う）。大きさだけ返す
@@ -60,11 +63,17 @@ function makeFft(n) {
   };
 }
 
-// 立ち上がりの強さ（対数で縮めたスペクトルの増えた分の合計）。平均を引いて、ばらつきを 1 にそろえる
+// 立ち上がりの強さ（対数で縮めたスペクトルの増えた分の合計）。平均を引いて、ばらつきを 1 にそろえる。
+// あわせて、コマごとに 12 の高さの帯の大きさ（対数）も返す（小節の頭を探すのに使う）
+const NB = 12;
 function onsetEnvelope(x, fs) {
   const frames = Math.max(0, Math.floor((x.length - N) / H) + 1);
   const env = new Float32Array(frames);
-  if (!frames) return env;
+  const bands = new Float32Array(frames * NB);
+  if (!frames) return { env, bands };
+  // 帯の境目（40Hz〜半分の速さまでを対数で 12 等分）
+  const edges = [];
+  for (let b = 0; b <= NB; b++) edges.push(Math.max(1, Math.round(((40 * Math.pow((fs / 2) / 40, b / NB)) * N) / fs)));
   const win = new Float64Array(N);
   for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N);
   const fft = makeFft(N);
@@ -82,6 +91,12 @@ function onsetEnvelope(x, fs) {
       if (f > 0) { const d = cur[k] - prev[k]; if (d > 0) s += d; }
     }
     env[f] = s;
+    for (let b = 0; b < NB; b++) {
+      let e = 0;
+      const a = edges[b], z = Math.max(edges[b] + 1, edges[b + 1]);
+      for (let k = a; k < z && k <= N / 2; k++) e += mag[k];
+      bands[f * NB + b] = Math.log1p((100 * e) / (z - a));
+    }
     [prev, cur] = [cur, prev];
   }
   // 0.4 秒の移動平均を引いて、0 より下は 0 に
@@ -100,7 +115,50 @@ function onsetEnvelope(x, fs) {
   }
   const mean = sum / frames, sd = Math.sqrt(Math.max(1e-12, sq / frames - mean * mean));
   for (let i = 0; i < frames; i++) out[i] /= sd;
-  return out;
+  return { env: out, bands };
+}
+
+// ---------------------------------------------------------------- 小節の頭（強拍）
+
+// 拍のうち、どれが小節の頭か（M 拍ごと）。拍ごとの平均の音色が前の拍から大きく変わる所（和音が変わる所）と、
+// 低い音の立ち上がりが強い所を、小節の頭になりやすいとみなす。
+// 返すのは「最初の小節の頭が何番目の拍か」（0〜M-1）と、どれだけはっきりしているか
+function findDownbeat(frames, bands, nFrames, M) {
+  const n = frames.length;
+  if (n < M * 4) return null;
+  const S = [];
+  for (let i = 0; i < n; i++) {
+    const a = frames[i], b = i + 1 < n ? frames[i + 1] : Math.min(nFrames, a + (a - (frames[i - 1] ?? a - 40)));
+    const v = new Float64Array(NB);
+    let c = 0;
+    for (let f = a; f < b; f++) { for (let k = 0; k < NB; k++) v[k] += bands[f * NB + k]; c++; }
+    if (c) for (let k = 0; k < NB; k++) v[k] /= c;
+    S.push(v);
+  }
+  const D = new Float64Array(n), Lo = new Float64Array(n);
+  for (let i = 1; i < n; i++) { let d = 0; for (let k = 0; k < NB; k++) d += Math.abs(S[i][k] - S[i - 1][k]); D[i] = d; }
+  for (let i = 0; i < n; i++) {
+    const f = frames[i];
+    const now = (g) => (g >= 0 && g < nFrames ? bands[g * NB] + bands[g * NB + 1] : 0);
+    let up = 0, before = 0;
+    for (let g = 0; g < 3; g++) { up += now(f + g); before += now(f - 1 - g); }
+    Lo[i] = Math.max(0, up - before);
+  }
+  const z = (arr, from) => {
+    let m = 0, q = 0, c = 0;
+    for (let i = from; i < n; i++) { m += arr[i]; q += arr[i] * arr[i]; c++; }
+    m /= c; const sd = Math.sqrt(Math.max(1e-12, q / c - m * m));
+    return Array.from(arr, (x) => (x - m) / sd);
+  };
+  const zD = z(D, 1), zL = z(Lo, 0);
+  const score = new Float64Array(M), cnt = new Float64Array(M);
+  for (let i = 1; i < n; i++) { score[i % M] += zD[i] + 0.5 * zL[i]; cnt[i % M]++; }
+  for (let p = 0; p < M; p++) score[p] /= Math.max(1, cnt[p]);
+  let best = 0;
+  for (let p = 1; p < M; p++) if (score[p] > score[best]) best = p;
+  let second = -Infinity;
+  for (let p = 0; p < M; p++) if (p !== best && score[p] > second) second = score[p];
+  return { index: best, margin: score[best] - second, scores: Array.from(score) };
 }
 
 // ---------------------------------------------------------------- テンポの候補
@@ -345,10 +403,11 @@ function segment(times) {
 
 // 結果：{ bpm（最初のテンポ）, beats（拍の時刻・秒、曲の頭から）, changes: [{ time（秒）, index, bpm, width（拍） }] }
 // 見つからないときは null
-export function analyzeTempo(buf) {
+// measureBeats：1 小節の拍の数（4/4 なら 4）
+export function analyzeTempo(buf, measureBeats = 4) {
   if (!buf || !buf.length) return null;
-  const { x, fs } = monoDown(buf);
-  const o = onsetEnvelope(x, fs);
+  const { x, fs, pad } = monoDown(buf);
+  const { env: o, bands } = onsetEnvelope(x, fs);
   if (o.length < 64) return null;
   const fps = fs / H;
   const wins = tempogram(o, fps);
@@ -362,15 +421,18 @@ export function analyzeTempo(buf) {
   while (last > 0 && o[last] < 1) last--;
   const slack = Math.round(0.25 * fps);
   frames = frames.filter((f) => f >= first - slack && f <= last + slack);
-  const offset = N / 2 / fs; // 区切りの真ん中の時刻
+  const offset = N / 2 / fs - pad; // 区切りの真ん中の時刻（頭に足した無音の分を引く）
   const times = frames.map((f) => (f * H) / fs + offset);
   const seg = segment(times);
   if (!seg || !(seg.bpm > 0)) return null;
+  const down = findDownbeat(frames, bands, o.length, measureBeats);
   return {
     bpm: seg.bpm,
     globalBpm: global,
     beats: times,
     changes: seg.changes.map((c) => ({ ...c, time: times[c.index] })),
+    // 最初の小節の頭：index 番目の拍（0 ならアウフタクトなし）。margin が小さいときは当てにならない
+    downbeat: down ? { index: down.index, time: times[down.index], margin: down.margin, scores: down.scores } : null,
   };
 }
 
