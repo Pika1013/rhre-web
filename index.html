@@ -161,7 +161,10 @@
   #newsList .news-new { color: #7cc6f0; }
   #videoPreview { display: grid; place-items: center; margin-top: 8px; }
   #videoPreview:empty { display: none; }
-  #videoPreview canvas { width: 100%; max-width: 420px; height: auto; border-radius: 6px; background: #000; }
+  #videoPreview canvas { width: auto; height: auto; max-width: min(420px, 100%); max-height: 32vh; border-radius: 6px; background: #000; }
+  /* 書き終わったら、進み具合のバーの場所に保存ボタン（下のほうは小さい画面で隠れやすいので） */
+  #videoSave { display: block; width: 100%; margin-top: 10px; }
+  #videoInfo { margin-top: 6px !important; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72); }
   .card {
     width: min(380px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
@@ -895,7 +898,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.8.2</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.8.3</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1093,12 +1096,12 @@
       <p class="note" id="videoNote"></p>
     </div>
     <div id="videoPreview"></div>
-    <div class="bar"><div id="videoBar"></div></div>
+    <div class="bar" id="videoBarWrap"><div id="videoBar"></div></div>
+    <button class="btn primary" id="videoSave" hidden>動画を保存</button>
     <p class="note" id="videoInfo"></p>
     <div class="row">
       <button class="btn primary" id="videoStart">書き出す</button>
       <button class="btn" id="videoStop" hidden>やめる</button>
-      <button class="btn primary" id="videoSave" hidden>動画を保存</button>
       <button class="btn" id="videoClose">閉じる</button>
     </div>
   </div>
@@ -1184,7 +1187,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.8.2</h2>
+    <h2>RHRE Web v1.8.3</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1295,7 +1298,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=76"></script>
+<script type="module" src="js/app.js?v=77"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

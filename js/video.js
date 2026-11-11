@@ -116,6 +116,19 @@ function drawGameDisplay(deps, st, sec, icons) {
   g.restore();
 }
 
+// 右下に小さく灰色で「RHRE Web v…」（RHRE Web で作った印）
+function drawSignature(deps, st) {
+  const g = st.v.ctx;
+  g.save();
+  g.setTransform(st.scale, 0, 0, st.scale, 0, 0);
+  g.font = `700 12px ${deps.FONT}`;
+  g.textAlign = 'right';
+  g.textBaseline = 'bottom';
+  g.fillStyle = 'rgba(160,160,160,0.8)';
+  g.fillText(`RHRE Web v${deps.version || ''}`, st.W - 8, st.H - 6);
+  g.restore();
+}
+
 // 字幕と「特殊」の画像を、画面の中央下に（再生中の画面と同じ並び・大きさ）
 function drawOverlay(deps, st, remix, beat) {
   const g = st.v.ctx;
@@ -208,6 +221,7 @@ async function prepare(deps, main, opts) {
     drawOverlay(deps, st, remix, beat);
     // 今のゲームは、再生が始まってから（最初に待っている間は出さない。RHRE fresh も止まっているときは出さない）
     if (live) drawGameDisplay(deps, st, sectionAt(sections, beat), icons);
+    drawSignature(deps, st);
   };
   // 書き出しのあと、今の画面の光り方の記録を空にする（動画用の時計の値が残らないように）
   const cleanup = () => {

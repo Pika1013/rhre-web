@@ -5,10 +5,10 @@ import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=33';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=3';
-import { CHANGELOG } from './changelog.js?v=3';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=4';
+import { CHANGELOG } from './changelog.js?v=4';
 
-const VERSION = '1.8.2';
+const VERSION = '1.8.3';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1887,6 +1887,7 @@ function openVideoExport() {
   $('videoFps').value = String(Number(settings.videoFps) === 60 ? 60 : 30);
   $('videoPreview').replaceChildren();
   $('videoBar').style.width = '0%';
+  $('videoBarWrap').hidden = false;
   $('videoInfo').textContent = '';
   $('videoSave').hidden = true;
   $('videoStop').hidden = true;
@@ -1915,6 +1916,7 @@ $('videoStart').addEventListener('click', async () => {
   $('videoStart').hidden = true;
   $('videoSave').hidden = true;
   $('videoStop').hidden = false;
+  $('videoBarWrap').hidden = false;
   $('videoBar').style.width = '1%';
   $('videoMsg').textContent = t('効果音を読み込んでいます…');
   let wake = null;
@@ -1932,6 +1934,7 @@ $('videoStart').addEventListener('click', async () => {
       textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
       audioContext: () => engine.context,
       loadIcon,
+      version: VERSION,
       // 左上に出すゲームの名前（言語違いはまとめた名前）と、出さないゲーム（特殊・カウントなど）か
       gameInfo: (gid) => {
         const g = gamesIndex.find((x) => x.id === gid);
@@ -1961,6 +1964,8 @@ $('videoStart').addEventListener('click', async () => {
     $('videoMsg').textContent = t('書き出しました（{mb} MB、{s} 秒かかりました）。「動画を保存」で保存できます。', {
       mb: (videoBlob.size / 1048576).toFixed(1), s: ((performance.now() - started) / 1000).toFixed(1),
     });
+    // 終わったら、バーの代わりに保存ボタンを出す
+    $('videoBarWrap').hidden = true;
     $('videoSave').hidden = false;
   } catch (e) {
     if (e?.name === 'AbortError') {

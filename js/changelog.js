@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.8.3', date: '2026-11-11',
+    ja: [
+      '動画の書き出しが終わったら、進み具合のバーの場所に「動画を保存」ボタンが出るようにしました（小さい画面でボタンが隠れていたため）',
+      '書き出した動画の右下に、小さく「RHRE Web」と版を入れるようにしました',
+    ],
+    en: [
+      'When a video export finishes, the "Save video" button now appears where the progress bar was (it used to be hidden on small screens).',
+      'Exported videos now show a small "RHRE Web" and version in the bottom right.',
+    ],
+  },
+  {
     v: '1.8.2', date: '2026-11-11',
     ja: [
       '動画の左上に、今のゲームのアイコンと名前を出すようにしました（RHRE fresh と同じ）',
