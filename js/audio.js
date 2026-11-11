@@ -509,7 +509,11 @@ export class Previewer {
 
 // 再生開始位置から最後までを WAV に書き出す
 export async function renderWav(engine, remix, musicBuf, fromSec) {
-  const sr = 44100;
+  return encodeWav(await renderMix(engine, remix, musicBuf, fromSec));
+}
+
+// 再生開始位置から最後（End Remix か最後の音）の 1 秒後までを、計算で一気に鳴らした音（WAV と動画で使う）
+export async function renderMix(engine, remix, musicBuf, fromSec, sr = 44100) {
   const toSec = remix.durationSec + 1.0;
   const length = Math.max(1, Math.ceil((toSec - fromSec) * sr));
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -524,8 +528,7 @@ export async function renderWav(engine, remix, musicBuf, fromSec) {
     }
   }
   scheduleMusic(octx, octx.destination, remix, musicBuf, 0, fromSec);
-  const rendered = await octx.startRendering();
-  return encodeWav(rendered);
+  return octx.startRendering();
 }
 
 function encodeWav(buf) {

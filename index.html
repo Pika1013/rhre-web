@@ -143,6 +143,25 @@
   }
   #updateBar button { height: 32px; padding: 0 12px; border-radius: 5px; border: 0; font-weight: 800; font-size: 14px; background: #3fbf47; color: #0b2a0d; }
   #updateBar #updateLater { background: #2d4a2f; color: #dfe; }
+  /* アップデートのあとのお知らせ（更新のお知らせと並ぶときは、その下に） */
+  #newsBar {
+    position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px;
+    padding: 6px 6px 6px 12px; border-radius: 8px; background: #1d3f5a; border: 2px solid #4a9ac9; font-weight: 700; font-size: 14px;
+    white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); cursor: pointer;
+  }
+  #updateBar:not([hidden]) ~ #newsBar { top: 58px; }
+  #newsBar button { height: 32px; padding: 0 12px; border-radius: 5px; border: 0; font-weight: 800; font-size: 14px; background: #4a9ac9; color: #08202f; }
+  #newsBar #newsDismiss { width: 32px; padding: 0; display: grid; place-items: center; background: transparent; }
+  #newsBar #newsDismiss svg { width: 18px; height: 18px; stroke: #cfe6f5; stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  #newsList { max-height: min(60vh, 420px); overflow: auto; margin: 4px 0 8px; }
+  #newsList h3 { margin: 10px 0 4px; font-size: 15px; }
+  #newsList h3 small { margin-left: 8px; font-weight: 400; color: #9a9a9a; font-size: 12px; }
+  #newsList ul { margin: 0 0 6px; padding-left: 20px; }
+  #newsList li { margin: 3px 0; font-size: 14px; line-height: 1.5; }
+  #newsList .news-new { color: #7cc6f0; }
+  #videoPreview { display: grid; place-items: center; margin-top: 8px; }
+  #videoPreview:empty { display: none; }
+  #videoPreview canvas { width: 100%; max-width: 420px; height: auto; border-radius: 6px; background: #000; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 20, 20, 0.72); }
   .card {
     width: min(380px, calc(100% - 40px)); padding: 16px 18px; border-radius: 8px; background: #2f2f2f;
@@ -427,7 +446,7 @@
   .nav-btns button:active svg { opacity: 0.6; }
   .presenting .nav-btns, .pa-playing .nav-btns { display: none; }
   #presentExit { display: none; }
-  .presenting #topbar, .presenting #panel, .presenting #panelToggle, .presenting #status, .presenting #updateBar { display: none !important; }
+  .presenting #topbar, .presenting #panel, .presenting #panelToggle, .presenting #status, .presenting #updateBar, .presenting #newsBar { display: none !important; }
   .presenting #app { grid-template-rows: minmax(0, 1fr); }
   .presenting #presentExit {
     display: flex; align-items: center; gap: 6px; position: fixed; z-index: 30; height: 36px; padding: 0 12px 0 10px;
@@ -829,6 +848,7 @@
     <div id="toast" role="status" hidden></div>
     <input id="tsEdit" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="拍子" hidden>
     <div id="updateBar" role="status" hidden><span id="updateText">新しい版があります</span><button id="updateBtn">更新する</button><button id="updateLater" aria-label="あとで">あとで</button></div>
+    <div id="newsBar" role="status" hidden><span id="newsText">アップデートしました！</span><button id="newsOpen">内容を確認</button><button id="newsDismiss" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <button id="panelToggle" title="ゲーム一覧を隠す／出す" aria-label="ゲーム一覧を隠す／出す" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span>ゲームを選ぶ</span></button>
     <div id="loading">
       <div class="card">
@@ -875,7 +895,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.7.7</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.8.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -949,6 +969,7 @@
       <button class="btn" data-act="sample">サンプルを開く</button>
       <button class="btn primary" data-act="save">保存（.rhref）</button>
       <button class="btn" data-act="export">WAVに書き出す</button>
+      <button class="btn" data-act="video">動画で書き出す</button>
       <hr>
       <button class="btn" data-act="music">音楽を選ぶ</button>
       <button class="btn" data-act="musicStart">音楽の開始位置</button>
@@ -962,6 +983,7 @@
       <button class="btn" data-act="tour">チュートリアル</button>
       <button class="btn" data-act="guide">リミックスを作ってみる</button>
       <button class="btn" data-act="help">使い方</button>
+      <button class="btn" data-act="news">更新内容</button>
       <button class="btn" data-act="close">閉じる</button>
     </div>
   </div>
@@ -1061,6 +1083,34 @@
   </div>
 </div>
 
+<div class="modal" id="videoModal" hidden>
+  <div class="card">
+    <h2>動画で書き出す</h2>
+    <p id="videoMsg">再生開始位置（緑の旗）から最後までを、プレゼンテーションモードと同じ見た目の動画にします。</p>
+    <div id="videoOpts">
+      <div class="field"><label for="videoSize">大きさ</label><select id="videoSize"><option value="720">1280×720</option><option value="1080">1920×1080</option></select></div>
+      <div class="field"><label for="videoFps">なめらかさ</label><select id="videoFps"><option value="30">30 コマ／秒</option><option value="60">60 コマ／秒</option></select></div>
+      <p class="note" id="videoNote"></p>
+    </div>
+    <div id="videoPreview"></div>
+    <div class="bar"><div id="videoBar"></div></div>
+    <div class="row">
+      <button class="btn primary" id="videoStart">書き出す</button>
+      <button class="btn" id="videoStop" hidden>やめる</button>
+      <button class="btn primary" id="videoSave" hidden>動画を保存</button>
+      <button class="btn" id="videoClose">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="newsModal" hidden>
+  <div class="card">
+    <h2>更新内容</h2>
+    <div id="newsList"></div>
+    <div class="row"><button class="btn" id="newsClose">閉じる</button></div>
+  </div>
+</div>
+
 <div class="modal" id="keysModal" hidden role="dialog" aria-labelledby="keysTitle">
   <div class="card">
     <h2 id="keysTitle">キーボードで遊ぶとき</h2>
@@ -1133,7 +1183,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.7.7</h2>
+    <h2>RHRE Web v1.8.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1168,6 +1218,8 @@
       <li>テンポがわからないときは、メニューの「テンポを測る」で、曲に合わせてタップして測れます</li>
       <li>メニューの「音楽の開始位置」：秒の数字を入れるか、「曲の始まりを 0 拍目に合わせる」</li>
       <li>メニューの「WAVに書き出す」：リミックスを音のファイルにします</li>
+      <li>メニューの「動画で書き出す」：再生開始位置から最後までを、プレゼンテーションモードと同じ見た目の mp4 にします（大きさとなめらかさを選べます）</li>
+      <li>メニューの「更新内容」：アップデートで何が変わったかを見られます</li>
     </ul>
     <p><b>遊ぶ・見せる</b></p>
     <ul>
@@ -1216,6 +1268,8 @@
       <li>If you don't know the tempo, use "Measure tempo" in the menu and tap along with the song.</li>
       <li>"Music start position" in the menu: type the seconds, or use "Align song start to beat 0".</li>
       <li>"Export WAV" in the menu turns your remix into an audio file.</li>
+      <li>"Export video" in the menu turns the remix, from the playback start to the end, into an mp4 that looks like presentation mode (you can choose the size and smoothness).</li>
+      <li>"What's new" in the menu shows what changed in each update.</li>
     </ul>
     <p><b>Playing and showing</b></p>
     <ul>
@@ -1240,7 +1294,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=73"></script>
+<script type="module" src="js/app.js?v=74"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

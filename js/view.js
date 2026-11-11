@@ -1,6 +1,6 @@
 // エディタ画面（トラックとエンティティ）の描画とタッチ操作。見た目は RHRE fresh のデスクトップ版の配置に合わせている。
 
-const FONT = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif';
+export const FONT = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif';
 
 export const C = {
   bg: '#242424',
@@ -66,6 +66,8 @@ function getIcon(url, onload) {
   let e = iconCache.get(url);
   if (!e) {
     const img = new Image();
+    // ほかのサイト（jsDelivr）の絵は、許可を付けて読む。付けないと、描いたキャンバスを動画にできなくなる
+    if (/^https?:/.test(url) && !url.startsWith(location.origin)) img.crossOrigin = 'anonymous';
     e = { img, ok: false };
     img.onload = () => { e.ok = true; onload?.(); };
     img.src = url;
@@ -76,8 +78,10 @@ function getIcon(url, onload) {
 export { getIcon };
 
 export class EditorView {
-  constructor(canvas, handlers = {}) {
+  // fixed：動画の書き出し用。画面に置かないキャンバスに、決めた大きさ（W×H を scale 倍）で描く。触る操作は付けない
+  constructor(canvas, handlers = {}, fixed = null) {
     this.cv = canvas;
+    this.fixed = fixed;
     this.ctx = canvas.getContext('2d');
     this.h = handlers;
     this.remix = null;
@@ -98,6 +102,7 @@ export class EditorView {
     this.momentum = null;
     this.bgImage = null; // { img, fit: 'cover' | 'contain', alpha }
     this.resize();
+    if (fixed) return;
     new ResizeObserver(() => { this.resize(); this.dirty = true; }).observe(canvas);
     this.bindInput();
   }
@@ -111,6 +116,13 @@ export class EditorView {
   }
 
   resize() {
+    if (this.fixed) {
+      const { W, H, scale } = this.fixed;
+      this.W = W; this.H = H; this.dpr = scale;
+      this.cv.width = Math.round(W * scale);
+      this.cv.height = Math.round(H * scale);
+      return;
+    }
     const r = this.cv.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     this.W = Math.max(1, r.width);

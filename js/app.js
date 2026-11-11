@@ -1,12 +1,14 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT } from './remix.js?v=13';
-import { AudioEngine, Player, Previewer, renderWav, detectOnset, rhreMusicLeadIn } from './audio.js?v=16';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, detectOnset, rhreMusicLeadIn } from './audio.js?v=17';
 import { customRegistry } from './db.js?v=9';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=30';
-import { EditorView, fmtTime, LABELS, applyTheme } from './view.js?v=30';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT } from './view.js?v=31';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=1';
+import { CHANGELOG } from './changelog.js?v=1';
 
-const VERSION = '1.7.7';
+const VERSION = '1.8.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1534,7 +1536,7 @@ function frame(now) {
   if (playMode && judge) syncHolding();
   view.stepMomentum(now);
   if (guide.on) positionCoachRing();
-  if (view.dirty) {
+  if (view.dirty && !videoJob) {
     view.dirty = false;
     view.draw(now);
   }
@@ -1555,6 +1557,7 @@ function doAction(act) {
       break;
     case 'save': openSave(); break;
     case 'export': exportWav(); break;
+    case 'video': openVideoExport(); break;
     case 'music': openSongPicker(); break;
     case 'tapTempo': openTapTempo('menu'); break;
     case 'guide': startGuide(); break;
@@ -1566,6 +1569,7 @@ function doAction(act) {
       });
       break;
     case 'help': openHelp(); break;
+    case 'news': openNews(newsSince); break;
     case 'tracks': openTracks(); break;
     case 'present': startPresentation(); break;
     case 'playmode': setPlayMode(!playMode); break;
@@ -1865,6 +1869,134 @@ async function exportWav() {
   }
 }
 $('exportClose').addEventListener('click', () => { $('exportModal').hidden = true; });
+
+// ---------------------------------------------------------------- 動画で書き出す
+// 計算で作れる端末（WebCodecs の映像と音の部品がある）では 1 コマずつ計算で、ない端末では流しながら録画で
+let videoJob = null; // 書き出し中 { ctrl }
+let videoBlob = null, videoName = '';
+const videoMethod = () => (canRenderFast() ? 'fast' : canRecord() ? 'record' : null);
+function openVideoExport() {
+  if (!remix) return;
+  if (mode === 'playing') pause();
+  const m = videoMethod();
+  $('videoModal').hidden = false;
+  if (videoJob) return; // 書き出し中ならそのまま見せる
+  $('videoOpts').hidden = false;
+  $('videoSize').value = settings.videoSize === '1080' ? '1080' : '720';
+  $('videoFps').value = String(Number(settings.videoFps) === 60 ? 60 : 30);
+  $('videoPreview').replaceChildren();
+  $('videoBar').style.width = '0%';
+  $('videoSave').hidden = true;
+  $('videoStop').hidden = true;
+  $('videoStart').hidden = !m;
+  const from = remix.tempo.b2s(remix.playbackStart);
+  $('videoMsg').textContent = t('再生開始位置（緑の旗）から最後まで（{d}）を、プレゼンテーションモードと同じ見た目の動画にします。', { d: fmtTime(Math.max(0, remix.durationSec + 1 - from)) });
+  $('videoNote').textContent = m === 'fast'
+    ? t('計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。')
+    : m === 'record'
+      ? t('この端末では、実際に流しながら録画します（再生と同じ時間がかかり、音も鳴ります）。新しいブラウザ（iPhone は iOS 26 以上）なら、計算で速く作れます。録画のあいだは、アプリを開いたままにしてください。')
+      : t('この端末のブラウザでは、動画を作れません。');
+}
+
+$('videoStart').addEventListener('click', async () => {
+  if (!remix || videoJob) return;
+  const m = videoMethod();
+  if (!m) return;
+  if (m === 'record') engine.unlock(); // 録画は音を実際に流すので、タップの中で音を有効にする（await より前）
+  if (mode !== 'stopped') stopPlayback();
+  settings.videoSize = $('videoSize').value;
+  settings.videoFps = Number($('videoFps').value);
+  saveSettings();
+  const ctrl = new AbortController();
+  videoJob = { ctrl };
+  $('videoOpts').hidden = true;
+  $('videoStart').hidden = true;
+  $('videoSave').hidden = true;
+  $('videoStop').hidden = false;
+  $('videoBar').style.width = '1%';
+  $('videoMsg').textContent = t('効果音を読み込んでいます…');
+  let wake = null;
+  try { wake = await navigator.wakeLock?.request('screen'); } catch (_) { /* 画面を点けたままにできない端末 */ }
+  // 録画は、アプリが裏に回ると絵が止まってしまうので、やめる
+  const onHide = () => { if (document.hidden && m === 'record') ctrl.abort(); };
+  document.addEventListener('visibilitychange', onHide);
+  const started = performance.now();
+  try {
+    await engine.loadSounds([...remix.allSoundCues().keys()], remix.db);
+    $('videoMsg').textContent = t('音を作っています…');
+    const deps = {
+      EditorView, FONT,
+      renderMix: (fromSec, sr) => renderMix(engine, remix, musicBuf, fromSec, sr),
+      textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
+      audioContext: () => engine.context,
+    };
+    const opts = { fromSec: remix.tempo.b2s(remix.playbackStart), size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
+    const onProgress = (f, phase) => {
+      const p = Math.floor(f * 100);
+      $('videoBar').style.width = `${Math.max(1, p)}%`;
+      if (phase === 'audio') $('videoMsg').textContent = t('音を固めています…');
+      else if (phase === 'video') $('videoMsg').textContent = t('映像を作っています… {p}%', { p });
+      else if (phase === 'record') $('videoMsg').textContent = t('録画しています… {p}%', { p });
+    };
+    const res = m === 'fast'
+      ? await renderVideoFast(deps, view, opts, onProgress, ctrl.signal)
+      : await recordVideoRealtime(deps, view, opts, onProgress, ctrl.signal);
+    videoBlob = res.blob;
+    videoName = `${fileName.replace(/\.[^.]+$/, '')}.${res.ext}`;
+    $('videoBar').style.width = '100%';
+    $('videoMsg').textContent = t('書き出しました（{mb} MB、{s} 秒かかりました）。「動画を保存」で保存できます。', {
+      mb: (videoBlob.size / 1048576).toFixed(1), s: ((performance.now() - started) / 1000).toFixed(1),
+    });
+    $('videoSave').hidden = false;
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      $('videoMsg').textContent = document.hidden && m === 'record' ? t('アプリが裏に回ったので、録画をやめました。') : t('書き出しをやめました。');
+    } else {
+      console.error(e);
+      $('videoMsg').textContent = `${t('動画を作れませんでした')}: ${t(e?.message || String(e))}`;
+    }
+    $('videoOpts').hidden = false;
+    $('videoStart').hidden = false;
+    $('videoBar').style.width = '0%';
+  } finally {
+    document.removeEventListener('visibilitychange', onHide);
+    try { await wake?.release(); } catch (_) { /* 済み */ }
+    videoJob = null;
+    $('videoStop').hidden = true;
+    view.dirty = true;
+  }
+});
+$('videoStop').addEventListener('click', () => videoJob?.ctrl.abort());
+$('videoClose').addEventListener('click', () => {
+  videoJob?.ctrl.abort();
+  $('videoModal').hidden = true;
+  $('videoPreview').replaceChildren();
+});
+// iPhone は共有の画面から（「ビデオを保存」で写真に入れられる）、ほかはダウンロード
+$('videoSave').addEventListener('click', () => {
+  if (!videoBlob) return;
+  const name = videoName;
+  if (isTouch && !isAndroid) {
+    try {
+      const file = new File([videoBlob], name, { type: videoBlob.type || 'video/mp4' });
+      if (navigator.canShare?.({ files: [file] })) {
+        navigator.share({ files: [file], title: name })
+          .then(() => toast(`${t('保存しました')}：${name}`, 2500, 'info'))
+          .catch((err) => { if (err?.name !== 'AbortError') console.error(err); });
+        return;
+      }
+    } catch (e) { console.error(e); /* 共有できなければダウンロードで */ }
+  }
+  const url = URL.createObjectURL(videoBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast(`${t('保存しました')}：${name}`, 2500, 'info');
+});
 $('saveClose').addEventListener('click', () => { $('saveModal').hidden = true; });
 
 window.addEventListener('keydown', (e) => {
@@ -3280,7 +3412,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
   const CLOSERS = {
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
-    saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose',
+    saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose', videoModal: '#videoClose', newsModal: '#newsClose',
     songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
@@ -3562,6 +3694,54 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) chec
 setTimeout(checkUpdate, 1500);
 setInterval(checkUpdate, 60000);
 
+// ---------------------------------------------------------------- 更新内容
+// アップデートのあとに開いたら「アップデートしました！」を 1 回だけ出す。初めて使う人には出さない
+const cmpVer = (a, b) => {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d; }
+  return 0;
+};
+// 前に見た版より新しい項目は色を変える（見出しの版を水色に）
+function openNews(sinceVer) {
+  const en = getLang() === 'en';
+  const list = $('newsList');
+  list.replaceChildren();
+  for (const item of CHANGELOG) {
+    const h = document.createElement('h3');
+    h.textContent = `v${item.v}`;
+    if (sinceVer && cmpVer(item.v, sinceVer) > 0) h.className = 'news-new';
+    const sm = document.createElement('small');
+    sm.textContent = item.date;
+    h.appendChild(sm);
+    const ul = document.createElement('ul');
+    for (const line of (en ? item.en : item.ja)) {
+      const li = document.createElement('li');
+      li.textContent = line;
+      ul.appendChild(li);
+    }
+    list.append(h, ul);
+  }
+  $('newsBar').hidden = true;
+  $('newsModal').hidden = false;
+  list.scrollTop = 0;
+}
+let newsSince = null;
+{
+  const NEWS_BASE = '1.7.7'; // 更新内容を始める前の版。それまで使っていた人は、これより新しい分を見る
+  const seen = settings.seenVersion || (settings.uiLangChosen ? NEWS_BASE : VERSION);
+  if (cmpVer(VERSION, seen) > 0 && CHANGELOG.some((c) => cmpVer(c.v, seen) > 0 && cmpVer(c.v, VERSION) <= 0)) newsSince = seen;
+  if (settings.seenVersion !== VERSION) { settings.seenVersion = VERSION; saveSettings(); }
+  if (newsSince) {
+    setTimeout(() => {
+      $('newsText').textContent = t('アップデートしました！（v{v}）', { v: VERSION });
+      $('newsBar').hidden = false;
+    }, 1200);
+  }
+}
+$('newsBar').addEventListener('click', () => openNews(newsSince));
+$('newsDismiss').addEventListener('click', (e) => { e.stopPropagation(); $('newsBar').hidden = true; });
+$('newsClose').addEventListener('click', () => { $('newsModal').hidden = true; });
+
 // ---------------------------------------------------------------- 起動
 
 buildTabs();
@@ -3569,7 +3749,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; } };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; } };
 
 applySettings();
 (async () => {

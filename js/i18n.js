@@ -2,6 +2,18 @@
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
 
 const EN = {
+  // 動画で書き出す・更新内容
+  '再生開始位置（緑の旗）から最後まで（{d}）を、プレゼンテーションモードと同じ見た目の動画にします。': 'Makes a video of the remix from the playback start (green flag) to the end ({d}), looking like presentation mode.',
+  '計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。': 'Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.',
+  'この端末では、実際に流しながら録画します（再生と同じ時間がかかり、音も鳴ります）。新しいブラウザ（iPhone は iOS 26 以上）なら、計算で速く作れます。録画のあいだは、アプリを開いたままにしてください。': 'On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.',
+  'この端末のブラウザでは、動画を作れません。': "This browser can't make videos.",
+  '効果音を読み込んでいます…': 'Loading sound effects…', '音を作っています…': 'Making the audio…', '音を固めています…': 'Encoding the audio…',
+  '映像を作っています… {p}%': 'Making the video… {p}%', '録画しています… {p}%': 'Recording… {p}%',
+  '書き出しました（{mb} MB、{s} 秒かかりました）。「動画を保存」で保存できます。': 'Done ({mb} MB, took {s} s). Press "Save video" to save it.',
+  'アプリが裏に回ったので、録画をやめました。': 'Recording stopped because the app went to the background.',
+  '書き出しをやめました。': 'Export cancelled.', '動画を作れませんでした': "Couldn't make the video",
+  'この端末では、この大きさの動画（H.264）を作れません': "This device can't make H.264 video at this size", 'この端末では、動画の音（AAC）を作れません': "This device can't encode the video's audio (AAC)",
+  'アップデートしました！（v{v}）': 'Updated! (v{v})',
   'オンライン人数を表示します（この端末だけ）': 'Showing the online count (on this device only)', 'オンライン人数を隠しました': 'Online count hidden',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
   '{n} 人がオンライン': '{n} online',
@@ -208,6 +220,9 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
+  '動画で書き出す': 'Export video', '更新内容': "What's new", 'アップデートしました！': 'Updated!', '内容を確認': "See what's new",
+  '再生開始位置（緑の旗）から最後までを、プレゼンテーションモードと同じ見た目の動画にします。': 'Makes a video from the playback start (green flag) to the end, looking like presentation mode.',
+  '大きさ': 'Size', 'なめらかさ': 'Smoothness', '30 コマ／秒': '30 fps', '60 コマ／秒': '60 fps', '書き出す': 'Export', '動画を保存': 'Save video',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',
   '左へ高速移動（押し続けると流れ続ける）': 'Fast scroll left (hold to keep scrolling)', '右へ高速移動（押し続けると流れ続ける）': 'Fast scroll right (hold to keep scrolling)', '左へ高速移動': 'Fast scroll left', '右へ高速移動': 'Fast scroll right',
   'パーフェクト挑戦': 'Perfect Challenge', 'めざせ パーフェクト!': 'Go for a Perfect!', 'パーフェクト挑戦の切り替え': 'Toggle Perfect Challenge',
