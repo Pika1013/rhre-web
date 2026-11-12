@@ -2,14 +2,14 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=20';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=33';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=34';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=37';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=8';
-import { CHANGELOG } from './changelog.js?v=13';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
+import { CHANGELOG } from './changelog.js?v=14';
 
-const VERSION = '1.9.6';
+const VERSION = '1.9.7';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2933,7 +2933,7 @@ const TOUR_STEPS = [
   { title: '音楽と再生の旗', text: '赤い旗は音楽が始まる位置、緑の旗は再生を始める位置です。どちらも横にドラッグして動かせます。上の目盛りをタップしても、再生を始める位置を変えられます。', target: () => viewPart('flags') },
   { title: 'テンポ・拍子・音量', text: 'トラックの下の段をタップすると、テンポ・拍子・音楽の音量を変えられます。印は長押ししてからドラッグで動かせます。大きな拍子の数字をタップすると、その場で書きかえられます。', target: () => viewPart('tempo') },
   { title: 'スナップ', text: 'ブロックを置く・動かすときの目盛りの細かさです。1 拍から 1/32 拍まで選べます。', target: () => visibleRect($('snapBtn')) },
-  { title: 'メニュー', text: '保存・開く・音楽を選ぶ・WAV に書き出す・トラックの数・プレゼンテーション・プレイモードなどはここです。このチュートリアルも、ここからもう一度見られます。', target: () => visibleRect($('menuBtn')) },
+  { title: 'メニュー', text: '保存・開く・音楽を選ぶ・音声のみ書き出す・動画で書き出す・トラックの数・プレゼンテーション・プレイモードなどはここです。このチュートリアルも、ここからもう一度見られます。', target: () => visibleRect($('menuBtn')) },
   { title: '設定', text: 'ミニゲームの声の言語、テーマの色、背景の画像、画面の言語などを変えられます。', target: () => visibleRect($('settingsBtn')) },
   { title: '準備完了！', text: '作ったリミックスは自動で端末に保存されます。RHRE fresh で開ける .rhref にも保存できます。次は、実際にリミックスを 1 つ作ってみましょう！' },
 ];
@@ -3497,7 +3497,7 @@ function guideRender() {
     btns = [{ label: t('戻る'), fn: () => guideGo('cues') }];
   } else if (st === 'export') {
     title = t('書き出してみよう');
-    text = t('左上のメニュー（☰）→「WAVに書き出す」で、曲として保存できます。');
+    text = t('左上のメニュー（☰）→「音声のみ書き出す」で、曲として保存できます。');
   } else if (st === 'done') {
     title = t('リミックス完成！おつかれさま！');
     text = t('保存ボタンで .rhref に保存すれば、続きを編集したり RHRE fresh で開いたりできます。これで基本操作はおしまいです。');

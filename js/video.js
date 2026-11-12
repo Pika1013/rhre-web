@@ -116,17 +116,19 @@ function drawGameDisplay(deps, st, sec, icons) {
   g.restore();
 }
 
-// 左下に小さく灰色で「RHRE Web v… · サイトの URL」（RHRE Web で作った印。見た人がサイトに来られるように）
+// 小さく灰色で、右下に「RHRE Web v…」（RHRE Web で作った印）、左下にサイトの URL（見た人がサイトに来られるように）
 const SITE_URL = 'https://pika1013.github.io/rhre-web/';
 function drawSignature(deps, st) {
   const g = st.v.ctx;
   g.save();
   g.setTransform(st.scale, 0, 0, st.scale, 0, 0);
   g.font = `700 12px ${deps.FONT}`;
-  g.textAlign = 'left';
   g.textBaseline = 'bottom';
   g.fillStyle = 'rgba(160,160,160,0.8)';
-  g.fillText(`RHRE Web v${deps.version || ''} · ${SITE_URL}`, 8, st.H - 6);
+  g.textAlign = 'right';
+  g.fillText(`RHRE Web v${deps.version || ''}`, st.W - 8, st.H - 6);
+  g.textAlign = 'left';
+  g.fillText(SITE_URL, 8, st.H - 6);
   g.restore();
 }
 

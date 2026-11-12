@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.7', date: '2026-11-12',
+    ja: [
+      '書き出した動画は、右下に「RHRE Web」と版、左下にサイトの URL を入れるようにしました',
+      'メニューの「WAVに書き出す」を「音声のみ書き出す」に名前を変えました（中身は今までどおり WAV です）',
+    ],
+    en: [
+      'Exported videos now show "RHRE Web" and the version in the bottom right, and the site URL in the bottom left.',
+      'Renamed "Export WAV" in the menu to "Export audio only" (it still makes a WAV file).',
+    ],
+  },
+  {
     v: '1.9.6', date: '2026-11-12',
     ja: ['書き出した動画の版と URL を左下に移し、URL は https:// から入れるようにしました'],
     en: ['Exported videos now show the version and URL in the bottom left, with the URL starting with https://.'],
