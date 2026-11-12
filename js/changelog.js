@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.9', date: '2026-11-12',
+    ja: ['テンポの段の「ここをタップで…」の案内を、横に縮めないようにしました（入りきらない分は画面の左にはみ出します）'],
+    en: ['The "Tap here to…" hint on the tempo row is no longer squeezed (the part that doesn\'t fit runs off the left edge).'],
+  },
+  {
     v: '1.9.8', date: '2026-11-12',
     ja: [
       'トラックの数え方を RHRE fresh と同じ「下から」にしました。RHRE Web で作った .rhref をパソコンの RHRE fresh で開くと、ブロックの段が上下逆になっていたのを直しました',

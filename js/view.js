@@ -673,18 +673,14 @@ export class EditorView {
     }
 
     // テンポの段の、0 拍目の手前に「ここをタップで…」を小さく出す。文の終わり（→）が -1 拍目に来るように右寄せ。
-    // ふだんの編集画面だけ（プレゼンテーション・プレイモード・動画の書き出しでは出さない）
+    // 縮めたりせず、入りきらない分は画面の左の外へはみ出す。ふだんの編集画面だけ（プレゼンテーション・プレイモード・動画の書き出しでは出さない）
     if (!this.playMode && !this.fixed && !this.h.iconsOnly?.() && LABELS.tempoHint) {
-      const x0 = this.x(-7), x1 = this.x(-1);
-      if (x1 > 0 && x0 < W) {
+      const x1 = this.x(-1);
+      if (x1 > 0 && x1 - 400 < W) {
         g.save();
         const fs = clamp(L.tempoH * 0.32, 9, 12);
         g.font = `700 ${fs}px ${FONT}`;
-        const tw = g.measureText(LABELS.tempoHint).width;
-        const room = x1 - Math.max(x0, 2);
-        const sx = tw > room ? Math.max(0.55, room / tw) : 1; // 入りきらないときは横に縮める（縮めすぎるなら左にはみ出してよい）
         g.translate(x1, L.tracksBottom + L.tempoH / 2 + 1);
-        g.scale(sx, 1);
         g.textAlign = 'right';
         g.textBaseline = 'middle';
         g.fillStyle = C.beatNum;
