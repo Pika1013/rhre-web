@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.13', date: '2026-11-12',
+    ja: ['Google などで検索したときに見つけてもらいやすいように、ページに説明を足しました（アプリの使い方は変わりません）'],
+    en: ['Added a description to the page so it is easier to find on Google and other search engines (nothing changes in the app).'],
+  },
+  {
     v: '1.9.12', date: '2026-11-12',
     ja: ['テンポの自動検出で置いたテンポの変更は、音楽開始（赤い旗）を動かすと、曲と一緒に動くようにしました。自分で置いた・直したテンポは動きません'],
     en: ['Tempo changes placed by tempo auto-detect now move with the song when you move the music start (red flag). Tempo changes you placed or edited yourself stay put.'],

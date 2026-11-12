@@ -8,6 +8,21 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
+<!-- 検索（Google）と、SNS にリンクを貼ったときの説明 -->
+<meta name="description" content="RHRE fresh（Rhythm Heaven Remix Editor）のリミックスを、スマホやPCのブラウザで作って再生できる無料の非公式エディタ。リズム天国の全ミニゲームの効果音を曲に合わせて並べ、.rhref で保存すれば RHRE fresh でも開けます。インストール不要。">
+<link rel="canonical" href="https://pika1013.github.io/rhre-web/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RHRE Web">
+<meta property="og:title" content="RHRE Web">
+<meta property="og:description" content="RHRE fresh のリミックスを、スマホやPCのブラウザで作って再生できる無料の非公式エディタ。A free, unofficial RHRE fresh remix editor for phones and browsers.">
+<meta property="og:url" content="https://pika1013.github.io/rhre-web/">
+<meta property="og:image" content="https://pika1013.github.io/rhre-web/icons/icon-512.png">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"RHRE Web","url":"https://pika1013.github.io/rhre-web/","applicationCategory":"MultimediaApplication","operatingSystem":"iOS, Android, Windows, macOS","inLanguage":["ja","en"],"offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"RHRE fresh（Rhythm Heaven Remix Editor）のリミックスを、スマホやPCのブラウザで作って再生できる無料の非公式エディタ。A free, unofficial editor for making and playing RHRE fresh remixes in the browser."}
+</script>
 <link rel="manifest" href="manifest.webmanifest?v=7">
 <script>
   // ブラウザで開いたスマホには案内を出す：iPhone はホーム画面に追加するまで使えない、Android は全画面にしてから
@@ -900,7 +915,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.12</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.13</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1191,7 +1206,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.9.12</h2>
+    <h2>RHRE Web v1.9.13</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1302,7 +1317,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=92"></script>
+<script type="module" src="js/app.js?v=93"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
