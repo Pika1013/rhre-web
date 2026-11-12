@@ -3,13 +3,13 @@ import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
 import { customRegistry } from './db.js?v=11';
 import { t, setLang, applyStatic, getLang } from './i18n.js?v=37';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=39';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=40';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=25';
+import { CHANGELOG } from './changelog.js?v=26';
 
-const VERSION = '1.9.18';
+const VERSION = '1.9.19';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);

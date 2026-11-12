@@ -573,19 +573,19 @@ export class EditorView {
     while (gs < 1 && gs * this.ppb < 7) gs *= 2;
     if (gs < 1) this.drawSubLines(g, L, b0, b1, gs, `rgba(${C.gridRGB},0.16)`, `rgba(${C.gridRGB},0.28)`);
 
-    // 編集中のキューがある小節だけは、必ずスナップの間隔で線を出す（うっすら色も付ける）
-    if (snap < 1) {
-      const spacing = snap * this.ppb;
-      const a = clamp(spacing / 16, 0.08, 0.42);
-      for (const [rs, re] of this.editRanges()) {
-        if (re < b0 || rs > b1) continue;
-        g.fillStyle = 'rgba(25,240,255,0.06)';
-        g.fillRect(this.x(rs), L.tracksTop, (re - rs) * this.ppb, L.tracksBottom - L.tracksTop);
-        this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, `rgba(120,230,255,${a})`, `rgba(120,230,255,${Math.min(0.6, a + 0.15)})`);
-      }
+    // 編集中のキューがある小節だけは、必ずスナップの間隔で線を出す（うっすら色も付ける）。
+    // 明るい線は 1 拍ごと（拍の線）、拍と拍の間のスナップの線は薄く（v1.9.18 までは半拍の線が明るく、拍とずれて見えた）
+    const editRanges = snap < 1 ? this.editRanges().filter(([rs, re]) => re >= b0 && rs <= b1) : [];
+    const editA = clamp((snap * this.ppb) / 16, 0.08, 0.42);
+    for (const [rs, re] of editRanges) {
+      g.fillStyle = 'rgba(25,240,255,0.06)';
+      g.fillRect(this.x(rs), L.tracksTop, (re - rs) * this.ppb, L.tracksBottom - L.tracksTop);
+      const c = `rgba(120,230,255,${editA})`;
+      this.drawSubLines(g, L, Math.max(rs, b0), Math.min(re, b1), snap, c, c, (b) => this.isBeatAt(b));
     }
     // 拍と小節の縦線（ブロックの下）
     this.drawBeatLines(g, L, b0, b1);
+    for (const [rs, re] of editRanges) this.drawEditBeatLines(g, L, Math.max(rs, b0), Math.min(re, b1), `rgba(120,230,255,${Math.min(0.8, editA + 0.32)})`);
     // 拍の番号
     for (let b = Math.floor(b0); b <= b1; b++) {
       const { beatInMeasure } = R.measureAt(b);
@@ -919,7 +919,44 @@ export class EditorView {
   }
 
   // 拍の間の線（拍ちょうどの位置は拍の線に任せる）。半拍の線は少し濃く
-  drawSubLines(g, L, from, to, step, color, halfColor) {
+  // その拍で効いている拍子（最初の拍子より前なら null）
+  tsAt(beat) {
+    let cur = null;
+    for (const t of this.remix.timeSignatures) { if (t.beat <= beat + 1e-9) cur = t; else break; }
+    return cur;
+  }
+
+  // 拍の線を引く所か：整数の拍（上の数字の所）か、拍子の下の数で数えた拍の頭（6/8 なら 0.5 拍ごと）
+  isBeatAt(b) {
+    if (Math.abs(b - Math.round(b)) < 1e-6) return true;
+    const t = this.tsAt(b);
+    if (!t) return false;
+    const u = (b - t.beat) / (4 / t.unit);
+    return Math.abs(u - Math.round(u)) < 1e-6;
+  }
+
+  // 編集中の小節の中の拍の線（明るい色）。小節の頭は drawBeatLines の太い線のままにする
+  drawEditBeatLines(g, L, from, to, color) {
+    const thin = Math.max(1, (2 * this.W) / 1280);
+    const top = Math.round(L.tracksTop);
+    const h = Math.round(L.tracksBottom) + 1 - top;
+    g.fillStyle = color;
+    const step = 1 / 16;
+    for (let k = Math.ceil(from / step - 1e-6); k * step <= to + 1e-6; k++) {
+      const b = k * step;
+      if (!this.isBeatAt(b)) continue;
+      const t = this.tsAt(b);
+      if (b >= 0 && t) {
+        const len = (4 / t.unit) * t.perMeasure;
+        const inMeasure = (b - t.beat) / len;
+        if (Math.abs(inMeasure - Math.round(inMeasure)) < 1e-6) continue; // 小節の頭
+      }
+      g.fillRect(this.x(b) - thin / 2, top, thin, h);
+    }
+  }
+
+  // skip：その位置に線を引かない（拍の線を別に引くとき）
+  drawSubLines(g, L, from, to, step, color, halfColor, skip) {
     const start = Math.ceil(from / step - 1e-6);
     const end = Math.floor(to / step + 1e-6);
     if (end - start > 4000) return;
@@ -927,6 +964,7 @@ export class EditorView {
     for (let k = start; k <= end; k++) {
       const b = k * step;
       if (Math.abs(b - Math.round(b)) < 1e-6) continue;
+      if (skip?.(b)) continue;
       const half = Math.abs(b * 2 - Math.round(b * 2)) < 1e-6;
       paths[half ? 1 : 0][1].push(Math.round(this.x(b)) + 0.5);
     }

@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.19', date: '2026-11-13',
+    ja: ['ブロックを選んでいるときに光る小節で、明るい縦線が 1 拍ごとに来るようにしました（今までは半拍の所の線が明るく、拍とずれて見えました）'],
+    en: ['In the highlighted measure while a block is selected, the brighter vertical lines now fall on each beat (before, the half-beat lines were brighter and looked off the beat).'],
+  },
+  {
     v: '1.9.18', date: '2026-11-13',
     ja: ['リンクを貼ったときに出る画像を、日本語のページは日本語の画面、英語のページは英語の画面にしました'],
     en: ['The picture shown when you share a link now matches the page language (Japanese screen for the Japanese page, English screen for the English page).'],
