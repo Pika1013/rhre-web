@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.15', date: '2026-11-13',
+    ja: ['Google などの検索に出る、RHRE Web の説明の文を変えました（アプリの使い方は変わりません）'],
+    en: ['Changed the description of RHRE Web shown in Google and other search results (nothing changes in the app).'],
+  },
+  {
     v: '1.9.14', date: '2026-11-13',
     ja: ['Extra Sound Effects の一番下に「拡張音源」を足して、新しい効果音「Cleared! (Switch)」を入れました。RHRE Web だけの音なので、使ったリミックスを PC 版の RHRE fresh で開くと、その音は鳴りません（初めて置くときに注意が出ます）'],
     en: ['Added "Expansion sounds" at the bottom of Extra Sound Effects, with a new sound, "Cleared! (Switch)". It exists only in RHRE Web, so it will not play if you open the remix in RHRE fresh on PC (a notice appears the first time you place it).'],
