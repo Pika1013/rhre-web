@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.5', date: '2026-11-12',
+    ja: ['書き出した動画の右下の版の右に、サイトの URL（pika1013.github.io/rhre-web）を入れるようにしました'],
+    en: ['Exported videos now show the site URL (pika1013.github.io/rhre-web) next to the version in the bottom right.'],
+  },
+  {
     v: '1.9.4', date: '2026-11-12',
     ja: ['再生中は、画面が自動で消えない（スリープしない）ようにしました。一時停止・停止すると元に戻ります（iPhone のホーム画面のアプリは iOS 18.4 以降）'],
     en: ['The screen no longer turns off (sleeps) during playback. It goes back to normal when you pause or stop (Home Screen app on iPhone: iOS 18.4 or later).'],
