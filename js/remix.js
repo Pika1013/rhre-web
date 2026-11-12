@@ -409,6 +409,8 @@ export class Remix {
     this.tempoTrackers = (raw.trackers?.tempos?.trackers || []).map((t) => ({
       beat: Number(t.beat), bpm: Number(t.bpm) || this.defaultTempo, width: Math.max(0, Number(t.width) || 0),
       swingRatio: t.swingRatio ?? 50, swingDivision: t.swingDivision ?? 1, isImmutable: !!t.isImmutable,
+      // 自動検出で置いたテンポの変更（曲の中の時刻 songSec に付いている。音楽開始を動かすと一緒に動く）
+      ...(t.rhreWebAuto && Number.isFinite(Number(t.rhreWebSongSec)) ? { auto: true, songSec: Number(t.rhreWebSongSec) } : {}),
     }));
     this.musicVolumes = (raw.trackers?.musicVolumes?.trackers || [])
       .map((t) => ({ beat: Number(t.beat), width: Math.max(0, Number(t.width) || 0), volume: Number(t.volume ?? 100) }))
@@ -562,8 +564,26 @@ export class Remix {
     if (kind === 'tempo' && (m.isImmutable || Math.abs(m.beat) < 1e-6 || to <= 1e-6)) return false;
     if (list.some((x) => x !== m && Math.abs(x.beat - to) < 1e-6)) return false;
     m.beat = to;
+    // 自分で動かしたテンポは、もう音楽開始と一緒には動かさない
+    if (kind === 'tempo') { delete m.auto; delete m.songSec; }
     list.sort((a, b) => a.beat - b.beat);
     return true;
+  }
+
+  // 自動検出で置いたテンポの変更（auto）を、今の音楽開始に合わせて置き直す（曲の中の同じ時刻に来るように）。
+  // 手で置いたテンポは動かさない。leadIn は mp3 の頭のずれ（音楽が鳴り始めるまでの遅れ）
+  relocateAutoTempos(leadIn = 0) {
+    const autos = this.tempoTrackers.filter((t) => t.auto && t.songSec != null).sort((a, b) => a.songSec - b.songSec);
+    if (!autos.length) return;
+    const placed = this.tempoTrackers.filter((t) => !autos.includes(t));
+    for (const a of autos) {
+      const T = new TempoMap(placed, this.defaultTempo);
+      const beat = Math.round(T.s2b(a.songSec + this.musicStartSec + leadIn) * 1e6) / 1e6;
+      // 0 拍目より前や、ほかの印とちょうど重なる所には動かさない（そのままの所に残す）
+      if (beat > 1e-6 && !placed.some((p) => Math.abs(p.beat - beat) < 1e-6)) a.beat = beat;
+      placed.push(a);
+    }
+    this.tempoTrackers = placed.sort((x, y) => x.beat - y.beat);
   }
 
   removeMusicVolume(beat) {
@@ -635,6 +655,8 @@ export class Remix {
         trackers: [...this.tempoTrackers].sort((a, b) => a.beat - b.beat).map((t) => ({
           beat: t.beat, seconds: T.b2s(t.beat), bpm: t.bpm, width: t.width,
           swingRatio: t.swingRatio, swingDivision: t.swingDivision, isImmutable: !!t.isImmutable,
+          // RHRE Web だけが使う印（RHRE fresh は知らない項目なので読み飛ばす）
+          ...(t.auto && t.songSec != null ? { rhreWebAuto: true, rhreWebSongSec: t.songSec } : {}),
         })),
       },
       musicVolumes: { trackers: this.musicVolumes.map((m) => ({ beat: m.beat, width: m.width, volume: m.volume })) },

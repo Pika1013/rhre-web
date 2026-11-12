@@ -1,4 +1,4 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=16';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=17';
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=21';
 import { customRegistry } from './db.js?v=10';
@@ -7,9 +7,9 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=18';
+import { CHANGELOG } from './changelog.js?v=19';
 
-const VERSION = '1.9.11';
+const VERSION = '1.9.12';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -115,7 +115,8 @@ const view = new EditorView($('view'), {
     if (!remix || playMode) return;
     // 秒を丸めると目盛りから少しずれるので、そのままの値で持つ
     const sec = remix.tempo.b2s(beat);
-    if (edit(() => { remix.musicStartSec = sec; })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
+    // 自動検出で置いたテンポの変更も、曲と一緒に動かす（手で置いたテンポは動かさない）
+    if (edit(() => { remix.musicStartSec = sec; remix.relocateAutoTempos(musicBuf?.rhreLeadIn || 0); })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
   },
   onFlagTap: () => { setStatus('赤い旗（音楽開始）は、横にドラッグすると動かせます'); },
 });
@@ -1356,7 +1357,12 @@ $('markerOk').addEventListener('click', () => {
     if (!(v >= 5 && v <= 600)) { toast(t('テンポは 5〜600 の数で入れてください'), 2500); return; }
     const b = markerCtx.tempo ? markerCtx.tempo.beat : markerCtx.beat;
     const width = Math.max(0, parseFloat($('rampInput').value) || 0);
-    edit(() => remix.setTempo(b, Math.round(v * 1000) / 1000, { width, swingRatio: Number($('swingSelect').value), swingDivision: Number($('swingDiv').value) }));
+    edit(() => {
+      remix.setTempo(b, Math.round(v * 1000) / 1000, { width, swingRatio: Number($('swingSelect').value), swingDivision: Number($('swingDiv').value) });
+      // 自分で直したテンポは、もう音楽開始と一緒には動かさない
+      const tk = remix.tempoTrackers.find((x) => Math.abs(x.beat - b) < 1e-6);
+      if (tk) { delete tk.auto; delete tk.songSec; }
+    });
   } else if (k === 'ts') {
     const n = clamp(parseInt($('tsBeats').value, 10) || 4, 1, 64);
     const u = Number($('tsUnit').value) || 4;
@@ -1397,7 +1403,7 @@ $('musicAuto').addEventListener('click', () => {
 $('musicOk').addEventListener('click', () => {
   const v = parseFloat($('musicStartInput').value);
   if (!Number.isFinite(v)) { toast('秒を数で入れてください', 2500); return; }
-  edit(() => { remix.musicStartSec = v; });
+  edit(() => { remix.musicStartSec = v; remix.relocateAutoTempos(musicBuf?.rhreLeadIn || 0); });
   $('musicModal').hidden = true;
 });
 $('musicCancel').addEventListener('click', () => { $('musicModal').hidden = true; });
@@ -3300,6 +3306,8 @@ function planTempoChanges(bpm) {
     const prev = trackers[trackers.length - 1];
     if (beat <= 0 || beat <= prev.beat + prev.width) continue;
     const ch = { beat, bpm: Math.max(20, Math.min(400, Math.round(c.bpm * f))), width: Math.max(0, Math.round(c.width * f)) };
+    // 置いた拍が、曲の中で何秒の所か（音楽開始を動かしたとき、ここに合わせて一緒に動かす）
+    ch.songSec = T.b2s(beat) - musicStart - (musicBuf.rhreLeadIn || 0);
     trackers.push(ch);
     out.push(ch);
   }
@@ -3369,7 +3377,11 @@ $('tempoAskOk').addEventListener('click', () => {
       for (const tk of [...remix.tempoTrackers]) if (tk.beat > 1e-6) remix.removeTempo(tk.beat);
     }
     remix.setTempo(0, bpm);
-    for (const c of plan) remix.setTempo(c.beat, c.bpm, { width: c.width });
+    for (const c of plan) {
+      remix.setTempo(c.beat, c.bpm, { width: c.width });
+      const tk = remix.tempoTrackers.find((x) => Math.abs(x.beat - c.beat) < 1e-6);
+      if (tk) { tk.auto = true; tk.songSec = c.songSec; }
+    }
   });
   tempoDetect = null;
   setStatus((plan.length
