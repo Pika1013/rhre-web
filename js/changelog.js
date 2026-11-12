@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.6', date: '2026-11-12',
+    ja: ['書き出した動画の版と URL を左下に移し、URL は https:// から入れるようにしました'],
+    en: ['Exported videos now show the version and URL in the bottom left, with the URL starting with https://.'],
+  },
+  {
     v: '1.9.5', date: '2026-11-12',
     ja: ['書き出した動画の右下の版の右に、サイトの URL（pika1013.github.io/rhre-web）を入れるようにしました'],
     en: ['Exported videos now show the site URL (pika1013.github.io/rhre-web) next to the version in the bottom right.'],

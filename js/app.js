@@ -6,10 +6,10 @@ import { t, setLang, applyStatic, getLang } from './i18n.js?v=33';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=37';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=7';
-import { CHANGELOG } from './changelog.js?v=12';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=8';
+import { CHANGELOG } from './changelog.js?v=13';
 
-const VERSION = '1.9.5';
+const VERSION = '1.9.6';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
