@@ -48,6 +48,17 @@ const subStar = (s, gid) => (typeof s === 'string' ? s.split('*').join(gid) : s)
 // 自分で読み込んだ効果音（カスタム）。新しく作るデータベースにも入れる
 export const customRegistry = { game: null };
 
+// 拡張音源：RHRE Web だけにある効果音（作者の自作）。RHRE-database のゲームを読み込んだときに、そのゲームの最後に足す。
+// RHRE fresh のデータベースには無いので、これを使ったリミックスを RHRE fresh で開くと、その音は「MISSING ENTITY」になる。
+// 音の大きさは、まわりの効果音（Skill Star や perfect breaks）と同じくらいにしてある（元の音から -7dB）。
+// 音を差し替えたら ?v= を上げる（アプリが端末に保存しているため）
+const EXT_URL = (file) => new URL(`../assets/ext/${file}`, import.meta.url).href;
+export const EXT_SOUNDS = {
+  extraSFX: [
+    { id: 'extraSFX/rhreWeb/clearedSwitch', name: 'Cleared! (Switch)', duration: 1, url: EXT_URL('cleared_switch.wav?v=1') },
+  ],
+};
+
 export class SFXDatabase {
   constructor(commit) {
     this.commit = (commit || 'master').trim();
@@ -119,6 +130,11 @@ export class SFXDatabase {
         if (raw.intervals) {
           o.intervals = Object.entries(raw.intervals).map(([range, id]) => ({ range: parseRange(range), id: subStar(id, gid) }));
         }
+        this.objects.set(o.id, o);
+        game.objects.push(o);
+      }
+      for (const x of EXT_SOUNDS[game.id] || []) {
+        const o = { type: 'cue', subtext: '', deprecatedIDs: [], ...x, ext: true, game };
         this.objects.set(o.id, o);
         game.objects.push(o);
       }

@@ -1,15 +1,15 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=17';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=18';
 import { analyzeTempo } from './tempo.js?v=2';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=21';
-import { customRegistry } from './db.js?v=10';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=36';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
+import { customRegistry } from './db.js?v=11';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=37';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=39';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=20';
+import { CHANGELOG } from './changelog.js?v=21';
 
-const VERSION = '1.9.13';
+const VERSION = '1.9.14';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -459,6 +459,15 @@ function placeAt(o, beat, track) {
   const ent = remix.createEntity(o, beat, track);
   if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
+  // 拡張音源は、初めて置くときだけ注意を出す（PC 版の RHRE fresh には無い音なので）
+  if (o.ext && !settings.extWarned) {
+    confirmBox(t('拡張音源'), t('拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを PC 版の RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。'), t('置く'), () => {
+      settings.extWarned = true;
+      saveSettings();
+      placeAt(o, beat, track);
+    });
+    return false;
+  }
   if (!edit(() => { remix.entities.push(ent); })) return false;
   // 一覧から置いたときは編集モードにしない（続けて置ける）。置いた所だけ一瞬光らせる
   view.selection.clear();
@@ -960,13 +969,16 @@ function showGameList(game, highlightObj, filter, extra) {
   const ids = new Set([game.id, ...variantsOf(game.id).map((v) => v.id)]);
   for (const b of $('gameGrid').children) b.classList?.toggle('sel', !!b.dataset?.gids && b.dataset.gids.split(' ').some((id) => ids.has(id)));
   const used = new Set(remix.entities.map((e) => e.o));
-  const objs = listObjects(game.objects, filter);
+  const objs = listObjects(game.objects.filter((o) => !o.ext), filter);
   const heads = new Map(); // この項目の前に見出しを出す
   for (const set of extra || []) {
     const add = listObjects(set.objects || [], filter).filter((o) => !objs.includes(o));
     if (add.length && extra.length > 1) heads.set(add[0], set.title);
     objs.push(...add);
   }
+  // 拡張音源（RHRE Web だけの効果音）は、見出しを付けて一番下に
+  const ext = listObjects(game.objects.filter((o) => o.ext), filter);
+  if (ext.length) { heads.set(ext[0], t('拡張音源')); objs.push(...ext); }
   const list = $('list');
   list.textContent = '';
   for (const o of objs) {

@@ -1,7 +1,7 @@
 // Web Audio による再生・試聴・WAV書き出し。
 // 発音は少し先まで予約していく方式（ルックアヘッド）なので、タイマーが多少遅れても音の時刻はずれない。
 
-import { mapLimit } from './db.js?v=10';
+import { mapLimit } from './db.js?v=11';
 
 const OGG_DECODER_URL = 'https://cdn.jsdelivr.net/npm/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js';
 const LOOKAHEAD = 0.6; // 秒
