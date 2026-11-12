@@ -7,9 +7,9 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=22';
+import { CHANGELOG } from './changelog.js?v=23';
 
-const VERSION = '1.9.15';
+const VERSION = '1.9.16';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2815,7 +2815,7 @@ for (const [id, dir] of [['navLeft', -1], ['navRight', 1]]) {
 // Cloudflare のサーバー（server/online）に WebSocket でつないで、今 RHRE Web を開いている端末の数を右下に出す。
 // 送るのは端末ごとのランダムな番号だけ。30 秒ごとに ping、60 秒ごとに人数を聞き直す。
 // 裏に回って 30 秒たったら切り、戻ってきたらつなぎ直す。つながらないときは出さない
-const ONLINE_URL = (location.hostname === 'localhost' && new URLSearchParams(location.search).get('online')) // 手元で試すとき
+const ONLINE_URL = (['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('online')) // 手元で試すとき
   || 'wss://rhre-web-online.pika1013.workers.dev/ws';
 const online = { ws: null, retry: 0, ping: 0, poll: 0, again: 0, hideTimer: 0 };
 function onlineDeviceId() {

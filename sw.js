@@ -90,7 +90,12 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
-    if (req.mode === 'navigate') { event.respondWith(pageNetworkFirst(event)); return; }
+    if (req.mode === 'navigate') {
+      // アプリのページだけ。英語の紹介ページ（en/）などほかのページはそのままネットへ（アプリのページとして保存しない）
+      const scope = new URL(scopeUrl()).pathname;
+      if (url.pathname === scope || url.pathname === `${scope}index.html`) event.respondWith(pageNetworkFirst(event));
+      return;
+    }
     if (url.pathname.endsWith('/version.json')) return;
     event.respondWith(staleWhileRevalidate(event, APP_CACHE, false));
     return;

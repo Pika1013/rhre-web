@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.16', date: '2026-11-13',
+    ja: [
+      'X などに RHRE Web のリンクを貼ったときに、アプリの画面の大きな画像が出るようにしました',
+      '英語で探す人向けの紹介ページを作りました（https://pika1013.github.io/rhre-web/en/）',
+    ],
+    en: [
+      'Sharing a link to RHRE Web (on X and other sites) now shows a large picture of the app.',
+      'Added an English introduction page (https://pika1013.github.io/rhre-web/en/).',
+    ],
+  },
+  {
     v: '1.9.15', date: '2026-11-13',
     ja: ['Google などの検索に出る、RHRE Web の説明の文を変えました（アプリの使い方は変わりません）'],
     en: ['Changed the description of RHRE Web shown in Google and other search results (nothing changes in the app).'],

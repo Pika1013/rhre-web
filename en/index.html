@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 英語で探す人向けの紹介ページ（アプリ本体は ../ ）。アプリの見た目に合わせた暗い色 -->
+<title>RHRE Web – Make Rhythm Heaven remixes in your browser</title>
+<meta name="description" content="Welcome to RHRE Web! Put Rhythm Heaven sound effects on your favorite songs and make your own remixes, right in your phone or PC browser. A free, fan-made editor, compatible with RHRE fresh (PC).">
+<link rel="canonical" href="https://pika1013.github.io/rhre-web/en/">
+<link rel="alternate" hreflang="ja" href="https://pika1013.github.io/rhre-web/">
+<link rel="alternate" hreflang="en" href="https://pika1013.github.io/rhre-web/en/">
+<link rel="alternate" hreflang="x-default" href="https://pika1013.github.io/rhre-web/">
+<meta name="theme-color" content="#3b3b3b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RHRE Web">
+<meta property="og:title" content="RHRE Web – Make Rhythm Heaven remixes in your browser">
+<meta property="og:description" content="Put Rhythm Heaven sound effects on your favorite songs and make your own remixes, right in your phone or PC browser. Free, fan-made, and compatible with RHRE fresh.">
+<meta property="og:url" content="https://pika1013.github.io/rhre-web/en/">
+<meta property="og:image" content="https://pika1013.github.io/rhre-web/assets/og/og-en.jpg?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The RHRE Web editor">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="../icons/icon-180.png?v=5">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png?v=5">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png?v=5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --font: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+    --bg: #191919;
+    --chrome: #3b3b3b;
+    --card: #232323;
+    --line: #474747;
+    --text: #f3f3f3;
+    --muted: #a9a9a9;
+    --accent: #5fd3ff;
+    --play: #1ccf1c;
+    --play-ink: #062b06;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-weight: 500;
+    line-height: 1.65;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  header.top {
+    background: var(--chrome);
+    border-bottom: 1px solid #262626;
+  }
+  header.top .wrap { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+  header.top img { width: 36px; height: 36px; border-radius: 8px; display: block; }
+  header.top .name { font-weight: 800; font-size: 20px; letter-spacing: 0.01em; }
+  header.top .lang { margin-left: auto; font-weight: 700; font-size: 14px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+  header.top .lang:hover { color: var(--text); border-color: var(--muted); }
+
+  .hero { padding: 40px 0 28px; }
+  .hero h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.2; font-weight: 800; margin: 0 0 14px; text-wrap: balance; }
+  .hero p.lead { font-size: clamp(16px, 2.6vw, 19px); color: #dcdcdc; margin: 0 0 24px; max-width: 46em; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn-open {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--play); color: var(--play-ink); text-decoration: none;
+    font-weight: 800; font-size: 18px; padding: 12px 22px; border-radius: 12px;
+  }
+  .btn-open svg { width: 18px; height: 18px; fill: currentColor; }
+  .btn-open:hover { filter: brightness(1.08); }
+  .cta .sub { color: var(--muted); font-size: 14px; }
+
+  figure.shot { margin: 8px 0 0; }
+  figure.shot img { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--line); }
+
+  section { padding: 36px 0 8px; }
+  h2 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
+  .features li { background: var(--card); border: 1px solid #2f2f2f; border-radius: 12px; padding: 14px 16px; }
+  .features b { display: block; font-weight: 800; margin-bottom: 4px; }
+  .features span { color: #cfcfcf; font-size: 15px; }
+
+  .steps { display: grid; gap: 12px; }
+  .step { background: var(--card); border: 1px solid #2f2f2f; border-radius: 12px; padding: 14px 16px; }
+  .step b { font-weight: 800; }
+  .step p { margin: 4px 0 0; color: #cfcfcf; font-size: 15px; }
+  .note { color: var(--muted); font-size: 14px; margin: 12px 0 0; }
+
+  footer { margin-top: 40px; padding: 24px 0 40px; border-top: 1px solid #2f2f2f; color: var(--muted); font-size: 14px; }
+  footer p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <img src="../icons/icon-192.png?v=5" alt="" width="36" height="36">
+    <span class="name">RHRE Web</span>
+    <a class="lang" href="../" hreflang="ja" lang="ja">日本語</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <h1>Make Rhythm Heaven remixes right in your browser</h1>
+    <p class="lead">Welcome to RHRE Web! Put Rhythm Heaven sound effects on your favorite songs and make your own remixes, on your phone or PC. It's a free, fan-made editor, and your remixes are compatible with RHRE fresh (PC).</p>
+    <div class="cta">
+      <a class="btn-open" href="../"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>Open RHRE Web</a>
+      <span class="sub">No install needed. Choose “English” on the first screen.</span>
+    </div>
+  </div>
+
+  <figure class="shot">
+    <img src="../assets/og/og-en.jpg?v=1" alt="The RHRE Web editor: remix blocks on tracks, with the minigame list and pattern list below" width="1200" height="630">
+  </figure>
+
+  <section>
+    <h2>What you can do</h2>
+    <ul class="features">
+      <li><b>Open and save .rhref files</b><span>Remixes open in RHRE fresh as they are. Your work is saved on your device automatically.</span></li>
+      <li><b>Plays like RHRE fresh</b><span>Same playback rules: gradual tempo changes, swing, pitch, loops, patterns and more.</span></li>
+      <li><b>Every minigame</b><span>Place, move, stretch, copy and paste, change pitch and volume, undo and redo.</span></li>
+      <li><b>Your own music</b><span>Add songs from your device. Type the tempo, tap along, or let it detect the tempo for you, even when it changes mid-song.</span></li>
+      <li><b>Export audio and video</b><span>Save your remix as a WAV file, or as an MP4 video.</span></li>
+      <li><b>Play mode</b><span>Press buttons along with the cues, with Perfect Challenge and night mode. Presentation mode too.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Getting started</h2>
+    <div class="steps">
+      <div class="step"><b>iPhone</b><p>Open the page in Safari, tap Share, then “Add to Home Screen”. Open RHRE Web from your home screen.</p></div>
+      <div class="step"><b>Android</b><p>Open the page in Chrome and choose “Install app” from the menu. You can also get the Android app (APK) from <a href="https://github.com/Pika1013/rhre-web/releases/latest">GitHub Releases</a>.</p></div>
+      <div class="step"><b>PC</b><p>Just open the page in your browser.</p></div>
+    </div>
+    <p class="note">RHRE Web works in landscape only. A short tutorial starts the first time you open it.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>RHRE Web is a fan-made project based on <a href="https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh">RHRE fresh</a>. It is not affiliated with Nintendo.</p>
+    <p>Source code: <a href="https://github.com/Pika1013/rhre-web">github.com/Pika1013/rhre-web</a> (GPL-3.0)</p>
+    <p>This page counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
+  </div>
+</footer>
+
+<script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
+<script data-goatcounter="https://pika.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>

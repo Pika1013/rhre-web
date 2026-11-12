@@ -1,8 +1,10 @@
-# RHRE Web v1.9.15
+# RHRE Web v1.9.16
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
 **使う：** https://pika1013.github.io/rhre-web/
+
+**English:** https://pika1013.github.io/rhre-web/en/ （英語の紹介ページ）
 
 - iPhone は Safari で開いて「ホーム画面に追加」、Android は Chrome の「アプリをインストール」で、全画面のアプリとして使えます。
 - 横向き専用です。
