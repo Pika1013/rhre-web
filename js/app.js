@@ -7,9 +7,9 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=17';
+import { CHANGELOG } from './changelog.js?v=18';
 
-const VERSION = '1.9.10';
+const VERSION = '1.9.11';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2355,6 +2355,7 @@ function setPlayMode(on) {
   $('menuPlayMode').textContent = on ? t('プレイモードをやめる') : t('プレイモード');
   view.playMode = on;
   if (on) {
+    loadPerfectSound(); // 失敗の音は先に読み込んでおく
     if (armed) setArmed(null);
     pasteArmed = false;
     multiSelect = false;
@@ -2457,28 +2458,10 @@ function paRelease(key) { if (playMode && judge && mode === 'playing') judge.rel
 
 // ボタンを押したときの小さな振動（Android だけ）。
 // iPhone の Safari には振動の仕組みがなく、代わりの方法も指を離したときにしか振動しないので、iPhone では振動させない
-// 押したときの振動。Android などは navigator.vibrate（短すぎると感じにくいので 20ms）。
-// iPhone は Safari に振動の機能がないので、隠した「スイッチ」（iOS 17.4 以降）を押して、スイッチの手ごたえの振動を借りる。
-// web-haptics と同じく、スイッチはページにずっと置いておく（押してすぐ消すと振動しないことがある）
-const IS_APPLE_TOUCH = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-let hapticLabel = null;
+// 押したときの振動（Android など。短すぎると感じにくいので 20ms）。
+// iPhone は Safari に振動の機能がなく、隠したスイッチを押すやり方も実機で振動しなかった（v1.3.2・v1.9.10）ので、何もしない
 function haptic() {
-  try {
-    if (!IS_APPLE_TOUCH) { navigator.vibrate?.(20); return; }
-    if (!hapticLabel) {
-      const label = document.createElement('label');
-      label.setAttribute('aria-hidden', 'true');
-      label.style.display = 'none';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.setAttribute('switch', '');
-      input.tabIndex = -1;
-      label.appendChild(input);
-      document.body.appendChild(label);
-      hapticLabel = label;
-    }
-    hapticLabel.click();
-  } catch (_) { /* 振動できない端末 */ }
+  try { navigator.vibrate?.(20); } catch (_) { /* 振動できない端末 */ }
 }
 
 // 画面のボタン（A・B・十字）
@@ -2743,11 +2726,8 @@ function onPerfectFail() {
     perfect.shakeRaf = requestAnimationFrame(step);
   };
   perfect.shakeRaf = requestAnimationFrame(step);
-  // 失敗の音：パーフェクトチャレンジを入れていて、最初の入力より前（か同じ所）から再生していたときだけ（RHRE fresh と同じ考え）。
-  // 「再生を始めた所」は緑の旗ではなく、この回に実際に再生を始めた所（0 拍目に戻る・途中に飛ぶ・一時停止から続ける も正しく扱う）
-  const first = judge?.actions[0];
-  const startBeat = judge?.startSec != null && remix ? remix.tempo.s2b(judge.startSec + 0.05) : remix?.playbackStart;
-  if (perfect.on && first && remix && startBeat <= first.ent.beat + 1e-6) {
+  // 失敗の音：パーフェクトチャレンジを入れていれば、どこから再生していても鳴らす（本人の希望。RHRE fresh は最初の入力より前から再生したときだけ）
+  if (perfect.on) {
     const playIt = () => {
       if (!perfect.buf) return;
       try {

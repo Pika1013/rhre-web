@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.11', date: '2026-11-12',
+    ja: [
+      'パーフェクトチャレンジの失敗の音を、途中から再生したときも鳴らすようにしました。プレイモードに入ったときに音を先に読み込んでおくので、すぐ鳴ります',
+      'iPhone ではボタンを押したときの振動ができなかったので、外しました（Android はそのまま振動します）',
+    ],
+    en: [
+      'The Perfect Challenge fail sound now plays even when you start playback partway through. It is loaded when you enter play mode, so it plays right away.',
+      'Removed button vibration on iPhone, since it could not vibrate there (Android still vibrates).',
+    ],
+  },
+  {
     v: '1.9.10', date: '2026-11-12',
     ja: [
       '「パーフェクト挑戦」を「パーフェクトチャレンジ」に名前を変えました',
