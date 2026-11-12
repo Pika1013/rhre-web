@@ -14,6 +14,8 @@ const EN = {
   '書き出しをやめました。': 'Export cancelled.', '動画を作れませんでした': "Couldn't make the video",
   'この端末では、この大きさの動画（H.264）を作れません': "This device can't make H.264 video at this size", 'この端末では、動画の音（AAC）を作れません': "This device can't encode the video's audio (AAC)",
   'アップデートしました！（v{v}）': 'Updated! (v{v})',
+  'トラックの上下を反転': 'Flip tracks upside down', '反転する': 'Flip', 'トラックの上下を反転しました': 'Flipped the tracks upside down',
+  'すべてのブロックの段を、上下ひっくり返しますか？ RHRE Web v1.9.7 までに作ったリミックスは、上下が逆に見えます（RHRE fresh と向きをそろえたため）。元に戻すボタンで戻せます。': 'Flip the rows of all blocks upside down? Remixes made with RHRE Web v1.9.7 or earlier look upside down (the track order now matches RHRE fresh). You can undo this.',
   'ここをタップでテンポ、拍子、音量を変更できます→': 'Tap here to change tempo, time signature and volume →',
   'アウフタクト（約 {k} 拍）から始まるので、{m} 小節目の頭から本編が始まるように音楽開始を合わせます。': 'It starts with a pickup (about {k} beats), so the music start is set so the song proper begins at measure {m}. ',
   '（アウフタクトなので、{m} 小節目の頭から本編が始まるように合わせました）': ' (it starts with a pickup, so the song proper now begins at measure {m})',
@@ -232,7 +234,7 @@ export function t(ja, vars) {
 
 // 固定の文（HTML）を、元の日本語を覚えておいて切り替える
 const STATIC_EN = {
-  '自動検出': 'Auto-detect', '動画で書き出す': 'Export video', '更新内容': "What's new", 'アップデートしました！': 'Updated!', '内容を確認': "See what's new",
+  'トラックの上下を反転': 'Flip tracks upside down', '自動検出': 'Auto-detect', '動画で書き出す': 'Export video', '更新内容': "What's new", 'アップデートしました！': 'Updated!', '内容を確認': "See what's new",
   '0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生）。': 'Makes a video from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts).',
   '大きさ': 'Size', 'なめらかさ': 'Smoothness', '30 コマ／秒': '30 fps', '60 コマ／秒': '60 fps', '書き出す': 'Export', '動画を保存': 'Save video',
   '0拍目に戻る（再生位置も 0 拍目に）': 'Back to beat 0 (also moves the playback start there)',

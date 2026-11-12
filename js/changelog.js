@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.8', date: '2026-11-12',
+    ja: [
+      'トラックの数え方を RHRE fresh と同じ「下から」にしました。RHRE Web で作った .rhref をパソコンの RHRE fresh で開くと、ブロックの段が上下逆になっていたのを直しました',
+      'v1.9.7 までに RHRE Web で作ったリミックスは、上下が逆に見えます。メニューの「トラックの上下を反転」で直せます（そのあと保存してください）',
+    ],
+    en: [
+      'Tracks are now counted from the bottom, like RHRE fresh. Fixed blocks appearing upside down when a .rhref made in RHRE Web was opened in RHRE fresh on PC.',
+      'Remixes made with RHRE Web v1.9.7 or earlier now look upside down. Fix them with "Flip tracks upside down" in the menu (then save).',
+    ],
+  },
+  {
     v: '1.9.7', date: '2026-11-12',
     ja: [
       '書き出した動画は、右下に「RHRE Web」と版、左下にサイトの URL を入れるようにしました',

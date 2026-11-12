@@ -196,7 +196,10 @@ export class EditorView {
   snapFloor(b) { return this.snap > 0 ? Math.floor(b / this.snap + 1e-6) * this.snap : b; }
   snapRound(b) { return this.snap > 0 ? Math.round(b / this.snap) * this.snap : b; }
 
-  trackAt(y, L) { return Math.floor((y - L.tracksTop) / L.rowH); }
+  // トラックは RHRE fresh と同じく下から数える（0 が一番下の段）。保存するファイルの数字もそのまま RHRE fresh と同じ向き
+  trackAt(y, L) { return L.tc - 1 - Math.floor((y - L.tracksTop) / L.rowH); }
+  // トラック track から height 段ぶんのブロックの、画面の上の端
+  trackY(track, height, L) { return L.tracksTop + (L.tc - track - height) * L.rowH; }
 
   // 旗をつかんだか：上半分の赤い旗＝音楽開始、下半分と目盛りの緑の旗＝再生開始
   flagAt(x, y, L) {
@@ -217,7 +220,7 @@ export class EditorView {
     if (this.selection.size !== 1 || !this.h.canEdit?.()) return null;
     const e = [...this.selection][0];
     if (!this.h.isStretchable?.(e)) return null;
-    const top = L.tracksTop + e.track * L.rowH;
+    const top = this.trackY(e.track, e.height, L);
     if (y < top - 4 || y > top + e.height * L.rowH + 4) return null;
     const x0 = this.x(e.beat), x1 = this.x(e.beat + e.width);
     const grip = Math.min(18, Math.max(8, (x1 - x0) / 3));
@@ -350,7 +353,7 @@ export class EditorView {
         const raw = this.beatAt(e.offsetX) - this.beatAt(d.x0);
         const a = d.anchor ? d.anchor.beat : 0;
         const dBeat = this.snapRound(a + raw) - a;
-        const dTrack = Math.round(dy / L.rowH);
+        const dTrack = -Math.round(dy / L.rowH); // 下から数えるので、指を上に動かすとトラックが増える
         if (!this.moveState || this.moveState.dBeat !== dBeat || this.moveState.dTrack !== dTrack) {
           this.moveState = { dBeat, dTrack, valid: this.h.validateMove?.(dBeat, dTrack) ?? true };
         }
@@ -405,8 +408,8 @@ export class EditorView {
       if (d.mode === 'box' && box && (d.moved || Math.abs(box.b1 - box.b0) * this.ppb > 6)) {
         const L = this.layout();
         const lo = Math.min(box.b0, box.b1), hi = Math.max(box.b0, box.b1);
-        const t0 = Math.floor((Math.min(box.y0, box.y1) - L.tracksTop) / L.rowH);
-        const t1 = Math.floor((Math.max(box.y0, box.y1) - L.tracksTop) / L.rowH);
+        const t0 = this.trackAt(Math.max(box.y0, box.y1), L);
+        const t1 = this.trackAt(Math.min(box.y0, box.y1), L);
         const hits = this.remix.entities.filter((en) => en.beat < hi && en.beat + Math.max(en.width, 1e-3) > lo && en.track <= t1 && en.track + en.height - 1 >= t0);
         this.h.onBoxSelect?.(hits, d.shift);
         return;
@@ -524,7 +527,7 @@ export class EditorView {
       const e = ents[i];
       const w = Math.max(e.width, 10 / this.ppb);
       if (b >= e.beat && b <= e.beat + w) {
-        const top = L.tracksTop + e.track * L.rowH;
+        const top = this.trackY(e.track, e.height, L);
         if (y >= top && y <= top + e.height * L.rowH) return e;
       }
     }
@@ -836,8 +839,9 @@ export class EditorView {
     for (const group of byBeat.values()) {
       const inputs = [...new Set(group.map((e) => e.o.input))];
       if (inputs.length < 2) { for (const e of group) pos.set(e, { y: cy, r: r0 }); continue; }
-      const top = (inp) => Math.min(...group.filter((e) => e.o.input === inp).map((e) => e.track));
-      inputs.sort((a, b) => top(a) - top(b));
+      // 上の段（下から数えて大きいトラック）に置いたものほど上に
+      const top = (inp) => Math.max(...group.filter((e) => e.o.input === inp).map((e) => e.track));
+      inputs.sort((a, b) => top(b) - top(a));
       const n = inputs.length;
       const spacing = Math.min(r0 * 2.5, H / n);
       const r = Math.min(r0, spacing / 2.5);
@@ -972,7 +976,7 @@ export class EditorView {
   // 移動・長さ変更中の行き先、伸ばせるブロックのつまみ、マウスで置く位置の目安
   drawEditOverlay(g, L) {
     const ghost = (beat, track, width, height, valid) => {
-      const x = this.x(beat), y = L.tracksTop + track * L.rowH + 1;
+      const x = this.x(beat), y = this.trackY(track, height, L) + 1;
       const w = Math.max(3, width * this.ppb), h = height * L.rowH - 2;
       g.fillStyle = valid ? 'rgba(25,240,255,0.22)' : 'rgba(255,60,60,0.28)';
       g.fillRect(x, y, w, h);
@@ -1007,14 +1011,14 @@ export class EditorView {
     }
     if (this.hover && this.armed) {
       const a = this.armed;
-      const t = a.bottom ? L.tc - 1 : Math.max(0, Math.min(this.hover.track, L.tc - a.height));
+      const t = a.bottom ? 0 : Math.max(0, Math.min(this.hover.track, L.tc - a.height));
       ghost(this.hover.beat, t, a.width, a.height, true);
     }
     // つまみ（1つだけ選んでいて、伸ばせるとき）
     if (this.selection.size === 1 && !this.moveState && !this.resizeState && this.h.canEdit?.()) {
       const e = [...this.selection][0];
       if (this.h.isStretchable?.(e)) {
-        const y = L.tracksTop + e.track * L.rowH;
+        const y = this.trackY(e.track, e.height, L);
         const h = e.height * L.rowH;
         for (const bx of [e.beat, e.beat + e.width]) {
           const x = this.x(bx);
@@ -1054,7 +1058,7 @@ export class EditorView {
   drawEntity(g, e, L, now) {
     const x = this.x(e.beat);
     const w = Math.max(3, e.width * this.ppb);
-    const y = L.tracksTop + e.track * L.rowH + 1;
+    const y = this.trackY(e.track, e.height, L) + 1;
     const h = e.height * L.rowH - 2;
     const isSpecial = e.o && !['cue', 'pattern', 'keepTheBeat', 'equidistant', 'randomCue', 'multiCue', 'pitchDependent'].includes(e.type);
     const base = e.o ? (C.entity[e.type] || (isSpecial ? C.entity.special : C.entity.pattern)) : C.entity.missing;
@@ -1067,7 +1071,7 @@ export class EditorView {
       const t0 = Math.min(e.track, ...e.leaves.map((l) => l.track));
       const t1 = Math.max(e.track + e.height - 1, ...e.leaves.map((l) => l.track));
       const bx = this.x(e.minBeat), bw = (e.maxBeat - e.minBeat) * this.ppb;
-      const by = L.tracksTop + t0 * L.rowH + 2, bh = (t1 - t0 + 1) * L.rowH - 4;
+      const by = this.trackY(t1, 1, L) + 2, bh = (t1 - t0 + 1) * L.rowH - 4;
       // 背景はブロックと同じ色、枠はブロックの外枠と同じ色で上下左右すべてに
       g.globalAlpha = alpha * 0.45;
       g.fillStyle = base;
@@ -1085,7 +1089,7 @@ export class EditorView {
       g.lineWidth = 1;
       for (const lf of e.leaves) {
         const lx = this.x(lf.beat), lw = Math.max(2, lf.width * this.ppb);
-        const ly = L.tracksTop + lf.track * L.rowH + 3;
+        const ly = this.trackY(lf.track, 1, L) + 3;
         // 枠の外の音も帯（ブロックと同じ色）の上なので、中と同じ控えめな線で区切る
         g.strokeStyle = 'rgba(0,0,0,0.28)';
         g.strokeRect(Math.round(lx) + 0.5, Math.round(ly) + 0.5, Math.round(lw) - 1, Math.round(L.rowH - 6));
@@ -1099,7 +1103,7 @@ export class EditorView {
       for (const f of e.leafFlash) {
         const a = 1 - (now - f.at) / 260;
         g.fillStyle = `rgba(255,255,255,${0.6 * a})`;
-        g.fillRect(this.x(f.beat), L.tracksTop + f.track * L.rowH + 2, Math.max(3, f.width * this.ppb), L.rowH - 4);
+        g.fillRect(this.x(f.beat), this.trackY(f.track, 1, L) + 2, Math.max(3, f.width * this.ppb), L.rowH - 4);
       }
       if (e.leafFlash.length) this.dirty = true;
     }

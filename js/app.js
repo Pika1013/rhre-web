@@ -2,14 +2,14 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=20';
 import { customRegistry } from './db.js?v=9';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=34';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=37';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=35';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=38';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=3';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=14';
+import { CHANGELOG } from './changelog.js?v=15';
 
-const VERSION = '1.9.7';
+const VERSION = '1.9.8';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1640,6 +1640,14 @@ function doAction(act) {
     case 'help': openHelp(); break;
     case 'news': openNews(newsSince); break;
     case 'tracks': openTracks(); break;
+    case 'flipTracks':
+      // v1.9.7 までの RHRE Web はトラックを上から数えていたので、そのころ作ったリミックスは上下が逆に見える。ワンタップで直せるように
+      confirmBox(t('トラックの上下を反転'), t('すべてのブロックの段を、上下ひっくり返しますか？ RHRE Web v1.9.7 までに作ったリミックスは、上下が逆に見えます（RHRE fresh と向きをそろえたため）。元に戻すボタンで戻せます。'), t('反転する'), () => {
+        if (edit(() => { for (const e of remix.entities) e.track = remix.trackCount - e.track - e.height; })) {
+          toast(t('トラックの上下を反転しました'), 2500, 'info');
+        }
+      });
+      break;
     case 'present': startPresentation(); break;
     case 'playmode': setPlayMode(!playMode); break;
     case 'tour': startTour(); break;
