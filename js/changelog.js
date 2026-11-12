@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.10', date: '2026-11-12',
+    ja: [
+      '「パーフェクト挑戦」を「パーフェクトチャレンジ」に名前を変えました',
+      'パーフェクトチャレンジの失敗の音が、鳴らないことがあったのを直しました（0 拍目に戻ったときや、最初のボタンと同じ所から再生したときなど）',
+      'プレイモードでボタンを押したときの振動を、iPhone でももう一度試せるようにしました（iOS 17.4 以降）。Android は振動を少し長くして、感じやすくしました',
+    ],
+    en: [
+      'Renamed it to "Perfect Challenge" in Japanese.',
+      'Fixed the Perfect Challenge fail sound sometimes not playing (for example after going back to beat 0, or when playback starts right at the first button).',
+      'Button-press vibration in play mode is back for iPhone as a try (iOS 17.4 or later). On Android the vibration is a little longer so it is easier to feel.',
+    ],
+  },
+  {
     v: '1.9.9', date: '2026-11-12',
     ja: ['テンポの段の「ここをタップで…」の案内を、横に縮めないようにしました（入りきらない分は画面の左にはみ出します）'],
     en: ['The "Tap here to…" hint on the tempo row is no longer squeezed (the part that doesn\'t fit runs off the left edge).'],

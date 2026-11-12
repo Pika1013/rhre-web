@@ -1,7 +1,7 @@
 // RHRE-database（RHRE fresh と同じ効果音データベース）を GitHub から jsDelivr 経由で必要な分だけ読む。
 // 全体は約 260MB あるので、リミックスで使うミニゲームの data.json と .ogg だけを取りに行く。
 
-import { makePlayalongGame } from './playalong.js?v=3';
+import { makePlayalongGame } from './playalong.js?v=4';
 
 export const DB_REPO = 'RHREfresh/RHRE-database';
 const CDN = 'https://cdn.jsdelivr.net/gh/';

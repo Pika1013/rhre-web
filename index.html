@@ -573,7 +573,7 @@
   #psSide { display: none; }
   #psTabs button img { width: 14px; height: 14px; vertical-align: -3px; margin-right: 4px; }
   #psTabs #psPerfectBtn.on { background: #4a1f45; border-color: #ff6ad9; color: #fff; }
-  /* パーフェクト挑戦（RHRE fresh と同じ）：P のマークと「めざせ パーフェクト!」。再生中は文字が点滅する */
+  /* パーフェクトチャレンジ（RHRE fresh と同じ）：P のマークと「めざせ パーフェクト!」。再生中は文字が点滅する */
   #psPerfect { align-self: flex-start; display: flex; align-items: center; gap: 6px; }
   #psPerfect[hidden] { display: none; }
   .pf-icon { position: relative; flex: none; width: clamp(22px, 5vh, 34px); aspect-ratio: 1; }
@@ -880,7 +880,7 @@
   </section>
 
   <section id="playStage" aria-label="プレイモード">
-    <div id="psTabs"><button id="psClose" title="プレイモードをやめる">✕ やめる</button><button id="psSide">タッチの枠を左へ</button><button id="psNight">ナイトモード</button><button id="psPerfectBtn" aria-pressed="false" title="パーフェクト挑戦の切り替え"><img src="assets/playalong/perfect.png" alt="">パーフェクト挑戦</button></div>
+    <div id="psTabs"><button id="psClose" title="プレイモードをやめる">✕ やめる</button><button id="psSide">タッチの枠を左へ</button><button id="psNight">ナイトモード</button><button id="psPerfectBtn" aria-pressed="false" title="パーフェクトチャレンジの切り替え"><img src="assets/playalong/perfect.png" alt="">パーフェクトチャレンジ</button></div>
     <div id="psDpad">
       <button class="pkey up" data-key="UP" aria-label="十字の上"><svg viewBox="0 0 24 24"><path d="M12 6l6 9H6z"/></svg></button>
       <button class="pkey left" data-key="LEFT" aria-label="十字の左"><svg viewBox="0 0 24 24"><path d="M6 12l9-6v12z"/></svg></button>
@@ -900,7 +900,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.9</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.10</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1191,7 +1191,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.9.9</h2>
+    <h2>RHRE Web v1.9.10</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1231,7 +1231,7 @@
     </ul>
     <p><b>遊ぶ・見せる</b></p>
     <ul>
-      <li>プレイモード（メニュー）：プレイアロングのキューに合わせて押して遊びます。▶ で再生。タッチ・はじくは下の緑の枠で（「タッチの枠を左へ／右へ」で左右を切り替え）。「ナイトモード」でトラックを隠し、「パーフェクト挑戦」で 1 回もミスしない挑戦ができます</li>
+      <li>プレイモード（メニュー）：プレイアロングのキューに合わせて押して遊びます。▶ で再生。タッチ・はじくは下の緑の枠で（「タッチの枠を左へ／右へ」で左右を切り替え）。「ナイトモード」でトラックを隠し、「パーフェクトチャレンジ」で 1 回もミスしない挑戦ができます</li>
       <li>パソコンのキーボード：A＝J かスペース、B＝K、十字＝W A S D か矢印キー</li>
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の「終わる」で戻ります</li>
@@ -1302,7 +1302,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=89"></script>
+<script type="module" src="js/app.js?v=90"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

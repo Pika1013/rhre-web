@@ -219,6 +219,7 @@ export class PlayalongJudge {
 
   // 再生を途中から始めたときは、それより前のものは数えない
   skipBefore(t) {
+    this.startSec = t; // この回の再生を始めた所（パーフェクトチャレンジの失敗の音を鳴らすか決めるのに使う）
     for (const a of this.actions) {
       if (a.start < t - 1e-6) { a.done = true; a.skipped = true; this.expected -= a.instant ? 1 : 2; }
     }
