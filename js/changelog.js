@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.17', date: '2026-11-13',
+    ja: ['リンクを貼ったときに出る画像を変えました'],
+    en: ['Changed the picture shown when you share a link to RHRE Web.'],
+  },
+  {
     v: '1.9.16', date: '2026-11-13',
     ja: [
       'X などに RHRE Web のリンクを貼ったときに、アプリの画面の大きな画像が出るようにしました',
