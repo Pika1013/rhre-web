@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.21', date: '2026-11-13',
+    ja: ['プレゼンテーションモードの左上の「終わる」を、文字のない丸い ✕ ボタンにしました'],
+    en: ['The Exit button at the top left of presentation mode is now a round ✕ button without text.'],
+  },
+  {
     v: '1.9.20', date: '2026-11-13',
     ja: [
       'プレゼンテーションモードで再生しているあいだ、左上に今のゲーム（アイコンと名前）を出すようにしました（RHRE fresh と同じ）',

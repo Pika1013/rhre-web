@@ -474,8 +474,9 @@
   #presentExit { display: none; }
   .presenting #topbar, .presenting #panel, .presenting #panelToggle, .presenting #status, .presenting #updateBar, .presenting #newsBar { display: none !important; }
   .presenting #app { grid-template-rows: minmax(0, 1fr); }
+  /* 左上の丸い ✕ だけ（文字なし。v1.9.21 で「終わる」の文字を消した） */
   .presenting #presentExit {
-    display: flex; align-items: center; gap: 6px; position: fixed; z-index: 30; height: 36px; padding: 0 12px 0 10px;
+    display: flex; align-items: center; justify-content: center; position: fixed; z-index: 30; width: 36px; height: 36px; padding: 0;
     top: calc(env(safe-area-inset-top, 0px) + 8px); left: calc(env(safe-area-inset-left, 0px) + 8px);
     border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 18px; background: rgba(0, 0, 0, 0.55); color: #fff;
     font: 700 14px var(--font); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -921,7 +922,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.20</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.21</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -979,7 +980,7 @@
     <div class="tour-btns"><button class="btn" id="tourPrev" type="button">戻る</button><div id="tourDots"></div><button class="btn primary" id="tourNext" type="button">次へ</button></div>
   </div>
 </div>
-<button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>終わる</span></button>
+<button id="presentExit" title="プレゼンテーションを終わる" aria-label="プレゼンテーションを終わる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 <div id="presentCtl" role="group" aria-label="再生">
   <button data-c="pause" class="tr-pause" title="一時停止" aria-label="一時停止"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg></button>
   <button data-c="rewind" class="tr-rewind" title="0拍目に戻る" aria-label="0拍目に戻る"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="3.2" height="16" rx="1"/><path d="M20 4.5v15L8.5 12z"/></svg></button>
@@ -1212,7 +1213,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.9.20</h2>
+    <h2>RHRE Web v1.9.21</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1255,7 +1256,7 @@
       <li>プレイモード（メニュー）：プレイアロングのキューに合わせて押して遊びます。▶ で再生。タッチ・はじくは下の緑の枠で（「タッチの枠を左へ／右へ」で左右を切り替え）。「ナイトモード」でトラックを隠し、「パーフェクトチャレンジ」で 1 回もミスしない挑戦ができます</li>
       <li>パソコンのキーボード：A＝J かスペース、B＝K、十字＝W A S D か矢印キー</li>
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
-      <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の「終わる」で戻ります</li>
+      <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
     <p><b>設定（歯車）</b>：ミニゲームの言語、テーマの色、背景の画像、タイミング調整、画面の言語。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
     <p>まだできないこと：画面揺れ、ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
@@ -1305,7 +1306,7 @@
       <li>Play mode (menu): press along with the Playalong cues. Press ▶ to start. Touch and flick cues use the green area at the bottom ("Touch area to the left/right" switches sides). "Night Mode" hides the tracks, and "Perfect Challenge" lets you try for no misses.</li>
       <li>Keyboard: A = J or Space, B = K, D-pad = W A S D or the arrow keys.</li>
       <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
-      <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and "Exit" at the top left to go back.</li>
+      <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
     <p><b>Settings (gear)</b>: minigame language, theme colors, background image, timing offsets, screen language. Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
     <p>Not available yet: screen shake, pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
@@ -1323,7 +1324,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=100"></script>
+<script type="module" src="js/app.js?v=101"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
