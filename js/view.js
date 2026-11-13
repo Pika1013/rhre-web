@@ -78,6 +78,37 @@ function getIcon(url, onload) {
 }
 export { getIcon };
 
+// 今のゲームの区間（RHRE fresh の Remix.gameSections / getGameSection と同じ作り。video.js にも同じものがある）。
+// End Remix より前の、表示しないゲーム（特殊・カウントなど）以外のブロックを後ろから見て、同じゲームが続く所を 1 つの区間にする。
+// ある拍のゲームは「その拍より前に始まった区間のうち一番あと」のもの（最後の区間はそのあともずっと続く）
+function gameSections(remix, info) {
+  const sorted = remix.entities.slice().sort((a, b) => a.beat - b.beat);
+  const endIdx = sorted.findIndex((e) => e.type === 'endEntity');
+  const before = endIdx >= 0 ? sorted.slice(0, endIdx) : sorted;
+  const shown = before.filter((e) => e.game && info(e.game.id) && !info(e.game.id).noDisplay).reverse();
+  const end = endIdx >= 0 ? sorted[endIdx].beat : Math.max(0, ...remix.entities.map((e) => e.beat + e.width));
+  const out = [];
+  let cur = null, curEnd = end;
+  shown.forEach((e, i) => {
+    if (e.game.id !== cur?.id) {
+      const prevGame = cur;
+      cur = e.game;
+      if (prevGame) {
+        const prev = shown[i - 1];
+        out.push({ start: prev.beat, end: curEnd, game: prevGame });
+        curEnd = prev.beat;
+      }
+    }
+  });
+  if (cur) out.push({ start: shown[shown.length - 1].beat, end: curEnd, game: shown[shown.length - 1].game });
+  return out.sort((a, b) => a.start - b.start);
+}
+function sectionAt(sections, beat) {
+  let found = null;
+  for (const s of sections) { if (s.start < beat) found = s; else break; }
+  return found;
+}
+
 // アイコンを読み終わるまで待つ（動画の書き出しで、最初のコマからアイコンが出るように）。読めなければ null
 export function loadIcon(url, timeoutMs = 8000) {
   return new Promise((res) => {
@@ -103,6 +134,8 @@ export class EditorView {
     this.ppb = 48;
     this.scrollBeat = -2;
     this.playhead = null;
+    // プレゼンテーション中に左上に出す今のゲーム { x, cy, maxW, info }（app.js が入れる）。null なら出さない
+    this.gameDisplay = null;
     this.selection = new Set();
     this.armed = null; // 置こうとしている項目 { width, height, name, color }
     this.drop = null; // 一覧からドラッグ中の置き場所 { beat, track, width, height, valid }
@@ -731,6 +764,44 @@ export class EditorView {
         g.restore();
       }
     }
+
+    // 今のゲーム（RHRE fresh の GameDisplayStage）：プレゼンテーションの再生中・一時停止中だけ、左上の「終了」の右に
+    const gd = this.gameDisplay;
+    if (gd && this.playhead != null) {
+      if (!gd.sections || gd.remix !== R) { gd.sections = gameSections(R, gd.info); gd.remix = R; }
+      const sec = sectionAt(gd.sections, this.playhead);
+      if (sec) this.drawGameName(g, sec, gd);
+    }
+  }
+
+  // 左上の今のゲーム：アイコンとゲームの名前（白に黒いふち）。動画の書き出し（video.js）と同じ見た目。
+  // 入りきらない名前は横に縮める（RHRE fresh の drawCompressed と同じ考え）
+  drawGameName(g, sec, gd) {
+    const size = 28;
+    const icon = getIcon(sec.game.icon, () => { this.dirty = true; });
+    if (icon && icon.complete && icon.naturalWidth > 0) {
+      g.save();
+      g.imageSmoothingEnabled = false;
+      g.drawImage(icon, gd.x, gd.cy - size / 2, size, size);
+      g.restore();
+    }
+    const name = gd.info(sec.game.id)?.name || sec.game.name;
+    const tx = gd.x + size * 1.25;
+    const maxW = Math.max(60, gd.maxW - size * 1.25);
+    g.save();
+    g.font = `700 17px ${FONT}`;
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = 3.5;
+    g.strokeStyle = 'rgba(0,0,0,0.9)';
+    g.fillStyle = '#ffffff';
+    const w = g.measureText(name).width;
+    g.translate(tx, gd.cy);
+    if (w > maxW) g.scale(maxW / w, 1);
+    g.strokeText(name, 0, 0);
+    g.fillText(name, 0, 0);
+    g.restore();
   }
 
   // RHRE fresh の renderPlayYan の移植。トラックの一番上の線の上に立つ（絵の左端が拍の位置）。

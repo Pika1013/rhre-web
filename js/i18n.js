@@ -4,6 +4,7 @@
 const EN = {
   // 拡張音源（RHRE Web だけの効果音）
   '拡張音源': 'Expansion sounds', '置く': 'Place',
+  'ボタン': 'Button', // プレイアロングの項目の札
   '拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを PC 版の RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。': 'Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red "MISSING ENTITY" text instead.',
   // 動画で書き出す・更新内容
   '0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。': 'Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).',

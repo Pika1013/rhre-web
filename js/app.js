@@ -2,14 +2,14 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
 import { customRegistry } from './db.js?v=11';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=37';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=40';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=38';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=41';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=26';
+import { CHANGELOG } from './changelog.js?v=27';
 
-const VERSION = '1.9.19';
+const VERSION = '1.9.20';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -865,13 +865,13 @@ function renderGrid() {
 async function openSpecial() {
   const [a, b] = await Promise.all([remix.db.loadGame('special').catch(() => null), remix.db.loadGame('specialVfx').catch(() => null)]);
   const objs = [...(a?.objects || []).filter((o) => o.type === 'endEntity'), ...(b?.objects || []).filter((o) => o.type === 'subtitleEntity' || o.type === 'textureEntity')];
-  showGameList({ id: '__special', name: t('特殊'), objects: objs });
+  showGameList({ id: '__special', name: t('特殊'), nameKey: '特殊', objects: objs });
 }
 
 function openPlayalongList() {
   const g = remix.db.games.get(PLAYALONG_GAME_ID);
   if (!g) return;
-  showGameList({ id: '__playalong', name: t('プレイアロング'), objects: g.objects });
+  showGameList({ id: '__playalong', name: t('プレイアロング'), nameKey: 'プレイアロング', objects: g.objects });
   setStatus(t('好きな段に置けます。左上のメニューの「プレイモード」で遊べます'));
 }
 
@@ -924,7 +924,8 @@ function renderListHead(game) {
   }
   const title = document.createElement('span');
   title.className = 'lh-title';
-  title.textContent = game.name;
+  // 特殊・プレイアロングの見出しは、言語を切り替えたときに描き直すので、そのときの言語で
+  title.textContent = game.nameKey ? t(game.nameKey) : game.name;
   head.appendChild(title);
   // 言語のない版（Rockers の「標準」など）は言語の版に入っているので、切り替えには出さない
   const vs = variantsOf(game.id).filter((v) => !isSharedBase(v.id));
@@ -2032,10 +2033,7 @@ $('videoStart').addEventListener('click', async () => {
       loadIcon,
       version: VERSION,
       // 左上に出すゲームの名前（言語違いはまとめた名前）と、出さないゲーム（特殊・カウントなど）か
-      gameInfo: (gid) => {
-        const g = gamesIndex.find((x) => x.id === gid);
-        return g ? { name: g.group || g.name, noDisplay: !!g.noDisplay } : null;
-      },
+      gameInfo,
     };
     const opts = { fromSec: remix.tempo.b2s(0), lead: VIDEO_LEAD, size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
     const onProgress = (f, phase) => {
@@ -2330,6 +2328,7 @@ function startPresentation() {
   if (playMode) setPlayMode(false);
   presenting = true;
   document.documentElement.classList.add('presenting');
+  placeGameDisplay();
   // 勝手に再生しない。再生位置を 0 拍目に戻して、0 拍目が見える所まで戻すだけ
   if (mode !== 'stopped') stopPlayback();
   view.h.onSetPlaybackStart(0);
@@ -2341,11 +2340,27 @@ function stopPresentation() {
   if (!presenting) return;
   presenting = false;
   document.documentElement.classList.remove('presenting');
+  view.gameDisplay = null;
   stopPlayback();
   applyPanel();
   view.dirty = true;
 }
 $('presentExit').addEventListener('click', stopPresentation);
+// 再生中・一時停止中に左上に出す今のゲーム（RHRE fresh のプレゼンテーションと同じ）。「終了」の右から、右上のボタンの手前まで
+function gameInfo(gid) {
+  const g = gamesIndex.find((x) => x.id === gid);
+  return g ? { name: g.group || g.name, noDisplay: !!g.noDisplay } : null;
+}
+function placeGameDisplay() {
+  if (!presenting) return;
+  const cv = view.cv.getBoundingClientRect();
+  const ex = $('presentExit').getBoundingClientRect();
+  const ctl = $('presentCtl').getBoundingClientRect();
+  const x = ex.right - cv.left + 12;
+  view.gameDisplay = { x, cy: ex.top + ex.height / 2 - cv.top, maxW: Math.max(60, ctl.left - cv.left - 12 - x), info: gameInfo };
+  view.dirty = true;
+}
+window.addEventListener('resize', () => { if (presenting) requestAnimationFrame(placeGameDisplay); });
 $('presentCtl').addEventListener('click', (e) => {
   const c = e.target.closest('[data-c]')?.dataset.c;
   if (c === 'play') play();

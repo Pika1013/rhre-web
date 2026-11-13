@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.9.20', date: '2026-11-13',
+    ja: [
+      'プレゼンテーションモードで再生しているあいだ、左上に今のゲーム（アイコンと名前）を出すようにしました（RHRE fresh と同じ）',
+      '英語の画面で、プレイアロングの項目の「ボタン」の札が日本語のままだったのを直しました。言語を切り替えたときに、一覧の見出しが前の言語のまま残ることがあったのも直しました',
+    ],
+    en: [
+      'While playing in presentation mode, the current game (icon and name) now shows at the top left, like in RHRE fresh.',
+      'Fixed the "Button" tag on Playalong items staying in Japanese on the English screen, and the list heading sometimes staying in the previous language after switching languages.',
+    ],
+  },
+  {
     v: '1.9.19', date: '2026-11-13',
     ja: ['ブロックを選んでいるときに光る小節で、明るい縦線が 1 拍ごとに来るようにしました（今までは半拍の所の線が明るく、拍とずれて見えました）'],
     en: ['In the highlighted measure while a block is selected, the brighter vertical lines now fall on each beat (before, the half-beat lines were brighter and looked off the beat).'],
