@@ -922,7 +922,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.9.21</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.10.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1089,6 +1089,17 @@
   </div>
 </div>
 
+<div class="modal" id="gnModal" hidden>
+  <div class="card">
+    <h2>ゲーム名も日本語にしますか？</h2>
+    <p>ゲームの名前を日本語で出せます（例：Karate Man (GBA) → カラテ家 (GBA)）。あとから「設定」の「ゲーム名」でいつでも変えられます。</p>
+    <div class="row">
+      <button class="btn primary" id="gnYes">日本語にする</button>
+      <button class="btn" id="gnNo">英語のまま</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="confirmModal" hidden>
   <div class="card">
     <h2 id="confirmTitle"></h2>
@@ -1207,13 +1218,17 @@
     <div class="field"><label for="uiLangSelect">画面の言語</label>
       <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
     </div>
+    <div class="field"><label for="gameNamesSelect">ゲーム名</label>
+      <select id="gameNamesSelect"><option value="ja">日本語で表示</option><option value="en">英語のまま</option></select>
+    </div>
+    <p class="note">ゲームの名前を日本語で出すかどうかです。画面の言語とは別に選べます。検索は日本語の名前でも英語の名前でもできます。</p>
     <div class="row"><button class="btn" id="settingsClose">閉じる</button></div>
   </div>
 </div>
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.9.21</h2>
+    <h2>RHRE Web v1.10.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1258,7 +1273,7 @@
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
-    <p><b>設定（歯車）</b>：ミニゲームの言語、テーマの色、背景の画像、タイミング調整、画面の言語。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
+    <p><b>設定（歯車）</b>：ミニゲームの言語、テーマの色、背景の画像、タイミング調整、画面の言語、ゲーム名（日本語・英語）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
     <p>まだできないこと：画面揺れ、ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
@@ -1308,7 +1323,7 @@
       <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
       <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
-    <p><b>Settings (gear)</b>: minigame language, theme colors, background image, timing offsets, screen language. Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
+    <p><b>Settings (gear)</b>: minigame language, theme colors, background image, timing offsets, screen language, game names (Japanese or English). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
     <p>Not available yet: screen shake, pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
     <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
     <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
@@ -1324,7 +1339,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=101"></script>
+<script type="module" src="js/app.js?v=102"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

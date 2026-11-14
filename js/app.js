@@ -2,14 +2,15 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
 import { customRegistry } from './db.js?v=11';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=38';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=39';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=41';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=28';
+import { CHANGELOG } from './changelog.js?v=29';
+import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.9.21';
+const VERSION = '1.10.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -48,6 +49,33 @@ const SERIES_TABS = [
   ['other', 'その他'], ['special', '特殊'], ['used', '使用中'], ['fav', 'お気に入り'], ['recent', '最近'], ['custom', 'カスタム'],
 ];
 let gamesIndex = [];
+
+// ゲーム名：設定の「ゲーム名」が日本語なら日本語に（無い名前は英語のまま）
+const gname = (en) => (settings.gameNamesJa && en && GAME_NAMES_JA[en]) || en;
+// 検索用：カタカナをひらがなにそろえて小文字に（「からて」でも「カラテ家」が見つかるように）
+const kana = (s) => String(s || '').toLowerCase().replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+// プレイアロングの例（「Fillbots, Screwbot Factory」など）の中のゲーム名。(GBA) などを外した名前でも引けるように
+const GAME_BASE_JA = (() => {
+  const strip = (x) => x.replace(/\s*\((GBA|DS|Wii|3DS|Wii\/3DS|Switch)\)$/, '');
+  const m = new Map();
+  for (const [en, ja] of Object.entries(GAME_NAMES_JA)) {
+    const b = strip(en);
+    if (b === en) continue;
+    const j = strip(ja);
+    m.set(b, m.has(b) && m.get(b) !== j ? null : j); // シリーズで日本語の名前が違うものは使わない
+  }
+  return m;
+})();
+function gnameText(text) {
+  if (!settings.gameNamesJa || !text) return text;
+  return text.split(', ').map((part) => {
+    let best = '';
+    for (const en of [...Object.keys(GAME_NAMES_JA), ...GAME_BASE_JA.keys()]) {
+      if (en.length > best.length && part.startsWith(en) && /^($| |")/.test(part.slice(en.length)) && (GAME_NAMES_JA[en] || GAME_BASE_JA.get(en))) best = en;
+    }
+    return best ? (GAME_NAMES_JA[best] || GAME_BASE_JA.get(best)) + part.slice(best.length) : part;
+  }).join(', ');
+}
 
 // 設定（ブラウザに保存）。lang はミニゲームの言語違い（声）をどれで出すか
 const SETTINGS_KEY = 'rhre-web-settings';
@@ -243,7 +271,7 @@ function updateTimebox(sec, beat) {
 
 function describe(ent) {
   const parts = [];
-  if (ent.game) parts.push(ent.o?.type === 'playalongEntity' ? t('プレイアロング') : ent.game.name);
+  if (ent.game) parts.push(ent.o?.type === 'playalongEntity' ? t('プレイアロング') : gname(ent.game.name));
   parts.push(objName(ent.o) || ent.name);
   parts.push(t('拍 {b}', { b: +ent.beat.toFixed(3) }));
   if (ent.width) parts.push(t('長さ {w}', { w: +ent.width.toFixed(3) }));
@@ -297,7 +325,7 @@ function objExample(o) {
   const pt = paText(o);
   if (!pt) return '';
   if (!pt[1]) return t('ゲームには無い操作');
-  return `${t('例：')}${pt[1]}`;
+  return `${t('例：')}${gnameText(pt[1])}`;
 }
 
 function richName(name) {
@@ -785,7 +813,7 @@ function variantsOf(gid) {
 function variantLabel(v, all) {
   if (v.language) return LANG_LABEL[v.language] || v.language.toUpperCase();
   const base = all.find((x) => x.groupDefault) || all[0];
-  const extra = v.name.replace(base?.group || '', '').replace(/[()（）]/g, '').trim();
+  const extra = gname(v.name).replace(gname(base?.group || ''), '').replace(/[()（）]/g, '').trim();
   return extra || '標準';
 }
 
@@ -831,7 +859,8 @@ function renderGrid() {
     }
   } else {
     let list;
-    if (q) list = gamesIndex.filter((g) => !g.id.startsWith('special') && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.hints.some((h) => String(h).toLowerCase().includes(q))));
+    if (q) list = gamesIndex.filter((g) => !g.id.startsWith('special') && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.hints.some((h) => String(h).toLowerCase().includes(q))
+      || [g.name, g.group].some((n) => GAME_NAMES_JA[n] && kana(GAME_NAMES_JA[n]).includes(kana(q)))));
     else if (currentTab === 'other') list = gamesIndex.filter((g) => (g.series === 'other' || g.noDisplay) && !g.id.startsWith('special'));
     else list = gamesIndex.filter((g) => g.series === currentTab && !g.noDisplay);
     tiles = groupsOf(list)
@@ -845,8 +874,8 @@ function renderGrid() {
     const ids = t.variants ? t.variants.map((v) => v.id) : [t.id];
     const b = document.createElement('button');
     b.className = 'game' + (ids.some((id) => shownKey.includes(id) || shownGame?.id === id) ? ' sel' : '');
-    b.title = t.name;
-    b.setAttribute('aria-label', t.name);
+    b.title = gname(t.name);
+    b.setAttribute('aria-label', gname(t.name));
     b.dataset.gids = ids.join(' ');
     const img = document.createElement('img');
     img.alt = '';
@@ -893,7 +922,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
       extra = sets.filter(Boolean).map((g) => ({ title: variantLabel(all.find((v) => v.id === g.id) || g, all).replace(/^[-–\s]+/, ''), objects: g.objects }));
     }
     showGameList(game, highlightObj, null, extra);
-    setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: game.name }));
+    setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: gname(game.name) }));
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
     toast(`${gid} を読み込めませんでした`, 3000);
@@ -925,7 +954,7 @@ function renderListHead(game) {
   const title = document.createElement('span');
   title.className = 'lh-title';
   // 特殊・プレイアロングの見出しは、言語を切り替えたときに描き直すので、そのときの言語で
-  title.textContent = game.nameKey ? t(game.nameKey) : game.name;
+  title.textContent = game.nameKey ? t(game.nameKey) : gname(game.name);
   head.appendChild(title);
   // 言語のない版（Rockers の「標準」など）は言語の版に入っているので、切り替えには出さない
   const vs = variantsOf(game.id).filter((v) => !isSharedBase(v.id));
@@ -934,7 +963,7 @@ function renderListHead(game) {
       const c = document.createElement('button');
       c.className = 'chip' + (v.id === game.id ? ' on' : '');
       c.textContent = variantLabel(v, vs);
-      c.title = v.name;
+      c.title = gname(v.name);
       c.addEventListener('click', () => openGame(v.id));
       head.appendChild(c);
     }
@@ -1925,6 +1954,7 @@ $('settingsBtn').addEventListener('click', () => {
   $('paTouchOffset').value = String(Number(settings.paTouchOffset) || 0);
   $('paTouchOffsetVal').textContent = `${Number(settings.paTouchOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
+  $('gameNamesSelect').value = settings.gameNamesJa ? 'ja' : 'en';
   $('settingsModal').hidden = false;
 });
 $('langSelect').addEventListener('change', () => {
@@ -1936,6 +1966,21 @@ $('langSelect').addEventListener('change', () => {
     if (vs.length > 1) { const v = pickVariant(vs); if (v.id !== shownGame.id) openGame(v.id); }
   }
 });
+$('gameNamesSelect').addEventListener('change', () => {
+  settings.gameNamesJa = $('gameNamesSelect').value === 'ja';
+  saveSettings();
+  refreshGameNames();
+});
+// ゲーム名の表示を変えたら、ゲームの一覧・パターン一覧の見出し・今のゲームを描き直す
+function refreshGameNames() {
+  if (!remix) return;
+  const shown = shownGame;
+  // 「特殊」タブにはゲーム名が無い。描き直すと一覧が「終わり・字幕・画像」に差し替わるので、そのままにする
+  if ($('search').value.trim() || currentTab !== 'special') renderGrid();
+  if (shown?.id === '__playalong') openPlayalongList();
+  else if (shown && gamesIndex.some((g) => g.id === shown.id)) openGame(shown.id);
+  view.dirty = true;
+}
 $('settingsClose').addEventListener('click', () => { $('settingsModal').hidden = true; });
 $('helpClose').addEventListener('click', () => { $('helpModal').hidden = true; });
 
@@ -2349,7 +2394,7 @@ $('presentExit').addEventListener('click', stopPresentation);
 // 再生中・一時停止中に左上に出す今のゲーム（RHRE fresh のプレゼンテーションと同じ）。「終了」の右から、右上のボタンの手前まで
 function gameInfo(gid) {
   const g = gamesIndex.find((x) => x.id === gid);
-  return g ? { name: g.group || g.name, noDisplay: !!g.noDisplay } : null;
+  return g ? { name: gname(g.group || g.name), noDisplay: !!g.noDisplay } : null;
 }
 function placeGameDisplay() {
   if (!presenting) return;
@@ -3053,9 +3098,29 @@ window.addEventListener('keydown', (e) => {
 function maybeStartTour() {
   if (root.classList.contains('gate-ios') || root.classList.contains('gate-android')) return;
   if (!settings.uiLangChosen) { $('langPick').hidden = false; return; }
+  if (needGameNamesAsk()) { askGameNames(maybeStartTour); return; }
   if (settings.tutorialDone || tour.on) return;
   setTimeout(() => { if (!settings.tutorialDone && !tour.on) startTour(); }, 400);
 }
+
+// ゲーム名を日本語にするか、画面が日本語の人に一度だけ聞く（あとから設定の「ゲーム名」で変えられる）
+const needGameNamesAsk = () => (settings.uiLang || 'ja') === 'ja' && settings.gameNamesJa == null && !tour.on;
+let gnThen = null;
+function askGameNames(then) {
+  gnThen = then || null;
+  $('gnModal').hidden = false;
+}
+function answerGameNames(on) {
+  settings.gameNamesJa = on;
+  saveSettings();
+  $('gnModal').hidden = true;
+  refreshGameNames();
+  const f = gnThen;
+  gnThen = null;
+  f?.();
+}
+$('gnYes').addEventListener('click', () => answerGameNames(true));
+$('gnNo').addEventListener('click', () => answerGameNames(false));
 
 // ---------------------------------------------------------------- 言語選択（初めて開いたとき・スマホのブラウザの案内画面）
 

@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.10.0', date: '2026-11-14',
+    ja: [
+      'ゲーム名を日本語で出せるようになりました（例：Karate Man (GBA) → カラテ家 (GBA)）。設定の「ゲーム名」で、いつでも日本語と英語を切り替えられます',
+      'ゲームの検索は、日本語の名前でもできます（ひらがなでもカタカナでも大丈夫です）',
+    ],
+    en: [
+      'Minigame names can now be shown in Japanese (e.g. Karate Man (GBA) → カラテ家 (GBA)). Switch between Japanese and English any time under "Game names" in Settings.',
+      'You can now search minigames by their Japanese names too.',
+    ],
+  },
+  {
     v: '1.9.21', date: '2026-11-13',
     ja: ['プレゼンテーションモードの左上の「終わる」を、文字のない丸い ✕ ボタンにしました'],
     en: ['The Exit button at the top left of presentation mode is now a round ✕ button without text.'],

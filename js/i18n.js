@@ -259,6 +259,12 @@ const STATIC_EN = {
   '音声のみ書き出す': 'Export audio only', '音楽を選ぶ': 'Choose music', '音楽の開始位置': 'Music start position', '音楽を外す': 'Remove music',
   'トラックの数': 'Number of tracks', 'プレゼンテーションモード': 'Presentation mode', '使い方': 'Help', '閉じる': 'Close',
   '決定': 'OK', '削除': 'Delete', 'やめる': 'Cancel', 'OK': 'OK', '設定': 'Settings',
+  'ゲーム名': 'Game names', '日本語で表示': 'Show in Japanese', '英語のまま': 'Keep English', '日本語にする': 'Use Japanese',
+  'ゲームの名前を日本語で出すかどうかです。画面の言語とは別に選べます。検索は日本語の名前でも英語の名前でもできます。':
+    'Whether to show minigame names in Japanese. This is separate from the interface language. Search works with either name.',
+  'ゲーム名も日本語にしますか？': 'Show game names in Japanese too?',
+  'ゲームの名前を日本語で出せます（例：Karate Man (GBA) → カラテ家 (GBA)）。あとから「設定」の「ゲーム名」でいつでも変えられます。':
+    'Minigame names can be shown in Japanese (e.g. Karate Man (GBA) → カラテ家 (GBA)). You can change this any time under "Game names" in Settings.',
   'ミニゲームの言語': 'Minigame language', '画面の言語': 'Interface language', '再生速度': 'Playback speed', 'テーマ': 'Theme',
   'ダーク': 'Dark', 'ブラック': 'Black', 'ライト': 'Light',
   '同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。':
