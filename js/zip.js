@@ -18,13 +18,16 @@ export async function readZip(arrayBuffer) {
   const dec = new TextDecoder();
   for (let k = 0; k < count; k++) {
     if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const flags = dv.getUint16(p + 8, true);
     const method = dv.getUint16(p + 10, true);
     const csize = dv.getUint32(p + 20, true);
     const nameLen = dv.getUint16(p + 28, true);
     const extraLen = dv.getUint16(p + 30, true);
     const commentLen = dv.getUint16(p + 32, true);
     const localOffset = dv.getUint32(p + 42, true);
-    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    const raw = u8.subarray(p + 46, p + 46 + nameLen);
+    // UTF-8 の印（0x800）が無い名前は、日本語の Windows で作った zip だと Shift_JIS のことがある
+    const name = flags & 0x800 ? dec.decode(raw) : decodeName(raw);
     entries.set(name, { method, csize, localOffset });
     p += 46 + nameLen + extraLen + commentLen;
   }
@@ -100,6 +103,12 @@ export function makeZip(files, comment = '') {
   end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true); end.setUint16(20, cm.length, true);
   return new Blob([...parts, ...central, new Uint8Array(end.buffer), cm], { type: 'application/zip' });
+}
+
+function decodeName(raw) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(raw); } catch (_) { /* UTF-8 ではない */ }
+  try { return new TextDecoder('shift_jis').decode(raw); } catch (_) { /* 対応していない */ }
+  return new TextDecoder().decode(raw);
 }
 
 async function inflateRaw(data) {

@@ -45,8 +45,35 @@ async function cachedFetch(url, cacheName) {
 
 const subStar = (s, gid) => (typeof s === 'string' ? s.split('*').join(gid) : s);
 
-// 自分で読み込んだ効果音（カスタム）。新しく作るデータベースにも入れる
-export const customRegistry = { game: null };
+// 自分で読み込んだ効果音（カスタム）。新しく作るデータベースにも入れる。
+// game：「＋ 音声ファイルを追加」で 1 つずつ入れた音（custom_web）。
+// packs：フォルダごと入れたゲーム（RHRE fresh の customSounds の中のフォルダ 1 つ＝ゲーム 1 つ）。
+// readFile：packs の音（url が cpack: で始まる）の中身を端末の保存から読む関数（app.js が入れる）
+export const customRegistry = { game: null, packs: [], readFile: null };
+
+// data.json（RHRE-database・カスタムのフォルダ共通）からゲームを作る。soundUrl を渡すと、各キューの音の場所をそれにする
+export function gameFromJSON(d, gid, { icon = null, soundUrl = null } = {}) {
+  const id = d.id || gid;
+  const game = {
+    id,
+    name: d.name || id,
+    series: d.series || 'other',
+    icon,
+    objects: [],
+  };
+  for (const raw of d.objects || []) {
+    const o = { ...raw, id: subStar(raw.id, id), game };
+    if (Array.isArray(raw.cues)) o.cues = raw.cues.map((c) => ({ ...c, id: subStar(c.id, id) }));
+    if (raw.introSound) o.introSound = subStar(raw.introSound, id);
+    if (raw.endingSound) o.endingSound = subStar(raw.endingSound, id);
+    if (raw.intervals) {
+      o.intervals = Object.entries(raw.intervals).map(([range, iv]) => ({ range: parseRange(range), id: subStar(iv, id) }));
+    }
+    if (soundUrl && (o.type || 'cue') === 'cue') o.url = soundUrl(o);
+    game.objects.push(o);
+  }
+  return game;
+}
 
 // 拡張音源：RHRE Web だけにある効果音（作者の自作）。RHRE-database のゲームを読み込んだときに、そのゲームの最後に足す。
 // RHRE fresh のデータベースには無いので、これを使ったリミックスを RHRE fresh で開くと、その音は「MISSING ENTITY」になる。
@@ -71,6 +98,7 @@ export class SFXDatabase {
     this.pending = new Map();
     this.failedGames = new Map();
     if (customRegistry.game) this.addGame(customRegistry.game);
+    for (const g of customRegistry.packs) this.addGame(g);
     // プレイアロングのキーは、データベースではなくエディタ側にある（RHRE fresh と同じ）
     this.addGame(makePlayalongGame());
   }
@@ -78,6 +106,17 @@ export class SFXDatabase {
   addGame(game) {
     this.games.set(game.id, game);
     for (const o of game.objects) this.objects.set(o.id, o);
+    for (const o of game.objects) {
+      for (const dep of o.deprecatedIDs || []) if (!this.objects.has(dep)) this.objects.set(dep, o);
+    }
+  }
+
+  // カスタムのゲームを全部外して、今の customRegistry のものを入れ直す（フォルダを足した・消したとき）
+  resetCustom() {
+    for (const [k, o] of this.objects) if (o.game?.isCustom) this.objects.delete(k);
+    for (const [k, g] of this.games) if (g.isCustom) this.games.delete(k);
+    if (customRegistry.game) this.addGame(customRegistry.game);
+    for (const g of customRegistry.packs) this.addGame(g);
   }
 
   static gameIdOf(id) {
@@ -115,29 +154,14 @@ export class SFXDatabase {
     if (this.pending.has(gid)) return this.pending.get(gid);
     const p = (async () => {
       const d = parseLenientJSON(await this.fetchText(`games/${gid}/data.json`));
-      const game = {
-        id: d.id || gid,
-        name: d.name || gid,
-        series: d.series || 'other',
-        icon: `${this.base}games/${gid}/icon.png`,
-        objects: [],
-      };
-      for (const raw of d.objects || []) {
-        const o = { ...raw, id: subStar(raw.id, gid), game };
-        if (Array.isArray(raw.cues)) o.cues = raw.cues.map((c) => ({ ...c, id: subStar(c.id, gid) }));
-        if (raw.introSound) o.introSound = subStar(raw.introSound, gid);
-        if (raw.endingSound) o.endingSound = subStar(raw.endingSound, gid);
-        if (raw.intervals) {
-          o.intervals = Object.entries(raw.intervals).map(([range, id]) => ({ range: parseRange(range), id: subStar(id, gid) }));
-        }
-        this.objects.set(o.id, o);
-        game.objects.push(o);
-      }
+      // 星の置きかえは、いつもフォルダの名前（gid）で（RHRE fresh と同じ）
+      const game = gameFromJSON({ ...d, id: gid, name: d.name || gid }, gid, { icon: `${this.base}games/${gid}/icon.png` });
+      game.id = d.id || gid;
       for (const x of EXT_SOUNDS[game.id] || []) {
         const o = { type: 'cue', subtext: '', deprecatedIDs: [], ...x, ext: true, game };
-        this.objects.set(o.id, o);
         game.objects.push(o);
       }
+      for (const o of game.objects) this.objects.set(o.id, o);
       for (const o of game.objects) {
         for (const dep of o.deprecatedIDs || []) if (!this.objects.has(dep)) this.objects.set(dep, o);
       }
@@ -159,7 +183,8 @@ export class SFXDatabase {
     const seen = new Set();
     let queue = [...new Set(ids)];
     while (queue.length) {
-      const games = [...new Set(queue.filter((id) => !this.objects.has(id)).map(SFXDatabase.gameIdOf))]
+      // custom_ で始まる ID はカスタム効果音だけのもの（RHRE fresh でもデータベースには無い）なので取りに行かない
+      const games = [...new Set(queue.filter((id) => !this.objects.has(id) && !id.startsWith('custom_')).map(SFXDatabase.gameIdOf))]
         .filter((g) => !this.games.has(g) && !this.failedGames.has(g));
       let done = 0;
       await mapLimit(games, 6, async (g) => {
@@ -185,6 +210,12 @@ export class SFXDatabase {
   }
 
   async fetchBinary(url) {
+    // フォルダごと入れたカスタム効果音は、端末の保存から読む
+    if (url.startsWith('cpack:')) {
+      const b = await customRegistry.readFile?.(url);
+      if (!b) throw new Error(`${url.slice(6)} が見つかりません`);
+      return b;
+    }
     const res = await this.fetchWithFallback(url);
     if (!res.ok) throw new Error(`${url} を取得できません (${res.status})`);
     return res.arrayBuffer();

@@ -1,16 +1,16 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=18';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=19';
 import { analyzeTempo } from './tempo.js?v=2';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
-import { customRegistry } from './db.js?v=11';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=40';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
+import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=41';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=42';
-import { makeZip } from './zip.js?v=4';
+import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=30';
+import { CHANGELOG } from './changelog.js?v=31';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.11.0';
+const VERSION = '1.12.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -431,6 +431,18 @@ const store = {
       return false;
     }
   },
+  // まとめて書く（[[鍵, 中身], …]。null なら消す）。失敗したら例外を投げる（呼んだ側で知らせる）
+  async putMany(pairs) {
+    const db = await this.open();
+    await new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readwrite');
+      const os = tx.objectStore('kv');
+      for (const [k, v] of pairs) { if (v == null) os.delete(k); else os.put(v, k); }
+      tx.oncomplete = res;
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error || new Error('aborted'));
+    });
+  },
 };
 
 // 端末への自動保存に失敗したら、原因を 1 回だけ知らせる（同じ原因で何度も出さない）
@@ -485,7 +497,7 @@ function placeAt(o, beat, track) {
   if (!o || !remix) return false;
   if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
   const ent = remix.createEntity(o, beat, track);
-  if (o.game?.id === CUSTOM_GAME_ID) ent.isCustom = true;
+  if (o.game?.isCustom) ent.isCustom = true; // RHRE fresh と同じく、カスタムのゲームの印を付けて保存する
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   // 拡張音源は、初めて置くときだけ注意を出す（PC 版の RHRE fresh には無い音なので）
   if (o.ext && !settings.extWarned) {
@@ -851,7 +863,7 @@ function renderGrid() {
     return;
   } else if (!q && (currentTab === 'fav' || currentTab === 'recent')) {
     const ids = currentTab === 'fav' ? (settings.favs || []) : (settings.recent || []);
-    tiles = ids.map((id) => gamesIndex.find((g) => g.id === id) || (id === CUSTOM_GAME_ID && customRegistry.game ? { id, name: customRegistry.game.name } : null))
+    tiles = ids.map((id) => customGameById(id) || gamesIndex.find((g) => g.id === id))
       .filter(Boolean).map((g) => ({ id: g.id, name: g.name }));
     if (!tiles.length) {
       grid.innerHTML = `<div class="empty">${esc(t(currentTab === 'fav' ? 'パターン一覧の上の ☆ を押すと、ここに並びます。' : '置いたミニゲームが、ここに新しい順で並びます。'))}</div>`;
@@ -867,6 +879,8 @@ function renderGrid() {
       .map(({ variants, rep }) => ({ id: rep.id, name: rep.group || rep.name, order: rep.order, variants }))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
       .slice(0, q ? 80 : 400);
+    // 検索では、フォルダごと入れたカスタム効果音も名前で引く
+    if (q) tiles.unshift(...customRegistry.packs.filter((g) => (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q)) && !tiles.some((x) => x.id === g.id)).map((g) => ({ id: g.id, name: g.name })));
   }
   if (!tiles.length) { grid.innerHTML = `<div class="empty">${esc(t('見つかりませんでした。'))}</div>`; return; }
   const shownKey = shownGame ? variantsOf(shownGame.id).map((v) => v.id) : [];
@@ -881,6 +895,8 @@ function renderGrid() {
     img.alt = '';
     img.loading = 'lazy';
     if (t.id === CUSTOM_GAME_ID) { b.classList.add('txt'); b.textContent = t2('カスタム'); b.onclick = () => openGame(t.id); grid.appendChild(b); continue; }
+    const cg = customGameById(t.id);
+    if (cg) { grid.appendChild(customTile(cg)); continue; }
     img.src = `${remix.db.base}games/${t.id}/icon.png`;
     img.onerror = () => { if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = remix.db.rawUrl(img.src); } };
     b.appendChild(img);
@@ -905,7 +921,13 @@ function openPlayalongList() {
 }
 
 async function openGame(gid, jumpBeat, highlightObj) {
-  if (gid === CUSTOM_GAME_ID && customRegistry.game) { showGameList(customRegistry.game, highlightObj); return; }
+  const cg = customGameById(gid);
+  if (cg) {
+    showGameList(cg, highlightObj);
+    setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: customLabel(cg) }));
+    if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
+    return;
+  }
   setStatus('読み込み中…');
   try {
     // Rockers・Guitar Lessons の言語のない版（ギターのコードなど）は、言語の版の一番下に入れてあるので、言語の版を開く
@@ -954,8 +976,18 @@ function renderListHead(game) {
   const title = document.createElement('span');
   title.className = 'lh-title';
   // 特殊・プレイアロングの見出しは、言語を切り替えたときに描き直すので、そのときの言語で
-  title.textContent = game.nameKey ? t(game.nameKey) : gname(game.name);
+  title.textContent = game.nameKey ? t(game.nameKey) : game.isCustom ? customLabel(game) : gname(game.name);
   head.appendChild(title);
+  // カスタム効果音は、端末から消せる
+  if (game.isCustom) {
+    const del = document.createElement('button');
+    del.className = 'chip';
+    del.textContent = t('消す');
+    del.title = t('このカスタム効果音を端末から消す');
+    del.addEventListener('click', () => confirmBox(t('カスタム効果音を消す'),
+      t('「{name}」をこの端末から消します。置いてあるブロックは残りますが、音は鳴らなくなります。', { name: customLabel(game) }), t('消す'), () => removeCustomGame(game)));
+    head.appendChild(del);
+  }
   // 言語のない版（Rockers の「標準」など）は言語の版に入っているので、切り替えには出さない
   const vs = variantsOf(game.id).filter((v) => !isSharedBase(v.id));
   if (vs.length > 1) {
@@ -1124,6 +1156,10 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   updateCtxbar();
   if (note) toast(note, 3500, 'info');
+  // カスタム効果音を使っているのに、この端末に無いとき
+  if (remix.entities.some((e) => !e.o && (e.isCustom || /^custom_/.test(e.id)))) {
+    toast(t('このリミックスはカスタム効果音を使っています。「カスタム」のタブで、同じフォルダ（または zip）を追加すると鳴ります。'), 7000, 'info');
+  }
   if (metronome) loadMetronomeSound();
 }
 
@@ -1730,8 +1766,17 @@ $('fileInput').addEventListener('change', async (e) => {
     showErrorBox(t('開けませんでした'), t('ファイルを読み取れませんでした。iCloud などにあって端末にまだダウンロードされていないか、読み取りが許可されていない可能性があります。ファイル App で一度開いてから、もう一度選んでください。'), err);
     return;
   }
+  if (await isCustomSoundZip(ab, f.name)) { importCustomZip(f); return; }
   openBuffer(ab, f.name);
 });
+// .zip の中に remix.json が無ければ、カスタム効果音のフォルダとして読む
+async function isCustomSoundZip(ab, name) {
+  if (!/\.zip$/i.test(name)) return false;
+  try {
+    const zip = await readZip(ab);
+    return !zip.has('remix.json') && zip.names.some((n) => PACK_AUDIO.test(n));
+  } catch (_) { return false; }
+}
 $('playBtn').addEventListener('click', play);
 $('pauseBtn').addEventListener('click', pause);
 $('stopBtn').addEventListener('click', stopPlayback);
@@ -2209,9 +2254,32 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', async (e) => {
   e.preventDefault();
+  // フォルダを落としたら、カスタム効果音のフォルダとして読む
+  const entry = [...(e.dataTransfer?.items || [])].map((it) => it.webkitGetAsEntry?.()).find((en) => en?.isDirectory);
+  if (entry) { importCustomEntries(await dirEntries(entry), entry.name); return; }
   const f = e.dataTransfer?.files?.[0];
-  if (f) openBuffer(await f.arrayBuffer(), f.name);
+  if (!f) return;
+  const ab = await f.arrayBuffer();
+  if (await isCustomSoundZip(ab, f.name)) { importCustomZip(f); return; }
+  openBuffer(ab, f.name);
 });
+// 落としたフォルダの中のファイルを全部（[{ path, read }]。path はフォルダの名前から）
+async function dirEntries(root) {
+  const out = [];
+  const walk = async (dir) => {
+    const reader = dir.createReader();
+    for (;;) {
+      const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      if (!batch.length) break;
+      for (const en of batch) {
+        if (en.isDirectory) await walk(en);
+        else out.push({ path: en.fullPath.replace(/^\//, ''), read: () => new Promise((res, rej) => en.file(async (file) => res(new Uint8Array(await file.arrayBuffer())), rej)) });
+      }
+    }
+  };
+  await walk(root);
+  return out;
+}
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (mode === 'playing') pause(); engine.releaseKeepAlive(); }
   else if (mode !== 'playing') engine.stale = true; // 戻ってきたら、次の ▶ で音の部品を作り直す
@@ -2289,13 +2357,15 @@ async function loadTexturesFromExtra() {
 let customSounds = []; // [{ id, name, bytes }]
 
 function buildCustomGame() {
-  if (!customSounds.length) { customRegistry.game = null; return; }
-  const game = { id: CUSTOM_GAME_ID, name: t('カスタム効果音'), series: 'custom', icon: null, objects: [] };
-  for (const c of customSounds) {
-    game.objects.push({ type: 'cue', id: `${CUSTOM_GAME_ID}/${c.id}`, name: c.name, duration: 1, stretchable: true, repitchable: true, game, url: `custom:${c.id}` });
+  if (!customSounds.length) customRegistry.game = null;
+  else {
+    const game = { id: CUSTOM_GAME_ID, name: t('カスタム効果音'), series: 'custom', icon: null, objects: [], isCustom: true };
+    for (const c of customSounds) {
+      game.objects.push({ type: 'cue', id: `${CUSTOM_GAME_ID}/${c.id}`, name: c.name, duration: 1, stretchable: true, repitchable: true, game, url: `custom:${c.id}` });
+    }
+    customRegistry.game = game;
   }
-  customRegistry.game = game;
-  if (remix) { remix.db.addGame(game); remix.rebuild(); view.dirty = true; }
+  refreshCustomInRemix();
 }
 
 async function decodeCustom(c) {
@@ -2310,43 +2380,310 @@ async function restoreCustomSounds() {
   buildCustomGame();
 }
 
-function renderCustomGrid(grid) {
-  const add = document.createElement('button');
-  add.className = 'game txt';
-  add.textContent = t('＋ 音声ファイルを追加');
-  add.addEventListener('click', () => $('customInput').click());
-  grid.appendChild(add);
-  if (customRegistry.game) {
-    const b = document.createElement('button');
-    b.className = 'game txt' + (shownGame?.id === CUSTOM_GAME_ID ? ' sel' : '');
-    b.dataset.gids = CUSTOM_GAME_ID;
-    b.textContent = `${t('カスタム効果音')}（${customSounds.length}）`;
-    b.addEventListener('click', () => openGame(CUSTOM_GAME_ID));
-    grid.appendChild(b);
-    showGameList(customRegistry.game);
+// 1 つずつ入れた音（custom_web）に足す。files：[{ name, bytes }]。足せた数を返す
+async function addCustomSoundFiles(files) {
+  let added = 0;
+  for (const f of files) {
+    const base = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'sound';
+    let id = base, n = 2;
+    while (customSounds.some((c) => c.id === id)) id = `${base}_${n++}`;
+    const c = { id, name: f.name.replace(/\.[^.]+$/, ''), bytes: f.bytes };
+    await decodeCustom(c);
+    if (!engine.buffers.has(`custom:${id}`)) continue;
+    customSounds.push(c);
+    added++;
   }
+  if (added) {
+    store.set('customSounds', customSounds);
+    buildCustomGame();
+  }
+  return added;
+}
+
+// ---- フォルダごと入れたカスタム効果音（RHRE fresh の customSounds の中のフォルダと同じ。フォルダ 1 つ＝ゲーム 1 つ）
+// data.json があれば RHRE fresh と同じくその定義で、無ければフォルダの中の音を 1 つずつ置ける形（長さ 1 拍・伸ばせる・音程を変えられる。
+// 名前が「.loop」で終わる音はくり返す）で読む。icon.png があればアイコンにする。
+// 端末には、フォルダの一覧を customPacks に、音を 1 つずつ「cpack:フォルダ/場所」の鍵で保存する（使う音だけをあとで読む）
+const PACK_AUDIO = /\.(ogg|mp3|wav)$/i; // RHRE fresh が読む形式と同じ
+let customPacks = []; // [{ folder, json, files: [フォルダの中の場所], icon: Uint8Array|null, addedAt }]
+const packFileKeys = new Map(); // 小文字にした鍵 → 保存の鍵（data.json の大文字・小文字がファイル名と違っても見つける）
+const packIconUrls = new Map(); // フォルダ → アイコンの blob URL
+
+customRegistry.readFile = async (url) => {
+  const b = await store.get(packFileKeys.get(url.toLowerCase()) || url);
+  if (!b) return null;
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+};
+
+function packGame(meta) {
+  let icon = null;
+  if (meta.icon) {
+    if (!packIconUrls.has(meta.folder)) packIconUrls.set(meta.folder, URL.createObjectURL(new Blob([meta.icon], { type: 'image/png' })));
+    icon = packIconUrls.get(meta.folder);
+  }
+  let game;
+  if (meta.json != null) {
+    let d;
+    try { d = parseLenientJSON(meta.json); } catch (_) { return null; }
+    game = gameFromJSON(d, meta.folder, { icon, soundUrl: (o) => `cpack:${o.id}.${o.fileExtension || 'ogg'}` });
+    game.group = d.group || game.name;
+    game.noDisplay = !!d.noDisplay;
+  } else {
+    game = { id: `custom_${meta.folder}`, name: meta.folder, series: 'other', icon, objects: [] };
+    const names = meta.files.filter((f) => !f.includes('/') && PACK_AUDIO.test(f)).sort((a, b) => a.localeCompare(b));
+    for (const f of names) {
+      const base = f.replace(/\.[^.]+$/, '');
+      const loops = base.endsWith('.loop');
+      const name = loops ? `${base.slice(0, -5)} - loop` : base;
+      game.objects.push({ type: 'cue', id: `${game.id}/${name}`, name, subtext: '', duration: 1, stretchable: true, repitchable: true, loops, game, url: `cpack:${meta.folder}/${f}` });
+    }
+  }
+  game.isCustom = true;
+  game.folder = meta.folder;
+  return game;
+}
+
+function buildCustomPacks() {
+  packFileKeys.clear();
+  for (const m of customPacks) for (const f of m.files) { const k = `cpack:${m.folder}/${f}`; packFileKeys.set(k.toLowerCase(), k); }
+  customRegistry.packs = customPacks.map(packGame).filter(Boolean);
+}
+
+async function restoreCustomPacks() {
+  const list = await store.get('customPacks');
+  if (!Array.isArray(list)) return;
+  customPacks = list;
+  buildCustomPacks();
+}
+
+const allCustomGames = () => [...(customRegistry.game ? [customRegistry.game] : []), ...customRegistry.packs];
+const customGameById = (id) => allCustomGames().find((g) => g.id === id) || null;
+
+// 開いているリミックスのデータベースのカスタムを入れ直し、置いてあるブロックの音を読み直す
+async function refreshCustomInRemix() {
+  if (!remix) return;
+  const db = remix.db;
+  db.resetCustom();
+  remix.rebuild();
+  view.dirty = true;
+  // カスタムが上書きしていた元のゲームを消したときなどは、元のゲームを読み直す（ネットから。読めたら描き直す）
+  const missing = remix.entities.filter((e) => !db.get(e.id)).map((e) => e.id);
+  if (missing.length) {
+    await db.ensureAll(missing).catch(() => {});
+    if (missing.some((id) => db.get(id))) { remix.rebuild(); view.dirty = true; }
+  }
+  await engine.loadSounds([...remix.allSoundCues().keys()], db);
+  view.dirty = true;
+}
+
+// entries：[{ path（/ 区切り）, read() → Uint8Array }]。fallback：一番上に直接音が入っていたときのフォルダの名前
+async function importCustomEntries(entries, fallback) {
+  entries = entries
+    .map((e) => ({ ...e, path: e.path.replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '') }))
+    // Mac の zip に入る __MACOSX や .DS_Store などは読まない
+    .filter((e) => e.path && !e.path.endsWith('/') && !/(^|\/)(__MACOSX(\/|$)|\.)/.test(e.path));
+  const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+  const within = (d, root) => root === '' || d === root || d.startsWith(`${root}/`);
+  const paths = entries.map((e) => e.path);
+  // data.json のあるフォルダ（その中は全部そのゲームのもの）→ 音が直接入っているフォルダ（いちばん上のものだけ）
+  const found = [];
+  const jsonDirs = paths.filter((p) => /(^|\/)data\.json$/i.test(p)).map(dirOf);
+  for (const d of jsonDirs) if (!jsonDirs.some((o) => o !== d && within(d, o))) found.push({ dir: d, json: true });
+  const audioDirs = [...new Set(paths.filter((p) => PACK_AUDIO.test(p)).map(dirOf))].filter((d) => !found.some((f) => within(d, f.dir)));
+  for (const d of audioDirs) if (!audioDirs.some((o) => o !== d && within(d, o))) found.push({ dir: d, json: false });
+  if (!found.length) {
+    showErrorBox(t('カスタム効果音を追加できませんでした'), t('音声ファイル（.ogg・.mp3・.wav）が見つかりませんでした。RHRE fresh の customSounds の中のフォルダを選んでください。'));
+    return;
+  }
+  const done = [];
+  const bad = [];
+  for (const pk of found) {
+    const under = entries.filter((e) => (pk.json ? within(dirOf(e.path), pk.dir) : dirOf(e.path) === pk.dir));
+    const relOf = (p) => (pk.dir ? p.slice(pk.dir.length + 1) : p);
+    let folder = (pk.dir ? pk.dir.split('/').pop() : fallback) || 'custom';
+    let json = null;
+    if (pk.json) {
+      const je = under.find((e) => relOf(e.path).toLowerCase() === 'data.json');
+      json = new TextDecoder().decode(await je.read());
+      try {
+        const d = parseLenientJSON(json);
+        if (d.id) folder = String(d.id); // RHRE fresh ではフォルダの名前とゲームの ID が同じ。音の場所も ID で決まる
+      } catch (_) { bad.push(folder); continue; }
+    }
+    // 「web」は「＋ 音声ファイルを追加」の音（custom_web）と同じ名前なので、そこに足す
+    if (!pk.json && folder === 'web') {
+      const files = [];
+      for (const e of under) if (PACK_AUDIO.test(e.path)) files.push({ name: e.path.split('/').pop(), bytes: await e.read() });
+      const n = await addCustomSoundFiles(files);
+      if (n) done.push({ folder, count: n, gid: CUSTOM_GAME_ID });
+      continue;
+    }
+    const files = [];
+    const writes = [];
+    let icon = null;
+    for (const e of under) {
+      const rel = relOf(e.path);
+      if (rel.toLowerCase() === 'icon.png') { icon = await e.read(); continue; }
+      if (!PACK_AUDIO.test(rel)) continue;
+      files.push(rel);
+      writes.push([`cpack:${folder}/${rel}`, await e.read()]);
+    }
+    if (!files.length) { bad.push(folder); continue; }
+    // 同じ名前のフォルダが前にあれば入れかえる
+    const old = customPacks.find((m) => m.folder === folder);
+    if (old) for (const f of old.files) if (!files.includes(f)) writes.push([`cpack:${folder}/${f}`, null]);
+    try {
+      await store.putMany(writes);
+    } catch (e) {
+      console.error(e);
+      const why = e?.name === 'QuotaExceededError' ? t('端末の空き容量が足りません。') : t('端末にデータを書き込めませんでした。');
+      showErrorBox(t('カスタム効果音を追加できませんでした'), `${why}（${folder}）`, e);
+      break;
+    }
+    const pre = `cpack:${folder}/`.toLowerCase();
+    for (const k of [...engine.buffers.keys()]) if (k.toLowerCase().startsWith(pre)) engine.buffers.delete(k);
+    if (packIconUrls.has(folder)) { URL.revokeObjectURL(packIconUrls.get(folder)); packIconUrls.delete(folder); }
+    const meta = { folder, json, files, icon, addedAt: Date.now() };
+    customPacks = [...customPacks.filter((m) => m.folder !== folder), meta];
+    done.push({ folder, count: files.length, gid: null });
+  }
+  if (done.some((d) => !d.gid)) {
+    await store.set('customPacks', customPacks);
+    buildCustomPacks();
+    await refreshCustomInRemix();
+  }
+  for (const d of done) {
+    const g = d.gid ? customGameById(d.gid) : customRegistry.packs.find((x) => x.folder === d.folder);
+    d.gid = g?.id || null;
+    if (g && d.gid !== CUSTOM_GAME_ID) d.folder = g.name;
+  }
+  currentTab = 'custom';
+  $('search').value = '';
+  renderGrid();
+  const first = done.length ? customGameById(done[0].gid) : null;
+  if (first) showGameList(first);
+  if (!done.length) {
+    showErrorBox(t('カスタム効果音を追加できませんでした'), t('フォルダの中の data.json を読めませんでした。'));
+    return;
+  }
+  const sounds = done.reduce((s, d) => s + d.count, 0);
+  const head = done.length === 1
+    ? t('「{name}」を追加しました（効果音 {n} 個）。', { name: done[0].folder, n: sounds })
+    : t('フォルダを {k} 個追加しました（効果音 {n} 個）。', { k: done.length, n: sounds });
+  const skip = bad.length ? t('読めなかったフォルダ：{list}。', { list: bad.join('、') }) : '';
+  toast(`${head}${skip}${t('保存した .rhref を PC 版の RHRE fresh で開くときは、同じフォルダを RHRE fresh の customSounds フォルダに入れてください。')}`, 7000, 'info');
+}
+
+async function importCustomZip(file) {
+  let zip;
+  try {
+    zip = await readZip(await file.arrayBuffer());
+  } catch (e) {
+    showErrorBox(t('カスタム効果音を追加できませんでした'), t('zip ファイルを読めませんでした。'), e);
+    return;
+  }
+  const entries = zip.names.map((name) => ({ path: name, read: () => zip.read(name) }));
+  await importCustomEntries(entries, file.name.replace(/\.zip$/i, ''));
+}
+
+function removeCustomGame(game) {
+  if (game.id === CUSTOM_GAME_ID) {
+    customSounds = [];
+    store.set('customSounds', customSounds);
+    for (const k of [...engine.buffers.keys()]) if (k.startsWith('custom:')) engine.buffers.delete(k);
+    buildCustomGame();
+  } else {
+    const meta = customPacks.find((m) => m.folder === game.folder);
+    if (!meta) return;
+    customPacks = customPacks.filter((m) => m !== meta);
+    store.set('customPacks', customPacks);
+    store.putMany(meta.files.map((f) => [`cpack:${meta.folder}/${f}`, null])).catch((e) => console.error(e));
+    if (packIconUrls.has(meta.folder)) { URL.revokeObjectURL(packIconUrls.get(meta.folder)); packIconUrls.delete(meta.folder); }
+    const pre = `cpack:${meta.folder}/`.toLowerCase();
+    for (const k of [...engine.buffers.keys()]) if (k.toLowerCase().startsWith(pre)) engine.buffers.delete(k);
+    buildCustomPacks();
+    refreshCustomInRemix();
+  }
+  if (shownGame?.id === game.id) {
+    shownGame = null;
+    $('listHead').textContent = t('パターン');
+    $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。スピーカーのボタンで試聴できます。'))}</div>`;
+  }
+  renderGrid();
+  toast(t('「{name}」を消しました', { name: customLabel(game) }), 2500, 'info');
+}
+
+const customLabel = (g) => (g.id === CUSTOM_GAME_ID ? `${t('カスタム効果音')}（${customSounds.length}）` : g.name);
+
+function customTile(g) {
+  const b = document.createElement('button');
+  b.className = 'game' + (shownGame?.id === g.id ? ' sel' : '');
+  b.dataset.gids = g.id;
+  const label = customLabel(g);
+  b.title = label;
+  b.setAttribute('aria-label', label);
+  if (g.icon) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = g.icon;
+    b.appendChild(img);
+  } else {
+    b.classList.add('txt');
+    b.textContent = label;
+  }
+  b.addEventListener('click', () => openGame(g.id));
+  return b;
+}
+
+// フォルダを選べるのはパソコンのブラウザだけ（スマホは zip で）
+const canPickFolder = !isTouch && 'webkitdirectory' in document.createElement('input');
+
+function renderCustomGrid(grid) {
+  const addBtn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'game txt';
+    b.textContent = t(label);
+    b.addEventListener('click', fn);
+    grid.appendChild(b);
+  };
+  addBtn('＋ 音声ファイルを追加', () => $('customInput').click());
+  if (canPickFolder) addBtn('＋ フォルダを追加', () => $('customDirInput').click());
+  addBtn('＋ zip を追加', () => $('customZipInput').click());
+  const games = allCustomGames();
+  for (const g of games) grid.appendChild(customTile(g));
+  if (!games.length) {
+    const p = document.createElement('div');
+    p.className = 'empty';
+    p.textContent = t('RHRE fresh の customSounds の中のフォルダを、そのまま（スマホでは zip にして）追加できます。');
+    grid.appendChild(p);
+    return;
+  }
+  showGameList(games.find((g) => g.id === shownGame?.id) || games[0]);
 }
 
 $('customInput').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = '';
   if (!files.length) return;
-  let added = 0;
-  for (const f of files) {
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    const base = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'sound';
-    let id = base, n = 2;
-    while (customSounds.some((c) => c.id === id)) id = `${base}_${n++}`;
-    const c = { id, name: f.name.replace(/\.[^.]+$/, ''), bytes };
-    await decodeCustom(c);
-    if (!engine.buffers.has(`custom:${id}`)) continue;
-    customSounds.push(c);
-    added++;
-  }
-  store.set('customSounds', customSounds);
-  buildCustomGame();
+  // zip が混じっていたら、フォルダごとの追加として読む
+  const zips = files.filter((f) => /\.zip$/i.test(f.name));
+  for (const z of zips) await importCustomZip(z);
+  const audio = files.filter((f) => !zips.includes(f));
+  if (!audio.length) return;
+  const added = await addCustomSoundFiles(await Promise.all(audio.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
   renderGrid();
   toast(added ? `${added} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。` : 'この音声ファイルは読み込めませんでした', 6000, added ? 'info' : '');
+});
+$('customZipInput').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  for (const f of files) await importCustomZip(f);
+});
+$('customDirInput').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  if (!files.length) return;
+  await importCustomEntries(files.map((f) => ({ path: f.webkitRelativePath || f.name, read: async () => new Uint8Array(await f.arrayBuffer()) })), 'custom');
 });
 
 // ---------------------------------------------------------------- トラックの数
@@ -2428,6 +2765,9 @@ function stopPresentation() {
 $('presentExit').addEventListener('click', stopPresentation);
 // 再生中・一時停止中に左上に出す今のゲーム（RHRE fresh のプレゼンテーションと同じ）。「終了」の右から、右上のボタンの手前まで
 function gameInfo(gid) {
+  // カスタム効果音も出す（RHRE fresh と同じ）
+  const cg = customGameById(gid);
+  if (cg) return { name: cg.id === CUSTOM_GAME_ID ? cg.name : (cg.group || cg.name), noDisplay: !!cg.noDisplay };
   const g = gamesIndex.find((x) => x.id === gid);
   return g ? { name: gname(g.group || g.name), noDisplay: !!g.noDisplay } : null;
 }
@@ -4104,6 +4444,7 @@ if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player,
 applySettings();
 (async () => {
   await restoreCustomSounds().catch(() => {});
+  await restoreCustomPacks().catch(() => {});
   const restored = await openAutosave().catch(() => false);
   if (!restored) await openSample();
   maybeStartTour();

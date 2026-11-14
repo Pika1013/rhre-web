@@ -985,7 +985,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.11.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.12.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1327,7 +1327,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.11.0</h2>
+    <h2>RHRE Web v1.12.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1352,7 +1352,7 @@
       <li>削除・複製・音程・音量：選ぶと上のツールバーが青い編集バーに変わります（✕ で戻る）</li>
       <li>テンポ・拍子・音楽の音量：トラックの下（♩=…の段）をタップ。上の切り替えで種類を選びます。テンポは「変化にかける拍数」で徐々に変えたり、スウィングも付けられます。印は長押しでつかんで動かせ、拍子の大きな数字はタップで直接入力できます</li>
       <li>字幕・画像・プレイアロング：「特殊」タブから置きます。字幕と画像は、選ぶと「文字を編集」「画像を選ぶ」が出ます</li>
-      <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加</li>
+      <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加。RHRE fresh の customSounds の中のフォルダも、フォルダごと（スマホでは zip にして）追加できます（data.json・icon.png にも対応。パソコンではフォルダや zip を画面に落としても追加できます）</li>
       <li>保存：保存ボタン（またはメニューの「保存」）を押して名前を決めます。iPhone は共有メニューから「ファイルに保存」</li>
       <li>作業中は自動で保存され、次に開くと続きから始まります</li>
     </ul>
@@ -1402,7 +1402,7 @@
       <li>Delete, duplicate, pitch, volume: selecting a block turns the top bar into the blue edit bar (✕ to go back).</li>
       <li>Tempo, time signature, music volume: tap the row under the tracks (♩=…) and choose the kind at the top. Tempo can change gradually ("beats to change over") and can have swing. Long-press a marker to drag it, and tap the big time signature numbers to type them.</li>
       <li>Subtitles, images, Playalong: place them from the "Special" tab. Selecting a subtitle or image shows "Edit text" or "Choose image".</li>
-      <li>Custom sounds: add your own audio files in the "Custom" tab.</li>
+      <li>Custom sounds: add your own audio files in the "Custom" tab. You can also add whole folders from RHRE fresh's customSounds folder (on phones, as a .zip). data.json and icon.png work too. On a computer, you can also drop a folder or .zip onto the page.</li>
       <li>Save: press the save button (or "Save" in the menu) and choose a name. On iPhone, pick "Save to Files" in the share menu.</li>
       <li>Your work is saved automatically and continues next time you open the app.</li>
     </ul>
@@ -1438,7 +1438,9 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=103"></script>
+<input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
+<input type="file" id="customDirInput" webkitdirectory hidden>
+<script type="module" src="js/app.js?v=104"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

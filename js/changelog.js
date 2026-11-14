@@ -3,6 +3,19 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.12.0', date: '2026-11-14',
+    ja: [
+      'カスタム効果音を、フォルダごと入れられるようになりました。PC 版の RHRE fresh の customSounds の中のフォルダを、そのまま追加できます（スマホでは zip にして）。「カスタム」のタブの「＋ zip を追加」（パソコンでは「＋ フォルダを追加」も）から入れられます',
+      'フォルダ 1 つが 1 つのゲームになり、data.json と icon.png にも対応しています。PC 版で作ったカスタム効果音入りのリミックスも、同じフォルダを入れれば音が鳴ります',
+      '入れたカスタム効果音は、一覧の上の「消す」で消せます',
+    ],
+    en: [
+      'You can now add custom sounds as whole folders. Add a folder from RHRE fresh\'s customSounds folder as it is (on phones, as a .zip) with "+ Add a .zip" in the Custom tab (computers also have "+ Add a folder").',
+      'Each folder becomes its own game, and data.json and icon.png work too. Remixes made on PC with custom sounds play correctly once you add the same folders.',
+      'You can remove added custom sounds with "Remove" above the list.',
+    ],
+  },
+  {
     v: '1.11.0', date: '2026-11-14',
     ja: [
       '設定の画面を作り直しました。左のメニューで「言語」「見た目」「編集画面」「プレイアロング」を選んで、右に中身が出ます',
