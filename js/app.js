@@ -2,15 +2,15 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=41';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=42';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=42';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=31';
+import { CHANGELOG } from './changelog.js?v=32';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.12.0';
+const VERSION = '1.12.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2635,8 +2635,9 @@ function customTile(g) {
   return b;
 }
 
-// フォルダを選べるのはパソコンのブラウザだけ（スマホは zip で）
-const canPickFolder = !isTouch && 'webkitdirectory' in document.createElement('input');
+// フォルダを選べるのは、パソコンのブラウザと iPhone・iPad（iOS 18.4 から）。Android はまだ選べないことが多いので zip で
+const isIOS = !isAndroid && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)); // iPad はパソコンのふりをするので、タッチの数で見分ける
+const canPickFolder = (!isTouch || isIOS) && 'webkitdirectory' in document.createElement('input');
 
 function renderCustomGrid(grid) {
   const addBtn = (label, fn) => {
@@ -2654,7 +2655,7 @@ function renderCustomGrid(grid) {
   if (!games.length) {
     const p = document.createElement('div');
     p.className = 'empty';
-    p.textContent = t('RHRE fresh の customSounds の中のフォルダを、そのまま（スマホでは zip にして）追加できます。');
+    p.textContent = t(canPickFolder ? 'RHRE fresh の customSounds の中のフォルダを、そのまま追加できます（zip にしても入れられます）。' : 'RHRE fresh の customSounds の中のフォルダを、zip にして追加できます。');
     grid.appendChild(p);
     return;
   }
@@ -2683,6 +2684,11 @@ $('customDirInput').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = '';
   if (!files.length) return;
+  // 古い iOS（18.3 まで）はフォルダではなくファイルを選ぶ画面になり、フォルダの名前が分からない
+  if (!files.some((f) => (f.webkitRelativePath || '').includes('/'))) {
+    showErrorBox(t('カスタム効果音を追加できませんでした'), t('この端末ではフォルダを選べませんでした。フォルダを zip にして、「＋ zip を追加」から入れてください（iPhone はファイル App でフォルダを長押し →「圧縮」で zip にできます）。'));
+    return;
+  }
   await importCustomEntries(files.map((f) => ({ path: f.webkitRelativePath || f.name, read: async () => new Uint8Array(await f.arrayBuffer()) })), 'custom');
 });
 

@@ -3,6 +3,11 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.12.1', date: '2026-11-14',
+    ja: ['iPhone・iPad でも「＋ フォルダを追加」が出るようになりました。カスタム効果音のフォルダを、zip にしなくてもそのまま入れられます（iOS 18.4 以降）'],
+    en: ['"+ Add a folder" now also shows on iPhone and iPad, so you can add custom sound folders without zipping them (iOS 18.4 or later).'],
+  },
+  {
     v: '1.12.0', date: '2026-11-14',
     ja: [
       'カスタム効果音を、フォルダごと入れられるようになりました。PC 版の RHRE fresh の customSounds の中のフォルダを、そのまま追加できます（スマホでは zip にして）。「カスタム」のタブの「＋ zip を追加」（パソコンでは「＋ フォルダを追加」も）から入れられます',

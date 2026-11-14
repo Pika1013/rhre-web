@@ -193,7 +193,9 @@ const EN = {
   '▶ 再生': '▶ Play', 'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   // カスタム効果音（フォルダごと）
   '＋ フォルダを追加': '+ Add a folder', '＋ zip を追加': '+ Add a .zip',
-  'RHRE fresh の customSounds の中のフォルダを、そのまま（スマホでは zip にして）追加できます。': "You can add folders from RHRE fresh's customSounds folder as they are (on phones, as a .zip).",
+  'RHRE fresh の customSounds の中のフォルダを、そのまま追加できます（zip にしても入れられます）。': "You can add folders from RHRE fresh's customSounds folder as they are (or as a .zip).",
+  'RHRE fresh の customSounds の中のフォルダを、zip にして追加できます。': "You can add folders from RHRE fresh's customSounds folder as a .zip.",
+  'この端末ではフォルダを選べませんでした。フォルダを zip にして、「＋ zip を追加」から入れてください（iPhone はファイル App でフォルダを長押し →「圧縮」で zip にできます）。': "This device couldn't pick a folder. Compress the folder into a .zip and add it with \"+ Add a .zip\" (on iPhone, long-press the folder in the Files app → Compress).",
   'カスタム効果音を追加できませんでした': "Couldn't add custom sounds",
   '音声ファイル（.ogg・.mp3・.wav）が見つかりませんでした。RHRE fresh の customSounds の中のフォルダを選んでください。': "No audio files (.ogg, .mp3, .wav) were found. Choose a folder from RHRE fresh's customSounds folder.",
   'フォルダの中の data.json を読めませんでした。': "Couldn't read data.json in the folder.", 'zip ファイルを読めませんでした。': "Couldn't read the .zip file.",
