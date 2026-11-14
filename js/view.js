@@ -1,6 +1,8 @@
 // エディタ画面（トラックとエンティティ）の描画とタッチ操作。見た目は RHRE fresh のデスクトップ版の配置に合わせている。
 
-export const FONT = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif';
+export let FONT = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif';
+// 画面の言語に合わせて変える（中国語は台湾の字体に。index.html の --font と同じもの）
+export function setCanvasFont(f) { if (f) FONT = f; }
 
 export const C = {
   bg: '#242424',

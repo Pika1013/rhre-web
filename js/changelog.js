@@ -1,7 +1,46 @@
 // 更新内容（新しい版を先頭に）。版を上げるたびに、ここの先頭に日本語（ja）と英語（en）で足す。
+// v1.13.0 からは、ほかの画面の言語（'zh-Hant'・ko・es・fr・de）でも書く（書いていない版は英語で出る）。
 // アップデートのあとに開くと「アップデートしました！」のお知らせが出て、前に見た版より新しい分を見せる。
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
+  {
+    v: '1.13.0', date: '2026-11-15',
+    ja: [
+      '画面の言語に、繁體中文（台湾・香港）・한국어（韓国語）・Español（スペイン語）・Français（フランス語）・Deutsch（ドイツ語）が増えました。設定の「言語」→「画面の言語」で変えられます',
+      'アップデートのあと、言語を選ぶ画面がもう一度出ます。今までと同じ言語を選べば、そのまま使えます',
+      '英語の画面でも日本語のまま出ていたメッセージ（読み込み中・音声の書き出しなど）を、英語にしました',
+    ],
+    en: [
+      'New interface languages: 繁體中文 (Traditional Chinese), 한국어 (Korean), Español (Spanish), Français (French) and Deutsch (German). Change it under Settings → Language → Interface language.',
+      'After this update, the language picker shows once more. Pick the same language as before to keep things as they are.',
+      'Some messages (loading, audio export and more) that still showed in Japanese in the English interface are now in English.',
+    ],
+    'zh-Hant': [
+      '介面語言新增了繁體中文、한국어（韓文）、Español（西班牙文）、Français（法文）、Deutsch（德文）。可以在設定的「語言」→「介面語言」更改。',
+      '更新後會再出現一次選擇語言的畫面。選和之前一樣的語言，就能照常使用。',
+      '小遊戲和片段的名稱維持英文。',
+    ],
+    ko: [
+      '화면 언어에 繁體中文(중국어 번체), 한국어, Español(스페인어), Français(프랑스어), Deutsch(독일어)가 추가되었어요. 설정의 "언어" → "화면 언어"에서 바꿀 수 있어요.',
+      '업데이트 후에 언어 선택 화면이 한 번 더 나와요. 전과 같은 언어를 고르면 그대로 쓸 수 있어요.',
+      '미니게임과 패턴 이름은 영어 그대로예요.',
+    ],
+    es: [
+      'Nuevos idiomas de la interfaz: 繁體中文 (chino tradicional), 한국어 (coreano), Español, Français (francés) y Deutsch (alemán). Cámbialo en Configuración → Idioma → Idioma de la interfaz.',
+      'Tras esta actualización, el selector de idioma aparece una vez más. Elige el mismo idioma que antes para seguir igual.',
+      'Los nombres de los minijuegos y de los patrones siguen en inglés.',
+    ],
+    fr: [
+      "Nouvelles langues d'interface : 繁體中文 (chinois traditionnel), 한국어 (coréen), Español (espagnol), Français et Deutsch (allemand). Changez-la dans Paramètres → Langue → Langue de l'interface.",
+      "Après cette mise à jour, le choix de la langue s'affiche une fois de plus. Choisissez la même langue qu'avant pour ne rien changer.",
+      'Les noms des mini-jeux et des motifs restent en anglais.',
+    ],
+    de: [
+      'Neue Sprachen für die Oberfläche: 繁體中文 (traditionelles Chinesisch), 한국어 (Koreanisch), Español (Spanisch), Français (Französisch) und Deutsch. Ändern kannst du sie unter Einstellungen → Sprache → Sprache der Oberfläche.',
+      'Nach diesem Update erscheint die Sprachauswahl noch einmal. Wähle dieselbe Sprache wie bisher, dann bleibt alles wie gewohnt.',
+      'Die Namen der Minispiele und Muster bleiben auf Englisch.',
+    ],
+  },
   {
     v: '1.12.1', date: '2026-11-14',
     ja: ['iPhone・iPad でも「＋ フォルダを追加」が出るようになりました。カスタム効果音のフォルダを、zip にしなくてもそのまま入れられます（iOS 18.4 以降）'],

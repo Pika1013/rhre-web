@@ -2,15 +2,15 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=42';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=42';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=43';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=43';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=32';
+import { CHANGELOG } from './changelog.js?v=33';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.12.1';
+const VERSION = '1.13.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -85,6 +85,19 @@ const settings = (() => {
 // この端末で無音の <audio> がないと鳴らなかったことがあれば、次からも使う
 if (settings.keepAlive) engine.useKeepAlive = true;
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) { /* 保存できない環境 */ } }
+// 画面の言語（まだ選んでいない人は、ブラウザの言語に近いもの）
+const uiLang = () => validLang(settings.uiLang) || (settings.uiLangChosen ? 'ja' : detectLang());
+// ミニゲームの声の言語（設定の「ミニゲームの言語」にある言語だけ。中国語の声は無いので日本語）
+const VOICE_LANGS = ['ja', 'en', 'ko', 'es', 'fr', 'it', 'de'];
+const voiceLangFor = (l) => (VOICE_LANGS.includes(l) ? l : 'ja');
+// 日本語・英語以外の訳は別のファイル。最初の画面を出す前に読み込む（つながらないときは 4 秒で諦めて英語で出し、届いたら切り替える）
+let langLate = null;
+if (!langReady(uiLang())) {
+  const want = uiLang();
+  const p = loadLang(want);
+  if (!(await Promise.race([p, new Promise((r) => setTimeout(() => r(false), 4000))]))) langLate = p.then((ok) => ok && want);
+}
+setLang(uiLang()); // 案内画面（renderGate）などは applySettings より前に作るので、先に決めておく
 let currentTab = 'used';
 let playMode = false; // プレイモード（ボタンのキューに合わせて押して遊ぶ）
 let judge = null;
@@ -98,7 +111,7 @@ const view = new EditorView($('view'), {
   // プレイモード中はトラックを上下に動かさない
   lockY: () => playMode,
   iconsOnly: () => presenting, // プレゼンテーション中はブロックの文字を出さず、ゲームのアイコンだけ
-  playalongLabel: (e) => (getLang() === 'en' ? `Playalong ${e.name}` : objName(e.o)),
+  playalongLabel: (e) => (getLang() !== 'ja' ? `Playalong ${e.name}` : objName(e.o)),
   isStretchable: (e) => !!remix && remix.isStretchable(e),
   onSelect: (ent, additive) => { if (!presenting && !playMode) selectEntity(ent, additive); },
   onPlace: (beat, track) => { if (playMode) return; pasteArmed ? pasteAt(beat, track) : placeArmed(beat, track); },
@@ -106,7 +119,7 @@ const view = new EditorView($('view'), {
   onMove: (dB, dT) => doMove(dB, dT),
   validateResize: (ent, b, w) => !remix.collides(b, ent.track, w, ent.height, new Set([ent])),
   onResize: (ent, b, w) => {
-    if (remix.collides(b, ent.track, w, ent.height, new Set([ent]))) { toast('ほかのブロックと重なるので、その長さにはできません', 2500); return; }
+    if (remix.collides(b, ent.track, w, ent.height, new Set([ent]))) { toast(t('ほかのブロックと重なるので、その長さにはできません'), 2500); return; }
     if (edit(() => { ent.beat = b; ent.width = w; })) setStatus(describe(ent));
   },
   onSetPlaybackStart: (beat) => {
@@ -144,9 +157,9 @@ const view = new EditorView($('view'), {
     // 秒を丸めると目盛りから少しずれるので、そのままの値で持つ
     const sec = remix.tempo.b2s(beat);
     // 自動検出で置いたテンポの変更も、曲と一緒に動かす（手で置いたテンポは動かさない）
-    if (edit(() => { remix.musicStartSec = sec; remix.relocateAutoTempos(musicBuf?.rhreLeadIn || 0); })) setStatus(`音楽開始を ${fmtTime(sec)} にしました（元に戻すボタンで戻せます）`);
+    if (edit(() => { remix.musicStartSec = sec; remix.relocateAutoTempos(musicBuf?.rhreLeadIn || 0); })) setStatus(t('音楽開始を {t} にしました（元に戻すボタンで戻せます）', { t: fmtTime(sec) }));
   },
-  onFlagTap: () => { setStatus('赤い旗（音楽開始）は、横にドラッグすると動かせます'); },
+  onFlagTap: () => { setStatus(t('赤い旗（音楽開始）は、横にドラッグすると動かせます')); },
 });
 
 // ---------------------------------------------------------------- 表示まわり
@@ -317,7 +330,7 @@ const paText = (o) => (o?.type === 'playalongEntity' && o.id ? PA_TEXT[o.id.slic
 // 一覧やブロックに出す名前（日本語版ではプレイアロングを日本語に）
 function objName(o) {
   const pt = paText(o);
-  if (pt && getLang() !== 'en') return pt[0];
+  if (pt && getLang() === 'ja') return pt[0];
   return o?.name || o?.id || '';
 }
 // 一覧の名前の下に灰色で出す、使われているゲームの例
@@ -353,7 +366,7 @@ function richName(name) {
 function edit(fn) {
   if (!remix || loading) return false;
   if (playMode) { toast(t('プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。'), 3500, 'info'); return false; }
-  if (mode === 'playing') { toast('再生中は編集できません。■ で止めてから編集してください。', 3500, 'info'); return false; }
+  if (mode === 'playing') { toast(t('再生中は編集できません。■ で止めてから編集してください。'), 3500, 'info'); return false; }
   const snap = remix.snapshot();
   const r = fn();
   if (r === false) return false;
@@ -378,7 +391,7 @@ function afterEdit() {
 
 function undo() {
   if (!remix || !undoStack.length || playMode) return;
-  if (mode === 'playing') { toast('再生中は元に戻せません。', 2500, 'info'); return; }
+  if (mode === 'playing') { toast(t('再生中は元に戻せません。'), 2500, 'info'); return; }
   redoStack.push(remix.snapshot());
   remix.restore(undoStack.pop());
   view.selection.clear();
@@ -489,13 +502,13 @@ function selectEntity(ent, additive) {
     const e = [...sel][0];
     setStatus(describe(e));
     if (!armed && e.game && !e.game.id.startsWith('special')) showGameList(e.game, e.o);
-  } else if (sel.size > 1) setStatus(`${sel.size} 個を選択中`);
+  } else if (sel.size > 1) setStatus(t('{n} 個を選択中', { n: sel.size }));
   else setStatus(armed ? armHint() : summaryText());
 }
 
 function placeAt(o, beat, track) {
   if (!o || !remix) return false;
-  if (mode === 'playing') { toast('再生中は置けません。■ で止めてから置いてください。', 3000, 'info'); return false; }
+  if (mode === 'playing') { toast(t('再生中は置けません。■ で止めてから置いてください。'), 3000, 'info'); return false; }
   const ent = remix.createEntity(o, beat, track);
   if (o.game?.isCustom) ent.isCustom = true; // RHRE fresh と同じく、カスタムのゲームの印を付けて保存する
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
@@ -553,7 +566,7 @@ function moveValid(dB, dT) {
 }
 
 function doMove(dB, dT) {
-  if (!moveValid(dB, dT)) { toast('ほかのブロックと重なるので動かせません', 2200); return; }
+  if (!moveValid(dB, dT)) { toast(t('ほかのブロックと重なるので動かせません'), 2200); return; }
   edit(() => { for (const e of view.selection) { e.beat += dB; e.track += dT; } });
   const sel = [...view.selection];
   if (sel.length === 1) setStatus(describe(sel[0]));
@@ -566,7 +579,7 @@ function deleteSelection() {
   if (edit(() => { remix.entities = remix.entities.filter((e) => !sel.has(e)); })) {
     sel.clear();
     updateCtxbar();
-    setStatus(`${n} 個を削除しました（元に戻すボタンで戻せます）`);
+    setStatus(t('{n} 個を削除しました（元に戻すボタンで戻せます）', { n }));
   }
 }
 
@@ -647,24 +660,24 @@ function duplicateSelection() {
         view.selection.clear();
         for (const c of copies) view.selection.add(c);
         updateCtxbar();
-        setStatus(`${copies.length} 個を複製しました`);
+        setStatus(t('{n} 個を複製しました', { n: copies.length }));
       }
       return;
     }
   }
-  toast('複製を置ける空きが見つかりませんでした', 2500);
+  toast(t('複製を置ける空きが見つかりませんでした'), 2500);
 }
 
 function changeSemitone(d) {
   const targets = [...view.selection].filter((e) => remix.canRepitch(e));
-  if (!targets.length) { toast('選んだブロックは音程を変えられません', 2200, 'info'); return; }
+  if (!targets.length) { toast(t('選んだブロックは音程を変えられません'), 2200, 'info'); return; }
   edit(() => { for (const e of targets) e.semitone = clamp(e.semitone + d, -36, 36); });
   previewSelection();
 }
 
 function changeVolume(d) {
   const targets = [...view.selection].filter((e) => remix.hasVolume(e));
-  if (!targets.length) { toast('選んだブロックは音量を変えられません', 2200, 'info'); return; }
+  if (!targets.length) { toast(t('選んだブロックは音量を変えられません'), 2200, 'info'); return; }
   edit(() => { for (const e of targets) e.volume = clamp(e.volume + d, 0, 300); });
 }
 
@@ -826,7 +839,7 @@ function variantLabel(v, all) {
   if (v.language) return LANG_LABEL[v.language] || v.language.toUpperCase();
   const base = all.find((x) => x.groupDefault) || all[0];
   const extra = gname(v.name).replace(gname(base?.group || ''), '').replace(/[()（）]/g, '').trim();
-  return extra || '標準';
+  return extra || t('標準');
 }
 
 function renderGrid() {
@@ -928,7 +941,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
     return;
   }
-  setStatus('読み込み中…');
+  setStatus(t('読み込み中…'));
   try {
     // Rockers・Guitar Lessons の言語のない版（ギターのコードなど）は、言語の版の一番下に入れてあるので、言語の版を開く
     const bases = sharedBasesOf(gid);
@@ -947,7 +960,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
     setStatus(t('{name} ／ 名前を押してから、トラックの空いている所をタップすると置けます', { name: gname(game.name) }));
     if (jumpBeat != null) view.centerOn(jumpBeat + view.visibleBeats * 0.3);
   } catch (e) {
-    toast(`${gid} を読み込めませんでした`, 3000);
+    toast(t('{g} を読み込めませんでした', { g: gid }), 3000);
   }
 }
 
@@ -1056,7 +1069,7 @@ function showGameList(game, highlightObj, filter, extra) {
     row.dataset.id = o.id;
     const main = document.createElement('button');
     main.className = 'main';
-    main.title = '押してからトラックをタップすると置けます';
+    main.title = t('押してからトラックをタップすると置けます');
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     arrow.textContent = '➜';
@@ -1081,8 +1094,8 @@ function showGameList(game, highlightObj, filter, extra) {
     if (remix.model.hasSound(o)) {
       const pv = document.createElement('button');
       pv.className = 'pv';
-      pv.title = '試聴';
-      pv.setAttribute('aria-label', `${cleanName(o.name)} を試聴`);
+      pv.title = t('試聴');
+      pv.setAttribute('aria-label', t('{n} を試聴', { n: cleanName(o.name) }));
       pv.innerHTML = PV_SVG;
       pv.addEventListener('click', () => preview(o));
       row.appendChild(pv);
@@ -1128,9 +1141,9 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   $('listHead').textContent = t('パターン');
   $('list').innerHTML = `<div class="empty">${esc(t('ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。スピーカーのボタンで試聴できます。'))}</div>`;
   const sounds = [...remix.allSoundCues().keys()];
-  const failed = await engine.loadSounds(sounds, remix.db, (d, t) => showLoading(name, `効果音を読み込み中 ${d} / ${t}`, 0.25 + 0.75 * (d / t)));
+  const failed = await engine.loadSounds(sounds, remix.db, (d, total) => showLoading(name, t('効果音を読み込み中 {d} / {n}', { d, n: total }), 0.25 + 0.75 * (d / total)));
   if (musicFile) {
-    showLoading(name, '音楽を読み込み中…', 1);
+    showLoading(name, t('音楽を読み込み中…'), 1);
     try {
       const b = musicFile.bytes;
       musicBuf = await engine.decode(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
@@ -1147,15 +1160,15 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
     musicError = null;
   }
   const notes = [];
-  if (res.missing?.length) notes.push(`見つからない ID ${res.missing.length} 件`);
-  if (failed.length) notes.push(`読めなかった音 ${failed.length} 件`);
-  loadWarn = notes.length ? ' ／ 注意：' + notes.join('・') : '';
+  if (res.missing?.length) notes.push(t('見つからない ID {n} 件', { n: res.missing.length }));
+  if (failed.length) notes.push(t('読めなかった音 {n} 件', { n: failed.length }));
+  loadWarn = notes.length ? ' ／ ' + t('注意：{list}', { list: notes.join(getLang() === 'ja' ? '・' : ', ') }) : '';
   setStatus(summaryText());
   $('version').textContent = `RHRE Web v${VERSION} ／ DB v${remix.raw.databaseVersion ?? '?'}`;
   $('helpDiag').textContent = `データベース: ${remix.db.commit}${res.missing?.length ? ' ／ 見つからない ID: ' + res.missing.slice(0, 6).join(', ') : ''}`;
   updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   updateCtxbar();
-  if (note) toast(note, 3500, 'info');
+  if (note) toast(t(note), 3500, 'info');
   // カスタム効果音を使っているのに、この端末に無いとき
   if (remix.entities.some((e) => !e.o && (e.isCustom || /^custom_/.test(e.id)))) {
     toast(t('このリミックスはカスタム効果音を使っています。「カスタム」のタブで、同じフォルダ（または zip）を追加すると鳴ります。'), 7000, 'info');
@@ -1163,13 +1176,18 @@ async function applyLoaded(res, name, { music, extra, note } = {}) {
   if (metronome) loadMetronomeSound();
 }
 
+// remix.js から来る読み込みの途中の文（日本語）を、画面の言語に
+function loadStatusText(msg) {
+  const m = /^ミニゲームの定義を読み込み中 (\d+)\/(\d+)（(.*)）$/.exec(msg);
+  return m ? t('ミニゲームの定義を読み込み中 {d}/{n}（{g}）', { d: m[1], n: m[2], g: m[3] }) : t(msg);
+}
 async function withLoading(name, job, bytes) {
   stopPlayback();
   loading = true;
   updateButtons();
-  showLoading(name, '開いています…', 0);
+  showLoading(name, t('開いています…'), 0);
   try {
-    await job((msg, f) => showLoading(name, msg, f * 0.25));
+    await job((msg, f) => showLoading(name, loadStatusText(msg), f * 0.25));
     scheduleAutosave();
     saveMusicToStore();
   } catch (e) {
@@ -1201,7 +1219,7 @@ async function openSample() {
 }
 
 function newRemix() {
-  return withLoading('新しいリミックス', async (onStatus) => {
+  return withLoading(t('新しいリミックス'), async (onStatus) => {
     const res = await loadRemixJSON(emptyRemixJSON(), { onStatus });
     await applyLoaded(res, 'remix.rhref', { note: '新しいリミックスです。下の「GBA」などのタブからミニゲームを選んで置いてください。' });
     currentTab = 'tengoku';
@@ -1258,7 +1276,7 @@ function save() {
     const a = $('saveLink');
     a.href = saveUrl;
     a.download = name;
-    $('saveMsg').textContent = `${name}（${size}）。下のボタンで保存します。RHRE fresh でそのまま開けます。`;
+    $('saveMsg').textContent = t('{name}（{size}）。下のボタンで保存します。RHRE fresh でそのまま開けます。', { name, size });
     $('saveModal').hidden = false;
   };
   if (!isTouch || isAndroid) {
@@ -1469,18 +1487,18 @@ function openMusicStart() {
   $('musicStartInput').value = String(+remix.musicStartSec.toFixed(3));
   $('musicAuto').hidden = guide.on && guide.step === 'start';
   $('musicInfo').textContent = musicFile
-    ? `「${musicFile.filename}」が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。`
-    : 'まだ音楽を選んでいません。先にメニューの「音楽を選ぶ」から選んでください。';
+    ? t('「{f}」が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。', { f: musicFile.filename })
+    : t('まだ音楽を選んでいません。先にメニューの「音楽を選ぶ」から選んでください。');
   $('musicModal').hidden = false;
 }
 $('musicAlign').addEventListener('click', () => { $('musicStartInput').value = String(+remix.tempo.b2s(remix.playbackStart).toFixed(3)); });
 $('musicAuto').addEventListener('click', () => {
-  if (!musicBuf) { toast('先に音楽を選んでください', 2500, 'info'); return; }
+  if (!musicBuf) { toast(t('先に音楽を選んでください'), 2500, 'info'); return; }
   $('musicStartInput').value = String(+(remix.tempo.b2s(0) - detectOnset(musicBuf) - (musicBuf.rhreLeadIn || 0)).toFixed(3));
 });
 $('musicOk').addEventListener('click', () => {
   const v = parseFloat($('musicStartInput').value);
-  if (!Number.isFinite(v)) { toast('秒を数で入れてください', 2500); return; }
+  if (!Number.isFinite(v)) { toast(t('秒を数で入れてください'), 2500); return; }
   edit(() => { remix.musicStartSec = v; remix.relocateAutoTempos(musicBuf?.rhreLeadIn || 0); });
   $('musicModal').hidden = true;
 });
@@ -1521,7 +1539,7 @@ function watchAudio() {
       engine.stale = true;
       // 鳴らなかった端末では、次の ▶ から無音の <audio> も使う（覚えておく）
       if (!engine.useKeepAlive) { engine.useKeepAlive = true; settings.keepAlive = true; saveSettings(); }
-      toast(`音を開始できませんでした（状態: ${st}）。もう一度 ▶ を押してください。続くときはアプリを閉じて開き直してください。`, 9000);
+      toast(t('音を開始できませんでした（状態: {s}）。もう一度 ▶ を押してください。続くときはアプリを閉じて開き直してください。', { s: st }), 9000);
     }
   }, 900);
 }
@@ -1702,11 +1720,11 @@ requestAnimationFrame(frame);
 function doAction(act) {
   switch (act) {
     case 'new':
-      confirmBox('新規作成', '今のリミックスを閉じて、新しく始めますか？保存していない変更は消えます（自動保存も新しい方に変わります）。', '新規作成', () => newRemix());
+      confirmBox(t('新規作成'), t('今のリミックスを閉じて、新しく始めますか？保存していない変更は消えます（自動保存も新しい方に変わります）。'), t('新規作成'), () => newRemix());
       break;
     case 'open': $('fileInput').click(); break;
     case 'sample':
-      confirmBox('サンプルを開く', '今のリミックスを閉じて、サンプルを開きますか？保存していない変更は消えます。', '開く', () => openSample());
+      confirmBox(t('サンプルを開く'), t('今のリミックスを閉じて、サンプルを開きますか？保存していない変更は消えます。'), t('開く'), () => openSample());
       break;
     case 'save': openSave(); break;
     case 'export': exportWav(); break;
@@ -1716,8 +1734,8 @@ function doAction(act) {
     case 'guide': startGuide(); break;
     case 'musicStart': openMusicStart(); break;
     case 'musicRemove':
-      if (!musicFile) { toast('音楽は選ばれていません', 2000, 'info'); break; }
-      confirmBox('音楽を外す', `「${musicFile.filename}」を外しますか？`, '外す', () => {
+      if (!musicFile) { toast(t('音楽は選ばれていません'), 2000, 'info'); break; }
+      confirmBox(t('音楽を外す'), t('「{f}」を外しますか？', { f: musicFile.filename }), t('外す'), () => {
         musicFile = null; musicBuf = null; remix.musicPresent = false; view.dirty = true; saveMusicToStore(); scheduleAutosave();
       });
       break;
@@ -1981,10 +1999,13 @@ $('fsBtn').addEventListener('click', async () => {
 
 function openHelp() {
   $('helpAudio').textContent = `音の状態: ${engine.state} ／ ${inStandalone ? 'ホーム画面アプリ' : 'ブラウザ'} ／ ogg: ${engine.usedWasm ? 'WASM（予備）' : 'ブラウザ内蔵'}`;
-  // 説明は画面の言語に合わせる（翻訳の仕組みでは訳さず、日本語と英語を別に書いてある）
-  const en = settings.uiLang === 'en';
-  $('helpJa').hidden = en;
-  $('helpEn').hidden = !en;
+  // 説明は画面の言語に合わせる（翻訳の仕組みでは訳さず、日本語と英語は index.html に、ほかの言語は js/lang/ に別に書いてある）
+  const l = getLang();
+  const help = langPack()?.help;
+  $('helpJa').hidden = l !== 'ja';
+  $('helpEn').hidden = l === 'ja' || !!help;
+  $('helpX').hidden = !help;
+  if (help && $('helpX').dataset.lang !== l) { $('helpX').innerHTML = help; $('helpX').dataset.lang = l; }
   $('helpModal').hidden = false;
 }
 $('helpBtn').addEventListener('click', openHelp);
@@ -1998,7 +2019,7 @@ $('settingsBtn').addEventListener('click', () => {
   $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
   $('paTouchOffset').value = String(Number(settings.paTouchOffset) || 0);
   $('paTouchOffsetVal').textContent = `${Number(settings.paTouchOffset) || 0}ms`;
-  $('uiLangSelect').value = settings.uiLang || 'ja';
+  $('uiLangSelect').value = getLang();
   $('gameNamesSelect').value = settings.gameNamesJa ? 'ja' : 'en';
   $('playYanToggle').checked = settings.playYan !== false;
   showSettingsSection(settingsSection);
@@ -2072,7 +2093,7 @@ async function exportWav() {
   $('exportSave').hidden = true;
   $('exportBar').style.width = '10%';
   const from = remix.tempo.b2s(remix.playbackStart);
-  $('exportMsg').textContent = `再生開始位置（${fmtTime(from)}）から最後まで、${fmtTime(mixEndSec(remix) - from)} を書き出しています…`;
+  $('exportMsg').textContent = t('再生開始位置（{from}）から最後まで、{len} を書き出しています…', { from: fmtTime(from), len: fmtTime(mixEndSec(remix) - from) });
   try {
     await engine.loadSounds([...remix.allSoundCues().keys()], remix.db);
     const blob = await renderWav(engine, remix, musicBuf, from);
@@ -2083,10 +2104,10 @@ async function exportWav() {
     a.download = fileName.replace(/\.[^.]+$/, '') + '.wav';
     a.hidden = false;
     $('exportBar').style.width = '100%';
-    $('exportMsg').textContent = `書き出しました（${(blob.size / 1048576).toFixed(1)} MB）。下のボタンで保存できます。`;
+    $('exportMsg').textContent = t('書き出しました（{mb} MB）。下のボタンで保存できます。', { mb: (blob.size / 1048576).toFixed(1) });
     guideOnExport();
   } catch (e) {
-    $('exportMsg').textContent = `書き出しに失敗しました: ${e.message}`;
+    $('exportMsg').textContent = t('書き出しに失敗しました: {e}', { e: e.message });
   }
 }
 $('exportClose').addEventListener('click', () => { $('exportModal').hidden = true; });
@@ -2331,7 +2352,7 @@ $('imageInput').addEventListener('change', async (e) => {
     await addTextureImage(hash, bytes);
     edit(() => { ent.extra = { ...ent.extra, texHash: hash }; });
   } catch (_) {
-    toast('この画像は読み込めませんでした', 3000);
+    toast(t('この画像は読み込めませんでした'), 3000);
   }
 });
 
@@ -2673,7 +2694,7 @@ $('customInput').addEventListener('change', async (e) => {
   if (!audio.length) return;
   const added = await addCustomSoundFiles(await Promise.all(audio.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
   renderGrid();
-  toast(added ? `${added} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。` : 'この音声ファイルは読み込めませんでした', 6000, added ? 'info' : '');
+  toast(added ? t('{n} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。', { n: added }) : t('この音声ファイルは読み込めませんでした'), 6000, added ? 'info' : '');
 });
 $('customZipInput').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];
@@ -3478,14 +3499,14 @@ window.addEventListener('keydown', (e) => {
 // 初めて開いたときだけ自動で始める（スマホのブラウザの案内画面が出ている間は待つ）
 function maybeStartTour() {
   if (root.classList.contains('gate-ios') || root.classList.contains('gate-android')) return;
-  if (!settings.uiLangChosen) { $('langPick').hidden = false; return; }
+  if (needLangPick()) { showLangPick(); return; }
   if (needGameNamesAsk()) { askGameNames(maybeStartTour); return; }
   if (settings.tutorialDone || tour.on) return;
   setTimeout(() => { if (!settings.tutorialDone && !tour.on) startTour(); }, 400);
 }
 
 // ゲーム名を日本語にするか、画面が日本語の人に一度だけ聞く（あとから設定の「ゲーム名」で変えられる）
-const needGameNamesAsk = () => (settings.uiLang || 'ja') === 'ja' && settings.gameNamesJa == null && !tour.on;
+const needGameNamesAsk = () => getLang() === 'ja' && settings.gameNamesJa == null && !tour.on;
 let gnThen = null;
 function askGameNames(then) {
   gnThen = then || null;
@@ -3535,30 +3556,51 @@ const GATE_TEXT = {
     aNote: 'Install it from the Chrome menu (⋮) → "Add to Home screen" or "Install app" to always open it full screen.',
   },
 };
+const SHARE_SVG = '<svg class="g-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>';
 function renderGate() {
-  const L = GATE_TEXT[settings.uiLang === 'en' ? 'en' : 'ja'];
+  const l = getLang();
+  const E = GATE_TEXT.en, G = langPack()?.gate;
+  const L = l === 'ja' ? GATE_TEXT.ja : l === 'en' || !G ? E
+    : { ios: G.ios.replace('{share}', SHARE_SVG), save: tEn(E.save), aTitle: tEn(E.aTitle), aFs: tEn(E.aFs), aInstall: tEn(E.aInstall), aNote: G.aNote };
   $('gateIosText').innerHTML = L.ios;
   $('gateSave').textContent = L.save;
   if (!$('gateTitleA').dataset.back) $('gateTitleA').textContent = L.aTitle;
   if (!$('gateFs').dataset.back) $('gateFs').textContent = L.aFs;
   $('gateInstall').textContent = L.aInstall;
   if (!$('gateAndroidNote').dataset.done) $('gateAndroidNote').textContent = L.aNote;
-  for (const b of document.querySelectorAll('#gate [data-glang]')) b.classList.toggle('on', b.dataset.glang === (settings.uiLang === 'en' ? 'en' : 'ja'));
+  $('gateLang').value = l;
 }
-function chooseLang(l) {
-  settings.uiLang = l === 'en' ? 'en' : 'ja';
-  settings.lang = settings.uiLang; // ミニゲームの声の言語も、まずは同じに（設定で変えられる）
+// 言語を増やしたら上げる。前の版で言語を選んだ人にも、もう一度選んでもらう（「言語が増えました！」）
+const LANG_PICK_VER = 2;
+const needLangPick = () => !settings.uiLangChosen || (settings.langPickVer || 1) < LANG_PICK_VER;
+function showLangPick() {
+  const l = getLang();
+  const again = !!settings.uiLangChosen;
+  const P = PICK_TEXT[l] || PICK_TEXT.en;
+  $('lpTitle').textContent = again ? P[1] : P[0];
+  // 下の小さな字：初めての人には別の言語でも「言語を選んでください」、言語が増えたときは説明
+  $('lpSub').textContent = again ? P[2] : (l === 'en' ? PICK_TEXT.ja[0] : PICK_TEXT.en[0]);
+  for (const b of $('langPick').querySelectorAll('[data-lang]')) b.classList.toggle('on', b.dataset.lang === l);
+  $('langPick').hidden = false;
+}
+async function chooseLang(l) {
+  l = validLang(l) || 'ja';
+  const prev = settings.uiLangChosen ? getLang() : null;
+  await loadLang(l);
+  settings.uiLang = l;
+  // ミニゲームの声の言語も、まずは同じに（設定で変えられる）。選び直した人は、声のある言語に変えたときだけ合わせる
+  if (l !== prev && (!prev || VOICE_LANGS.includes(l))) settings.lang = voiceLangFor(l);
   settings.uiLangChosen = true;
+  settings.langPickVer = LANG_PICK_VER;
   saveSettings();
-  applySettings();
+  refreshLanguage();
   renderGate();
-  if (remix) renderGrid();
 }
-$('gate').querySelector('.g-lang').addEventListener('click', (e) => { const b = e.target.closest('[data-glang]'); if (b) chooseLang(b.dataset.glang); });
-$('langPick').addEventListener('click', (e) => {
+$('gateLang').addEventListener('change', () => chooseLang($('gateLang').value));
+$('langPick').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-lang]');
   if (!b) return;
-  chooseLang(b.dataset.lang);
+  await chooseLang(b.dataset.lang);
   $('langPick').hidden = true;
   maybeStartTour();
 });
@@ -3578,7 +3620,7 @@ function parseSongName(fn) {
   if (parts.length === 2) return { ja: parts[0].trim(), en: parts[1].trim(), bpm: null };
   return { ja: base, en: '', bpm: null };
 }
-const songLabel = (m) => (settings.uiLang === 'en' && m.en ? m.en : m.ja) || m.file;
+const songLabel = (m) => (getLang() !== 'ja' && m.en ? m.en : m.ja) || m.file;
 async function songMeta() {
   if (!songs.meta) songs.meta = (await store.get('songsMeta')) || [];
   return songs.meta;
@@ -4117,8 +4159,8 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     const x = document.createElement('button');
     x.className = 'card-x';
     x.type = 'button';
-    x.title = '閉じる';
-    x.setAttribute('aria-label', '閉じる');
+    x.title = t('閉じる');
+    x.setAttribute('aria-label', t('閉じる'));
     x.innerHTML = X_SVG;
     x.addEventListener('click', () => closer.click());
     card.prepend(x);
@@ -4281,8 +4323,10 @@ store.get('bgImage').then((rec) => { if (rec?.bytes) setBackgroundImage(rec.byte
 function applySettings() {
   player.speedSetting = Number(settings.speed) || 1;
   applyThemeSettings();
-  setLang(settings.uiLang || 'ja');
-  document.documentElement.lang = settings.uiLang === 'en' ? 'en' : 'ja';
+  setLang(uiLang());
+  document.documentElement.lang = getLang();
+  // 中国語は日本の字形にならないように、台湾の字体を使う（CSS の --font を :lang で変えている）。キャンバスの文字も同じに
+  setCanvasFont(getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || null);
   LABELS.music = t('音楽開始');
   LABELS.playback = t('再生開始');
   LABELS.volume = t('音量');
@@ -4336,10 +4380,19 @@ function setSpeed(v, commit) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setSpeed((Number(settings.speed) || 1) + 0.05, true); }
   });
 }
-$('uiLangSelect').addEventListener('change', () => {
-  settings.uiLang = $('uiLangSelect').value;
+$('uiLangSelect').addEventListener('change', async () => {
+  const l = validLang($('uiLangSelect').value) || 'ja';
+  await loadLang(l);
+  settings.uiLang = l;
   saveSettings();
+  refreshLanguage();
+});
+// 画面の言語を変えたあと、言葉を出し直す
+function refreshLanguage() {
   applySettings();
+  renderGate();
+  if (newsSince) $('newsText').textContent = t('アップデートしました！（v{v}）', { v: VERSION });
+  if (!remix) return;
   buildCustomGame();
   renderGrid();
   if (shownGame) showGameList(shownGame.id === CUSTOM_GAME_ID && customRegistry.game ? customRegistry.game : shownGame);
@@ -4349,7 +4402,7 @@ $('uiLangSelect').addEventListener('change', () => {
   }
   updateCtxbar();
   setStatus(summaryText());
-});
+}
 
 // 「…」メニュー
 $('moreMenu').addEventListener('click', (e) => {
@@ -4399,7 +4452,7 @@ const cmpVer = (a, b) => {
 };
 // 前に見た版より新しい項目は色を変える（見出しの版を水色に）
 function openNews(sinceVer) {
-  const en = getLang() === 'en';
+  const l = getLang();
   const list = $('newsList');
   list.replaceChildren();
   for (const item of CHANGELOG) {
@@ -4410,7 +4463,7 @@ function openNews(sinceVer) {
     sm.textContent = item.date;
     h.appendChild(sm);
     const ul = document.createElement('ul');
-    for (const line of (en ? item.en : item.ja)) {
+    for (const line of (item[l] || (l === 'ja' ? item.ja : item.en))) {
       const li = document.createElement('li');
       li.textContent = line;
       ul.appendChild(li);
@@ -4448,6 +4501,9 @@ fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => 
 if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null) };
 
 applySettings();
+setStatus(t('読み込み中…')); // index.html の最初の文字は日本語なので、画面の言語で出し直す
+// 訳の読み込みが間に合わなかったときは、届いたら切り替える
+langLate?.then((l) => { if (l && uiLang() === l) refreshLanguage(); });
 (async () => {
   await restoreCustomSounds().catch(() => {});
   await restoreCustomPacks().catch(() => {});

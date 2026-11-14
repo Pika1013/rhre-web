@@ -1,5 +1,7 @@
-// 画面の言葉の切り替え（日本語 ⇄ English）。
+// 画面の言葉の切り替え。
 // 日本語の文をそのままキーにして、英語があれば置き換える。{n} などは差し込み。
+// ほかの言語（繁體中文・한국어・Español・Français・Deutsch）は js/lang/ にあり、英語の文をキーにして訳を引く。
+// その言語が選ばれたときだけ読み込む（loadLang）。訳が無い文は英語で出る。
 
 const EN = {
   // 拡張音源（RHRE Web だけの効果音）
@@ -236,17 +238,100 @@ const EN = {
   '最初の拍子なので削除はできません。': "It's the first time signature, so it can't be deleted.",
   '拍 {b} の音楽の音量です。': 'Music volume at beat {b}.', '拍 {b} から、音楽の音量が変わります。': 'The music volume changes from beat {b}.',
   'テンポは 5〜600 の数で入れてください': 'Enter a tempo from 5 to 600', '音量は 0〜200 の数で入れてください': 'Enter a volume from 0 to 200',
+  // v1.13.0：英語でも日本語のまま出ていたメッセージ
+  'ほかのブロックと重なるので、その長さにはできません': "Can't resize: it would overlap another block", '再生中は元に戻せません。': "You can't undo while playing.",
+  '再生中は置けません。■ で止めてから置いてください。': "You can't place while playing. Press ■ to stop first.", '標準': 'Standard', '読み込み中…': 'Loading…',
+  '{g} を読み込めませんでした': "Couldn't load {g}", '押してからトラックをタップすると置けます': 'Tap it, then tap a track to place it', '{n} を試聴': 'Preview {n}',
+  '効果音を読み込み中 {d} / {n}': 'Loading sound effects {d} / {n}', '音楽を読み込み中…': 'Loading music…',
+  '見つからない ID {n} 件': '{n} missing IDs', '読めなかった音 {n} 件': "{n} sounds couldn't be read", '注意：{list}': 'Note: {list}',
+  '新しいリミックスです。下の「GBA」などのタブからミニゲームを選んで置いてください。': 'This is a new remix. Choose a minigame from the tabs below (GBA and others) and place it.',
+  '開いています…': 'Opening…', '新しいリミックス': 'New remix',
+  '{name}（{size}）。下のボタンで保存します。RHRE fresh でそのまま開けます。': '{name} ({size}). Save it with the button below. It opens as-is in RHRE fresh.',
+  '「{f}」が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。': 'When "{f}" starts playing (seconds). You can also drag the red flag.',
+  'まだ音楽を選んでいません。先にメニューの「音楽を選ぶ」から選んでください。': 'No music chosen yet. Choose it first with "Choose music" in the menu.',
+  '先に音楽を選んでください': 'Choose music first', '秒を数で入れてください': 'Enter the seconds as a number',
+  '音を開始できませんでした（状態: {s}）。もう一度 ▶ を押してください。続くときはアプリを閉じて開き直してください。': "Couldn't start the sound (state: {s}). Press ▶ again. If it keeps happening, close and reopen the app.",
+  '今のリミックスを閉じて、新しく始めますか？保存していない変更は消えます（自動保存も新しい方に変わります）。': 'Close the current remix and start a new one? Unsaved changes will be lost (the autosave switches to the new one too).',
+  '今のリミックスを閉じて、サンプルを開きますか？保存していない変更は消えます。': 'Close the current remix and open the sample? Unsaved changes will be lost.',
+  '音楽は選ばれていません': 'No music is selected', '「{f}」を外しますか？': 'Remove "{f}"?',
+  '再生開始位置（{from}）から最後まで、{len} を書き出しています…': 'Exporting {len} from the playback start ({from}) to the end…',
+  '書き出しました（{mb} MB）。下のボタンで保存できます。': 'Done ({mb} MB). Save it with the button below.', '書き出しに失敗しました: {e}': 'Export failed: {e}',
+  '{n} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。':
+    'Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh\'s custom sounds folder "web".',
+  'この音声ファイルは読み込めませんでした': "This audio file couldn't be loaded",
+  'データベースを読み込み中…': 'Loading the database…', 'ミニゲームの定義を読み込み中 {d}/{n}（{g}）': 'Loading minigame data {d}/{n} ({g})',
   // 特殊
   'トラックの数は 5〜10 です': 'Tracks: 5 to 10', 'はみ出すブロックがあるので、トラックを減らせません': "Can't remove tracks: some blocks would be cut off",
 };
 
-let lang = 'ja';
+// 画面の言語。v は js/lang/ の訳を直したら上げる（古い訳を保存したままにしないため）
+export const LANGS = [
+  { code: 'ja', name: '日本語' },
+  { code: 'en', name: 'English' },
+  { code: 'zh-Hant', name: '繁體中文', v: 1 },
+  { code: 'ko', name: '한국어', v: 1 },
+  { code: 'es', name: 'Español', v: 1 },
+  { code: 'fr', name: 'Français', v: 1 },
+  { code: 'de', name: 'Deutsch', v: 1 },
+];
+const CODES = LANGS.map((l) => l.code);
+export const validLang = (l) => (CODES.includes(l) ? l : null);
 
-export function setLang(l) { lang = l === 'en' ? 'en' : 'ja'; }
+// 言語を選ぶ画面の見出し（訳を読み込む前に出すので、ここに書く）。[初めて, 言語が増えたとき, その下の説明]
+export const PICK_TEXT = {
+  ja: ['言語を選んでください', '言語が増えました！', '使う言語を選んでください。'],
+  en: ['Choose your language', 'New languages added!', 'Choose the language you want to use.'],
+  'zh-Hant': ['請選擇語言', '新增了更多語言！', '請選擇要使用的語言。'],
+  ko: ['언어를 선택하세요', '언어가 추가되었어요!', '사용할 언어를 선택하세요.'],
+  es: ['Elige tu idioma', '¡Hay nuevos idiomas!', 'Elige el idioma que quieres usar.'],
+  fr: ['Choisissez votre langue', 'Nouvelles langues disponibles !', 'Choisissez la langue à utiliser.'],
+  de: ['Wähle deine Sprache', 'Neue Sprachen verfügbar!', 'Wähle die Sprache, die du verwenden möchtest.'],
+};
+
+// まだ言語を選んでいない人には、ブラウザの言語に近いものを出す（無ければ英語）
+export function detectLang() {
+  const list = (typeof navigator !== 'undefined' && (navigator.languages?.length ? navigator.languages : [navigator.language])) || [];
+  for (const raw of list) {
+    const l = String(raw || '').toLowerCase();
+    if (l.startsWith('zh')) return 'zh-Hant';
+    const base = l.split('-')[0];
+    if (CODES.includes(base)) return base;
+  }
+  return 'en';
+}
+
+let lang = 'ja';
+let pack = null; // 読み込んだ訳（ja・en 以外）
+const packs = new Map();
+
+export function langReady(l) { return l === 'ja' || l === 'en' || packs.has(l); }
+export async function loadLang(l) {
+  if (langReady(l)) return true;
+  const L = LANGS.find((x) => x.code === l);
+  if (!L) return false;
+  try {
+    const m = await import(`./lang/${l}.js?v=${L.v}`);
+    packs.set(l, m.default);
+    return true;
+  } catch (_) { return false; }
+}
+export function setLang(l) {
+  lang = validLang(l) || 'ja';
+  pack = packs.get(lang) || null;
+}
 export function getLang() { return lang; }
+export function langPack() { return pack; }
+
+// 英語の文を、今の言語に（訳が無ければ英語のまま）
+export function tEn(en) { return en != null && pack?.strings[en] != null ? pack.strings[en] : en; }
+function fromJa(ja, en) {
+  if (lang === 'ja') return ja;
+  if (pack?.ja[ja] != null) return pack.ja[ja];
+  return en != null ? tEn(en) : ja;
+}
 
 export function t(ja, vars) {
-  let s = lang === 'en' && EN[ja] != null ? EN[ja] : ja;
+  let s = fromJa(ja, EN[ja]);
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }
@@ -332,8 +417,9 @@ export function applyStatic(root = document.body) {
     if (n.__ja == null) {
       if (STATIC_EN[key] == null && !Object.values(STATIC_EN).includes(key)) continue;
       n.__ja = STATIC_EN[key] != null ? key : Object.keys(STATIC_EN).find((k) => STATIC_EN[k] === key);
+      if (n.__ja == null) continue;
     }
-    const target = lang === 'en' ? STATIC_EN[n.__ja] : n.__ja;
+    const target = fromJa(n.__ja, STATIC_EN[n.__ja]);
     n.nodeValue = raw.replace(key, target);
   }
   for (const el of root.querySelectorAll('[title], [aria-label], [placeholder]')) {
@@ -344,7 +430,7 @@ export function applyStatic(root = document.body) {
       if (!el.hasAttribute(jaKey)) el.setAttribute(jaKey, v);
       const ja = el.getAttribute(jaKey);
       const en = STATIC_EN[ja] || EN[ja] || ATTR_EN[ja];
-      el.setAttribute(attr, lang === 'en' && en ? en : ja);
+      el.setAttribute(attr, en ? fromJa(ja, en) : ja);
     }
   }
 }
@@ -356,4 +442,6 @@ const ATTR_EN = {
   '全画面': 'Fullscreen', '使い方': 'Help', '設定': 'Settings', '設定の項目': 'Settings sections', 'ゲーム一覧を隠す／出す': 'Show/hide the game list',
   'ミニゲームを検索': 'Search minigames', '検索': 'Search', 'トラック': 'Tracks',
   '再生速度（ダブルタップで 1.0 に戻す）': 'Playback speed (double-tap to reset to 1.0)', '再生速度': 'Playback speed',
+  '十字の上': 'D-pad up', '十字の下': 'D-pad down', '十字の左': 'D-pad left', '十字の右': 'D-pad right',
+  'プレゼンテーションを終わる': 'Exit presentation', 'ファイル名': 'File name',
 };
