@@ -2,15 +2,15 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=22';
 import { customRegistry } from './db.js?v=11';
-import { t, setLang, applyStatic, getLang } from './i18n.js?v=39';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=41';
+import { t, setLang, applyStatic, getLang } from './i18n.js?v=40';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, loadIcon } from './view.js?v=42';
 import { makeZip } from './zip.js?v=4';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=29';
+import { CHANGELOG } from './changelog.js?v=30';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.10.0';
+const VERSION = '1.11.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1955,7 +1955,42 @@ $('settingsBtn').addEventListener('click', () => {
   $('paTouchOffsetVal').textContent = `${Number(settings.paTouchOffset) || 0}ms`;
   $('uiLangSelect').value = settings.uiLang || 'ja';
   $('gameNamesSelect').value = settings.gameNamesJa ? 'ja' : 'en';
+  $('playYanToggle').checked = settings.playYan !== false;
+  showSettingsSection(settingsSection);
   $('settingsModal').hidden = false;
+});
+// 設定の左のメニュー（言語・見た目・編集画面・プレイアロング）。最後に開いた項目を覚えておく
+let settingsSection = 'lang';
+const settingsTabs = [...document.querySelectorAll('#settingsModal .set-tab')];
+function showSettingsSection(sec) {
+  settingsSection = sec;
+  for (const b of settingsTabs) {
+    const on = b.dataset.sec === sec;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  }
+  for (const s of document.querySelectorAll('#settingsModal .set-sec')) s.hidden = s.dataset.sec !== sec;
+  $('setPane').scrollTop = 0;
+}
+for (const b of settingsTabs) {
+  b.addEventListener('click', () => showSettingsSection(b.dataset.sec));
+  b.addEventListener('keydown', (e) => {
+    const d = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const next = settingsTabs[(settingsTabs.indexOf(b) + d + settingsTabs.length) % settingsTabs.length];
+    showSettingsSection(next.dataset.sec);
+    next.focus();
+  });
+}
+// メトロノームのプレイやん（入れていないときは、メトロノームを入れても出さない）
+view.showPlayYan = settings.playYan !== false;
+$('playYanToggle').addEventListener('change', () => {
+  settings.playYan = $('playYanToggle').checked;
+  saveSettings();
+  view.showPlayYan = settings.playYan;
+  view.dirty = true;
 });
 $('langSelect').addEventListener('change', () => {
   settings.lang = $('langSelect').value;

@@ -3,6 +3,17 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.11.0', date: '2026-11-14',
+    ja: [
+      '設定の画面を作り直しました。左のメニューで「言語」「見た目」「編集画面」「プレイアロング」を選んで、右に中身が出ます',
+      'メトロノームを入れたときに跳ねるプレイやんを、出さないようにもできます（設定の「編集画面」→「メトロノームのプレイやん」）',
+    ],
+    en: [
+      'The Settings screen has a new layout: pick Language, Appearance, Editor or Playalong from the menu on the left, and the options show on the right.',
+      'You can now hide Play-Yan, who jumps while the metronome is on (Settings → Editor → "Play-Yan with the metronome").',
+    ],
+  },
+  {
     v: '1.10.0', date: '2026-11-14',
     ja: [
       'ゲーム名を日本語で出せるようになりました（例：Karate Man (GBA) → カラテ家 (GBA)）。設定の「ゲーム名」で、いつでも日本語と英語を切り替えられます',

@@ -260,6 +260,9 @@ const STATIC_EN = {
   'トラックの数': 'Number of tracks', 'プレゼンテーションモード': 'Presentation mode', '使い方': 'Help', '閉じる': 'Close',
   '決定': 'OK', '削除': 'Delete', 'やめる': 'Cancel', 'OK': 'OK', '設定': 'Settings',
   'ゲーム名': 'Game names', '日本語で表示': 'Show in Japanese', '英語のまま': 'Keep English', '日本語にする': 'Use Japanese',
+  // 設定の左のメニュー・メトロノームのプレイやん
+  '言語': 'Language', '見た目': 'Appearance', '編集画面': 'Editor', 'メトロノームのプレイやん': 'Play-Yan with the metronome',
+  'メトロノームを入れているとき、トラックの上で拍に合わせて跳ねるプレイやんを出すかどうかです。': 'Whether Play-Yan jumps to the beat above the tracks while the metronome is on.',
   'ゲームの名前を日本語で出すかどうかです。画面の言語とは別に選べます。検索は日本語の名前でも英語の名前でもできます。':
     'Whether to show minigame names in Japanese. This is separate from the interface language. Search works with either name.',
   'ゲーム名も日本語にしますか？': 'Show game names in Japanese too?',
@@ -335,7 +338,7 @@ const ATTR_EN = {
   'メニュー（新規・開く・保存・音楽など）': 'Menu (new, open, save, music…)', '新規': 'New', '開く（.rhref）': 'Open (.rhref)', '保存（.rhref）': 'Save (.rhref)',
   '元に戻す（Ctrl+Z）': 'Undo (Ctrl+Z)', 'やり直す（Ctrl+Shift+Z）': 'Redo (Ctrl+Shift+Z)', 'メトロノーム': 'Metronome',
   'スナップ（置く・動かす間隔）': 'Snap (placing and moving grid)', '一時停止': 'Pause', '再生（スペース）': 'Play (Space)', '再生': 'Play', '停止': 'Stop', '0拍目に戻る': 'Back to beat 0',
-  '全画面': 'Fullscreen', '使い方': 'Help', '設定': 'Settings', 'ゲーム一覧を隠す／出す': 'Show/hide the game list',
+  '全画面': 'Fullscreen', '使い方': 'Help', '設定': 'Settings', '設定の項目': 'Settings sections', 'ゲーム一覧を隠す／出す': 'Show/hide the game list',
   'ミニゲームを検索': 'Search minigames', '検索': 'Search', 'トラック': 'Tracks',
   '再生速度（ダブルタップで 1.0 に戻す）': 'Playback speed (double-tap to reset to 1.0)', '再生速度': 'Playback speed',
 };

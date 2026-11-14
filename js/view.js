@@ -734,8 +734,8 @@ export class EditorView {
     this.drawFlag(g, L, pbBeat, C.playback, L.top + L.infoH * 0.5, LABELS.playback, [`Beat ${pbBeat.toFixed(3)}`, fmtTime(pbSec)], true);
     }
 
-    // Play-Yan（RHRE fresh と同じく、メトロノームを入れているときだけ）
-    if (this.metronome) this.drawPlayYan(g, L, now);
+    // Play-Yan（RHRE fresh と同じく、メトロノームを入れているときだけ。設定の「メトロノームのプレイやん」で消せる）
+    if (this.metronome && this.showPlayYan !== false) this.drawPlayYan(g, L, now);
 
     // 再生位置
     if (this.playhead != null) {

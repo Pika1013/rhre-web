@@ -341,6 +341,57 @@
   .custom-colors label { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; }
   .custom-colors input[type=color] { width: 56px; height: 36px; padding: 0; border: 1px solid #555; border-radius: 6px; background: none; }
   .range-val { min-width: 42px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* 設定の画面：左に項目のメニュー、右に中身（中身だけスクロール） */
+  .modal .card.settings-card {
+    width: min(760px, calc(100% - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    height: min(560px, calc(100dvh - 28px)); max-height: none; overflow: hidden; display: flex; flex-direction: column;
+  }
+  .settings-card h2 { flex: none; }
+  .set-body { flex: 1; min-height: 0; display: flex; margin: 4px -18px -16px; border-top: 1px solid rgba(128, 128, 128, 0.3); }
+  .set-nav {
+    flex: 0 0 clamp(128px, 24%, 180px); display: flex; flex-direction: column; gap: 4px; padding: 10px 8px; box-sizing: border-box;
+    overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-right: 1px solid rgba(128, 128, 128, 0.3);
+  }
+  .set-tab {
+    flex: none; min-height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: none; text-align: left;
+    font: 700 15px var(--font); color: var(--muted); line-height: 1.2;
+  }
+  .set-tab:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .set-tab.on { background: rgba(255, 255, 255, 0.11); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+  .set-pane { flex: 1; min-width: 0; overflow-y: auto; padding: 4px 18px 16px; box-sizing: border-box; overscroll-behavior: contain; }
+  .set-sec h3 { margin: 10px 0 4px; font-size: 18px; font-weight: 800; }
+  .set-sub { margin: 16px 0 8px; font-weight: 800; font-size: 14px; color: var(--muted); }
+  .set-sec h3 + .set-sub { margin-top: 10px; }
+  .set-item { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid rgba(128, 128, 128, 0.22); }
+  .set-sec h3 + .set-item, .set-sub + .set-item { border-top: 0; }
+  .set-text { flex: 1; min-width: 0; }
+  .set-text label { display: block; font-weight: 800; font-size: 15px; }
+  .settings-card .set-note { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .set-sec > .set-note { margin-top: 2px; }
+  .set-item select {
+    flex: none; width: clamp(130px, 42%, 210px); height: 40px; border-radius: 5px; border: 1px solid #555; background: #161616; color: var(--text);
+    font: 700 15px var(--font); padding: 0 8px;
+  }
+  .set-range { flex: none; width: clamp(150px, 48%, 260px); display: flex; align-items: center; gap: 8px; }
+  .set-range input[type=range] { flex: 1; min-width: 0; height: 32px; margin: 0; accent-color: var(--accent); }
+  /* 入／切のスイッチ */
+  .switch { position: relative; flex: none; width: 52px; height: 30px; cursor: pointer; }
+  .switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .switch span { position: absolute; inset: 0; border-radius: 15px; background: #555; transition: background 0.15s; pointer-events: none; }
+  .switch span::after {
+    content: ''; position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: transform 0.15s;
+  }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(22px); }
+  .switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* 幅がとても狭いときは、項目のメニューを上に横並び */
+  @media (max-width: 560px) {
+    .set-body { flex-direction: column; }
+    .set-nav { flex: none; flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 6px 8px; border-right: 0; border-bottom: 1px solid rgba(128, 128, 128, 0.3); }
+    .set-tab { min-height: 36px; white-space: nowrap; }
+    .set-tab.on { box-shadow: inset 0 -3px 0 var(--accent); }
+  }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px;
     border-radius: 5px; border: 0; background: var(--btn); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--text);
@@ -728,6 +779,12 @@
   :root[data-theme="light"] .card { background: #fff; border-color: #c3c9d1; }
   :root[data-theme="light"] .card p, :root[data-theme="light"] .card ul { color: #2b3644; }
   :root[data-theme="light"] .field input, :root[data-theme="light"] .field select, :root[data-theme="light"] #textInput { background: #f4f6f8; color: #1b2430; border-color: #c3c9d1; }
+  :root[data-theme="light"] .set-item select { background: #f4f6f8; color: #1b2430; border-color: #c3c9d1; }
+  :root[data-theme="light"] .set-nav { background: #f1f3f6; }
+  :root[data-theme="light"] .set-tab:hover { background: rgba(0, 0, 0, 0.05); }
+  :root[data-theme="light"] .set-tab.on { background: #fff; }
+  :root[data-theme="light"] .switch span { background: #b7c0ca; }
+  :root[data-theme="light"] .settings-card .set-note { color: var(--muted); }
   :root[data-theme="light"] .seg { background: #e8ecf0; }
   :root[data-theme="light"] #panelToggle { background: #dfe3e8; color: #1b2430; border-color: #c3c9d1; }
   :root[data-theme="light"] #panelToggle svg { stroke: #1b2430; }
@@ -765,6 +822,12 @@
     .card h2 { font-size: 15px; margin-bottom: 4px; }
     .card p { font-size: 13px; margin-bottom: 4px; }
     .bar { margin-top: 6px; }
+    .set-body { margin: 2px -14px -10px; }
+    .set-nav { padding-block: 6px; }
+    .set-tab { min-height: 36px; font-size: 14px; }
+    .set-sec h3 { font-size: 16px; margin-top: 6px; }
+    .set-item { padding: 8px 0; }
+    .set-sub { margin: 10px 0 6px; }
   }
   @media (prefers-reduced-motion: reduce) { .bar > div, #search { transition: none; } }
 </style>
@@ -922,7 +985,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.10.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.11.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1183,52 +1246,88 @@
 </div>
 
 <div class="modal" id="settingsModal" hidden>
-  <div class="card">
+  <div class="card settings-card">
     <h2>設定</h2>
-    <div class="field"><label for="langSelect">ミニゲームの言語</label>
-      <select id="langSelect">
-        <option value="ja">日本語</option>
-        <option value="en">English</option>
-        <option value="ko">한국어</option>
-        <option value="es">Español</option>
-        <option value="fr">Français</option>
-        <option value="it">Italiano</option>
-        <option value="de">Deutsch</option>
-      </select>
+    <div class="set-body">
+      <div class="set-nav" role="tablist" aria-label="設定の項目" aria-orientation="vertical">
+        <button type="button" class="set-tab" role="tab" data-sec="lang">言語</button>
+        <button type="button" class="set-tab" role="tab" data-sec="look">見た目</button>
+        <button type="button" class="set-tab" role="tab" data-sec="editor">編集画面</button>
+        <button type="button" class="set-tab" role="tab" data-sec="pa">プレイアロング</button>
+      </div>
+      <div class="set-pane" id="setPane">
+        <section class="set-sec" data-sec="lang" role="tabpanel">
+          <h3>言語</h3>
+          <div class="set-item">
+            <div class="set-text"><label for="uiLangSelect">画面の言語</label></div>
+            <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
+          </div>
+          <div class="set-item">
+            <div class="set-text"><label for="gameNamesSelect">ゲーム名</label><p class="set-note">ゲームの名前を日本語で出すかどうかです。画面の言語とは別に選べます。検索は日本語の名前でも英語の名前でもできます。</p></div>
+            <select id="gameNamesSelect"><option value="ja">日本語で表示</option><option value="en">英語のまま</option></select>
+          </div>
+          <div class="set-item">
+            <div class="set-text"><label for="langSelect">ミニゲームの言語</label><p class="set-note">同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p></div>
+            <select id="langSelect">
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+              <option value="ko">한국어</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="it">Italiano</option>
+              <option value="de">Deutsch</option>
+            </select>
+          </div>
+        </section>
+        <section class="set-sec" data-sec="look" role="tabpanel" hidden>
+          <h3>見た目</h3>
+          <div class="set-sub">テーマ</div>
+          <div id="themeGrid" class="theme-grid" role="group" aria-label="テーマ"></div>
+          <div id="customColors" class="custom-colors" hidden>
+            <label>背景<input type="color" id="ccBg"></label>
+            <label>線<input type="color" id="ccGrid"></label>
+            <label>アクセント<input type="color" id="ccAccent"></label>
+          </div>
+          <div class="set-sub">背景の画像</div>
+          <div class="row tight"><button class="btn" id="bgPick">画像を選ぶ</button><button class="btn" id="bgClear" disabled>外す</button></div>
+          <div class="set-item">
+            <div class="set-text"><label for="bgFit">表示</label></div>
+            <select id="bgFit"><option value="cover">画面いっぱい</option><option value="contain">全体が見えるように</option></select>
+          </div>
+          <div class="set-item">
+            <div class="set-text"><label for="bgAlpha">濃さ</label></div>
+            <div class="set-range"><input type="range" id="bgAlpha" min="10" max="100" step="5" value="60"><span id="bgAlphaVal" class="range-val">60%</span></div>
+          </div>
+          <input type="file" id="bgInput" accept="image/*" hidden>
+        </section>
+        <section class="set-sec" data-sec="editor" role="tabpanel" hidden>
+          <h3>編集画面</h3>
+          <div class="set-item">
+            <div class="set-text"><label for="playYanToggle">メトロノームのプレイやん</label><p class="set-note">メトロノームを入れているとき、トラックの上で拍に合わせて跳ねるプレイやんを出すかどうかです。</p></div>
+            <label class="switch"><input type="checkbox" id="playYanToggle" role="switch"><span aria-hidden="true"></span></label>
+          </div>
+        </section>
+        <section class="set-sec" data-sec="pa" role="tabpanel" hidden>
+          <h3>プレイアロング</h3>
+          <div class="set-item">
+            <div class="set-text"><label for="paOffset">ボタンのタイミング調整</label></div>
+            <div class="set-range"><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
+          </div>
+          <div class="set-item">
+            <div class="set-text"><label for="paTouchOffset">タッチのタイミング調整</label></div>
+            <div class="set-range"><input type="range" id="paTouchOffset" min="-300" max="300" step="10" value="0"><span id="paTouchOffsetVal" class="range-val">0ms</span></div>
+          </div>
+          <p class="set-note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
+        </section>
+      </div>
     </div>
-    <p class="note">同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。</p>
-    <div class="sb-title">テーマ</div>
-    <div id="themeGrid" class="theme-grid" role="group" aria-label="テーマ"></div>
-    <div id="customColors" class="custom-colors" hidden>
-      <label>背景<input type="color" id="ccBg"></label>
-      <label>線<input type="color" id="ccGrid"></label>
-      <label>アクセント<input type="color" id="ccAccent"></label>
-    </div>
-    <div class="sb-title">背景の画像</div>
-    <div class="row tight"><button class="btn" id="bgPick">画像を選ぶ</button><button class="btn" id="bgClear" disabled>外す</button></div>
-    <div class="field"><label for="bgFit">表示</label>
-      <select id="bgFit"><option value="cover">画面いっぱい</option><option value="contain">全体が見えるように</option></select>
-    </div>
-    <div class="field"><label for="bgAlpha">濃さ</label><input type="range" id="bgAlpha" min="10" max="100" step="5" value="60"><span id="bgAlphaVal" class="range-val">60%</span></div>
-    <input type="file" id="bgInput" accept="image/*" hidden>
-    <div class="sb-title">プレイアロング</div>
-    <div class="field"><label for="paOffset">ボタンのタイミング調整</label><input type="range" id="paOffset" min="-300" max="300" step="10" value="0"><span id="paOffsetVal" class="range-val">0ms</span></div>
-    <div class="field"><label for="paTouchOffset">タッチのタイミング調整</label><input type="range" id="paTouchOffset" min="-300" max="300" step="10" value="0"><span id="paTouchOffsetVal" class="range-val">0ms</span></div>
-    <p class="note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
-    <div class="field"><label for="uiLangSelect">画面の言語</label>
-      <select id="uiLangSelect"><option value="ja">日本語</option><option value="en">English</option></select>
-    </div>
-    <div class="field"><label for="gameNamesSelect">ゲーム名</label>
-      <select id="gameNamesSelect"><option value="ja">日本語で表示</option><option value="en">英語のまま</option></select>
-    </div>
-    <p class="note">ゲームの名前を日本語で出すかどうかです。画面の言語とは別に選べます。検索は日本語の名前でも英語の名前でもできます。</p>
     <div class="row"><button class="btn" id="settingsClose">閉じる</button></div>
   </div>
 </div>
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.10.0</h2>
+    <h2>RHRE Web v1.11.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1239,7 +1338,7 @@
       <li>赤い旗（音楽開始）と緑の旗（再生開始）は、横にドラッグして動かせます</li>
       <li>Snap：置く・動かす間隔（1〜1/32）を選ぶ</li>
       <li>再生速度：時間の表示の右にある虹色のつまみを横にドラッグ（ダブルタップで 1.0 に戻す）</li>
-      <li>メトロノーム：上のバーのボタンで入／切。入れている間は Play-Yan が跳ねます</li>
+      <li>メトロノーム：上のバーのボタンで入／切。入れている間はプレイやん（Play-Yan）が跳ねます（設定の「編集画面」で消せます）</li>
       <li>ゲーム一覧：左上の「ゲームを選ぶ」で隠す／出す。境目のつまみをドラッグすると高さを変えられます</li>
     </ul>
     <p><b>編集</b></p>
@@ -1273,7 +1372,7 @@
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
-    <p><b>設定（歯車）</b>：ミニゲームの言語、テーマの色、背景の画像、タイミング調整、画面の言語、ゲーム名（日本語・英語）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
+    <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
     <p>まだできないこと：画面揺れ、ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
@@ -1289,7 +1388,7 @@
       <li>Drag the red flag (music start) and the green flag (playback start) sideways to move them.</li>
       <li>Snap: choose the step for placing and moving (1 to 1/32).</li>
       <li>Playback speed: drag the rainbow slider to the right of the time display (double-tap to reset to 1.0).</li>
-      <li>Metronome: turn it on/off with its button on the top bar. Play-Yan jumps while it is on.</li>
+      <li>Metronome: turn it on/off with its button on the top bar. Play-Yan jumps while it is on (you can hide it under "Editor" in Settings).</li>
       <li>Game list: "Choose a game" at its top left hides/shows it. Drag the grip on the border to change its height.</li>
     </ul>
     <p><b>Editing</b></p>
@@ -1323,7 +1422,7 @@
       <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
       <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
-    <p><b>Settings (gear)</b>: minigame language, theme colors, background image, timing offsets, screen language, game names (Japanese or English). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
+    <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
     <p>Not available yet: screen shake, pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
     <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
     <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
@@ -1339,7 +1438,7 @@
 <input type="file" id="musicInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
-<script type="module" src="js/app.js?v=102"></script>
+<script type="module" src="js/app.js?v=103"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
