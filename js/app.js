@@ -2,7 +2,7 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=47';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=48';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
@@ -4852,7 +4852,7 @@ const roomHandlers = {
   seeded() {
     room.creating = false;
     roomStarted();
-    toast(t('部屋を作りました。合言葉を送って、友だちを呼びましょう'), 4000, 'info');
+    toast(room.info.public ? t('公開の部屋を作りました。入りたい人が来たら、画面の上に出ます') : t('部屋を作りました。合言葉を送って、友だちを呼びましょう'), 4000, 'info');
     // 曲があれば、部屋の人に送るか聞く
     if (musicFile && !musicFile.fromRoom) roomShareSong(false);
   },
@@ -5187,6 +5187,7 @@ function maybeJoinRoom() {
 function openRoomModal() {
   $('menuModal').hidden = true;
   room.lobby = null;
+  room.step = 'name';
   renderRoomUi();
   $('roomModal').hidden = false;
 }
@@ -5213,47 +5214,7 @@ function renderRoomUi() {
   body.textContent = '';
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
   if (!room.client && room.lobby) { renderLobby(body, el); return; }
-  if (!room.client) {
-    body.append(el('p', null, t('友だちと同じリミックスを一緒に編集できます。部屋の曲は、部屋の人の端末どうしで直接届きます（サーバーには残りません）。')));
-    const nf = el('div', 'field');
-    const nl = el('label', null, t('名前（なくても大丈夫）'));
-    nl.htmlFor = 'roomNick';
-    const ni = el('input');
-    ni.id = 'roomNick';
-    ni.maxLength = 16;
-    ni.autocomplete = 'off';
-    ni.value = settings.nick || '';
-    const keepNick = () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); };
-    ni.addEventListener('change', keepNick);
-    nf.append(nl, ni);
-    const create = el('button', 'btn primary', t('合言葉の部屋を作る'));
-    create.addEventListener('click', () => { keepNick(); createRoom(false); });
-    const createPub = el('button', 'btn', t('公開の部屋を作る'));
-    createPub.addEventListener('click', () => { keepNick(); createRoom(true); });
-    const row = el('div', 'row');
-    row.append(create, createPub);
-    const jf = el('div', 'field room-join');
-    const jl = el('label', null, t('合言葉で入る'));
-    jl.htmlFor = 'roomCodeInput';
-    const ji = el('input');
-    ji.id = 'roomCodeInput';
-    ji.maxLength = 6;
-    ji.autocomplete = 'off';
-    ji.autocapitalize = 'characters';
-    ji.spellcheck = false;
-    ji.placeholder = 'ABC234';
-    ji.addEventListener('input', () => { const v = cleanRoomCode(ji.value); if (v !== ji.value) ji.value = v; });
-    const jb = el('button', 'btn', t('入る'));
-    jb.addEventListener('click', () => { keepNick(); joinRoom(ji.value); });
-    ji.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
-    jf.append(jl, ji, jb);
-    const find = el('button', 'btn', t('公開の部屋をさがす'));
-    find.addEventListener('click', () => { keepNick(); showLobby(); });
-    const row3 = el('div', 'row');
-    row3.append(find);
-    body.append(nf, row, jf, row3);
-    return;
-  }
+  if (!room.client) { renderRoomSteps(body, el); return; }
   if (room.waiting) {
     body.append(el('p', null, t('部屋を作った人の返事を待っています…')));
     const stop = el('button', 'btn', t('やめる'));
@@ -5272,26 +5233,26 @@ function renderRoomUi() {
     body.append(row);
     return;
   }
-  if (room.info.public) body.append(el('p', 'room-label', t('公開の部屋 #{num}', { num: room.info.num }) + (room.info.locked ? `（${t('締めています')}）` : '')));
-  body.append(el('p', 'room-label', t('合言葉')), el('div', 'room-code', room.code));
-  const share = el('button', 'btn primary', t('合言葉を送る'));
-  share.addEventListener('click', shareRoom);
-  const row = el('div', 'row');
-  row.append(share);
-  if (room.you?.host) {
-    const tog = el('button', 'btn', t('みんなで再生'));
-    tog.title = t('全員の端末で、あなたの再生開始（緑の旗）から同時に再生します');
-    tog.addEventListener('click', roomPlayTogether);
-    row.append(tog);
+  if (room.info.public) {
+    // 公開の部屋：一覧から入ってもらうので、合言葉は出さない
+    body.append(el('h3', 'room-h', t('公開の部屋 #{num}', { num: room.info.num })));
+    body.append(el('p', 'note', room.info.locked ? t('締めています。新しい人は入れません。') : t('一覧に出ています。入りたい人が来たら、画面の上に出ます。')));
+  } else {
+    body.append(el('h3', 'room-h', t('友だちだけの部屋')), el('p', 'room-label', t('合言葉')), el('div', 'room-code', room.code));
+    const share = el('button', 'btn primary', t('合言葉を送る'));
+    share.addEventListener('click', shareRoom);
+    const row = el('div', 'row');
+    row.append(share);
+    body.append(row);
   }
-  body.append(row);
   if (room.reconnecting) body.append(el('p', 'note', t('つなぎ直しています…')));
   // 曲
+  body.append(el('h3', 'room-h', t('部屋の曲')));
   const sec = el('div', 'room-song');
   if (room.song) {
-    sec.append(el('p', 'room-label', t('部屋の曲')), el('p', 'room-song-name', `${room.song.name}（${fmtMB(room.song.size)}）`), el('p', 'note', roomSongStatus()));
+    sec.append(el('p', 'room-song-name', `${room.song.name}（${fmtMB(room.song.size)}）`), el('p', 'note', roomSongStatus()));
   } else {
-    sec.append(el('p', 'room-label', t('部屋の曲')), el('p', 'note', t('まだありません。メニューの「音楽を選ぶ」で曲を選ぶと、ここから部屋の人に送れます。')));
+    sec.append(el('p', 'note', t('まだありません。メニューの「音楽を選ぶ」で曲を選ぶと、ここから部屋の人に送れます。')));
   }
   // 曲の目印をまだ作っていなければ作ってから出し直す（部屋の曲と同じ曲かを見分けるため）
   if (musicFile && !musicFile.hash && !roomHashing.has(musicFile)) {
@@ -5312,6 +5273,7 @@ function renderRoomUi() {
     sec.append(r);
   }
   body.append(sec);
+  body.append(el('h3', 'room-h', t('部屋にいる人（{n}/{max}）', { n: room.members.length, max: ROOM_MAX })));
   const ul = el('ul', 'room-members');
   for (const m of room.members) {
     const li = el('li');
@@ -5329,18 +5291,100 @@ function renderRoomUi() {
     ul.append(li);
   }
   body.append(ul);
+  // 部屋を作った人だけの操作
   if (room.you?.host) {
+    body.append(el('h3', 'room-h', t('部屋を作った人の操作')));
+    const rl = el('div', 'row');
+    const tog = el('button', 'btn', t('みんなで再生'));
+    tog.addEventListener('click', roomPlayTogether);
     const lk = el('button', 'btn', room.info.locked ? t('締めるのをやめる') : t('締める（新しい人を入れない）'));
     lk.addEventListener('click', () => room.client?.lock(!room.info.locked));
-    const rl = el('div', 'row');
-    rl.append(lk);
-    body.append(rl);
+    rl.append(tog, lk);
+    body.append(rl, el('p', 'note', t('「みんなで再生」を押すと、全員の端末で、あなたの再生開始（緑の旗）から同時に再生します。')));
   }
   const leave = el('button', 'btn danger', t('部屋を抜ける'));
   leave.addEventListener('click', () => { $('roomModal').hidden = true; leaveRoom(); });
   const row2 = el('div', 'row');
   row2.append(leave);
   body.append(row2);
+}
+
+// 部屋の外の画面を、1 つずつ聞く段階に分ける：名前 → 作る／入る → どんな部屋か／どの部屋か
+function renderRoomSteps(body, el) {
+  const step = room.step || 'name';
+  const choice = (title, sub, fn, primary) => {
+    const b = el('button', `room-choice${primary ? ' primary' : ''}`);
+    b.type = 'button';
+    b.append(el('b', null, title), el('span', null, sub));
+    b.addEventListener('click', fn);
+    return b;
+  };
+  const back = (to) => {
+    const b = el('button', 'btn', t('もどる'));
+    b.addEventListener('click', () => { room.step = to; renderRoomUi(); });
+    const r = el('div', 'row');
+    r.append(b);
+    return r;
+  };
+  if (step === 'name') {
+    body.append(el('h3', 'room-q', t('まず、あなたの名前を決めてください')));
+    const ni = el('input');
+    ni.id = 'roomNick';
+    ni.className = 'room-input';
+    ni.maxLength = 16;
+    ni.autocomplete = 'off';
+    ni.enterKeyHint = 'next';
+    ni.placeholder = t('名前');
+    ni.value = settings.nick || '';
+    const next = el('button', 'btn primary', t('次へ'));
+    const go = () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); room.step = 'choose'; renderRoomUi(); };
+    next.addEventListener('click', go);
+    ni.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    const r = el('div', 'row');
+    r.append(next);
+    body.append(ni, el('p', 'note', t('部屋の人に見える名前です。なくても大丈夫です。')), r);
+    return;
+  }
+  if (step === 'choose') {
+    body.append(el('p', 'room-step', settings.nick ? t('{name}さん', { name: settings.nick }) : t('名前なし')), el('h3', 'room-q', t('どうしますか？')));
+    body.append(
+      choice(t('部屋を作る'), t('今のリミックスで部屋を作って、みんなを呼びます'), () => { room.step = 'create'; renderRoomUi(); }, true),
+      choice(t('部屋に入る'), t('友だちの部屋や、公開の部屋に入ります'), () => { room.step = 'join'; renderRoomUi(); }),
+      back('name'),
+    );
+    return;
+  }
+  if (step === 'create') {
+    body.append(el('p', 'room-step', t('部屋を作る')), el('h3', 'room-q', t('どんな部屋にしますか？')));
+    body.append(
+      choice(t('友だちだけの部屋'), t('合言葉を知っている人だけが入れます'), () => createRoom(false), true),
+      choice(t('公開の部屋'), t('だれでも一覧から見つけて「入りたい」を送れます。入れるのは、あなたが許可した人だけです'), () => createRoom(true)),
+      back('choose'),
+    );
+    return;
+  }
+  if (step === 'join') {
+    body.append(el('p', 'room-step', t('部屋に入る')), el('h3', 'room-q', t('どの部屋に入りますか？')));
+    const box = el('div', 'room-choice-box');
+    box.append(el('b', null, t('友だちの部屋')), el('span', null, t('友だちから聞いた 6 文字の合言葉を入れてください')));
+    const ji = el('input');
+    ji.id = 'roomCodeInput';
+    ji.className = 'room-input room-code-input';
+    ji.maxLength = 6;
+    ji.autocomplete = 'off';
+    ji.autocapitalize = 'characters';
+    ji.spellcheck = false;
+    ji.enterKeyHint = 'go';
+    ji.placeholder = 'ABC234';
+    ji.addEventListener('input', () => { const v = cleanRoomCode(ji.value); if (v !== ji.value) ji.value = v; });
+    const jb = el('button', 'btn primary', t('入る'));
+    jb.addEventListener('click', () => joinRoom(ji.value));
+    ji.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
+    const jr = el('div', 'room-join');
+    jr.append(ji, jb);
+    box.append(jr);
+    body.append(box, choice(t('公開の部屋をさがす'), t('今開いている公開の部屋の一覧から選びます'), showLobby), back('choose'));
+  }
 }
 
 function renderLobby(body, el) {
@@ -5376,7 +5420,7 @@ function renderLobby(body, el) {
   }
   const row = el('div', 'row');
   const back = el('button', 'btn', t('もどる'));
-  back.addEventListener('click', () => { room.lobby = null; renderRoomUi(); });
+  back.addEventListener('click', () => { room.lobby = null; room.step = 'join'; renderRoomUi(); });
   const again = el('button', 'btn', t('もう一度さがす'));
   again.addEventListener('click', showLobby);
   row.append(back, again);
@@ -5397,6 +5441,7 @@ async function shareRoom() {
   }
 }
 $('roomBadge').addEventListener('click', openRoomModal);
+$('roomClose').addEventListener('click', () => { $('roomModal').hidden = true; room.lobby = null; });
 
 // 動作確認用（URL に ?debug を付けたときだけ）
 if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, room, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null), addTexture: (hash, bytes) => addTextureImage(hash, bytes), edit: (fn) => edit(fn), undo: () => undo(), redo: () => redo() };

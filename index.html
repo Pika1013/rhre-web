@@ -173,6 +173,24 @@
   #roomBody .rl-icons img { width: 28px; height: 28px; image-rendering: pixelated; border-radius: 3px; }
   /* 入りたい人（部屋を作った人の画面の上） */
   #confirmMsg { white-space: pre-line; }
+  #knockBox[hidden] { display: none; }
+  /* みんなで編集：段階ごとの画面 */
+  #roomBody .room-step { margin: 0; font-size: 12px; font-weight: 700; opacity: 0.65; }
+  #roomBody .room-q { margin: 2px 0 12px; font-size: 18px; }
+  #roomBody .room-h { margin: 16px 0 6px; font-size: 14px; opacity: 0.85; }
+  #roomBody .room-h:first-child { margin-top: 0; }
+  #roomBody .room-input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 10px 12px; }
+  #roomBody .room-choice, #roomBody .room-choice-box {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; box-sizing: border-box; margin: 0 0 10px;
+    padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line, #555); background: rgba(127, 127, 127, 0.1);
+    color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  #roomBody .room-choice.primary { border-color: var(--accent, #5fd3ff); }
+  #roomBody .room-choice b, #roomBody .room-choice-box b { font-size: 16px; }
+  #roomBody .room-choice span, #roomBody .room-choice-box span { font-size: 13px; opacity: 0.8; line-height: 1.45; }
+  #roomBody .room-choice-box { cursor: default; }
+  #roomBody .room-choice-box .room-join { display: flex; gap: 8px; width: 100%; margin-top: 6px; flex-wrap: nowrap; }
+  #roomBody .room-code-input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; }
   #knockBox {
     position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 60;
     display: flex; flex-direction: column; gap: 6px; width: min(520px, calc(100% - 24px));
@@ -1492,7 +1510,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=108"></script>
+<script type="module" src="js/app.js?v=109"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
