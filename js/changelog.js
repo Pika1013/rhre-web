@@ -4,6 +4,51 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.15.0', date: '2026-11-15',
+    ja: [
+      'メニューに「みんなで編集」ができました。友だちなどと同じリミックスを一緒に編集できます（10 人まで）。だれかがブロックを置いたり動かしたりすると、ほかの人の画面にもすぐ出ます',
+      '部屋は 2 種類です。「友だちだけの部屋」は 6 文字の合言葉を知っている人だけが入れます。「公開の部屋」はだれでも一覧から「入りたい」を送れて、部屋を作った人が許可した人だけが入れます',
+      '部屋の曲は、部屋の人の端末どうしで直接届きます（サーバーには残りません）。部屋を作った人は「みんなで再生」で、全員の端末で同時に再生できます',
+      'くわしくは、メニューの「使い方」の「みんなで編集」を見てください',
+    ],
+    en: [
+      'New "Edit together" in the menu: edit the same remix together with friends and others (up to 10 people). When someone places or moves a block, it shows up on everyone\'s screen right away.',
+      'There are two kinds of rooms. A "Friends-only room" can be joined only by people who know its 6-character code. Anyone can ask to join a "Public room" from the list, and only the people the host allows can join.',
+      'The room\'s song goes directly between the devices in the room (it is never kept on a server). The host can use "Play together" to start playback on everyone\'s device at the same time.',
+      'For details, see "Edit together" in Help in the menu.',
+    ],
+    'zh-Hant': [
+      '選單新增了「一起編輯」。可以和朋友等人一起編輯同一個混音（最多 10 人）。有人放置或移動方塊時，其他人的畫面也會馬上出現。',
+      '房間有 2 種。「好友限定房間」只有知道 6 個字元代碼的人能進來。「公開房間」任何人都能從清單申請加入，只有房主允許的人才能進來。',
+      '房間的歌曲會在房間裡的人的裝置之間直接傳送（不會留在伺服器上）。房主可以用「一起播放」讓所有人的裝置同時播放。',
+      '詳細內容請看選單「使用說明」中的「一起編輯」。',
+    ],
+    ko: [
+      '메뉴에 "함께 편집"이 생겼어요. 친구 등과 같은 리믹스를 함께 편집할 수 있어요(최대 10명). 누가 블록을 놓거나 움직이면 다른 사람 화면에도 바로 나와요.',
+      '방은 2종류예요. "친구 전용 방"은 6자리 코드를 아는 사람만 들어올 수 있어요. "공개 방"은 누구나 목록에서 참가를 요청할 수 있고, 방장이 허락한 사람만 들어와요.',
+      '방의 곡은 방에 있는 사람들의 기기끼리 직접 보내요(서버에는 남지 않아요). 방장은 "함께 재생"으로 모든 기기에서 동시에 재생할 수 있어요.',
+      '자세한 내용은 메뉴의 "도움말"에서 "함께 편집"을 보세요.',
+    ],
+    es: [
+      'Nuevo "Editar juntos" en el menú: edita el mismo remix con amigos y otras personas (hasta 10). Cuando alguien coloca o mueve un bloque, aparece al instante en la pantalla de todos.',
+      'Hay dos tipos de salas. En una "Sala solo para amigos" solo entra quien conoce su código de 6 caracteres. A una "Sala pública" cualquiera puede pedir entrar desde la lista, y solo entran las personas que el anfitrión permita.',
+      'La canción de la sala se envía directamente entre los dispositivos de la sala (nunca se guarda en un servidor). El anfitrión puede usar "Reproducir juntos" para reproducir en todos los dispositivos a la vez.',
+      'Para más detalles, mira "Editar juntos" en la Ayuda del menú.',
+    ],
+    fr: [
+      "Nouveau « Éditer ensemble » dans le menu : éditez le même remix avec des amis et d'autres personnes (jusqu'à 10). Quand quelqu'un place ou déplace un bloc, cela apparaît aussitôt sur l'écran de tous.",
+      "Il y a deux types de salons. Seules les personnes qui connaissent le code à 6 caractères peuvent entrer dans un « Salon entre amis ». Tout le monde peut demander à entrer dans un « Salon public » depuis la liste, et seules les personnes autorisées par l'hôte peuvent le rejoindre.",
+      "La chanson du salon est envoyée directement entre les appareils du salon (elle n'est jamais gardée sur un serveur). L'hôte peut utiliser « Lire ensemble » pour lancer la lecture sur tous les appareils en même temps.",
+      "Pour plus de détails, consultez « Éditer ensemble » dans l'Aide du menu.",
+    ],
+    de: [
+      'Neu im Menü: „Gemeinsam bearbeiten“. Bearbeite denselben Remix zusammen mit Freunden und anderen (bis zu 10 Leute). Wenn jemand einen Block platziert oder verschiebt, erscheint es sofort auf allen Bildschirmen.',
+      'Es gibt zwei Arten von Räumen. Einem „Raum nur für Freunde“ kann nur beitreten, wer den 6-stelligen Code kennt. Bei einem „Öffentlichen Raum“ kann jeder in der Liste um Beitritt bitten, und nur wen der Gastgeber erlaubt, kann beitreten.',
+      'Das Lied des Raums wird direkt zwischen den Geräten im Raum gesendet (es bleibt nie auf einem Server). Der Gastgeber kann mit „Gemeinsam abspielen“ die Wiedergabe auf allen Geräten gleichzeitig starten.',
+      'Mehr dazu unter „Gemeinsam bearbeiten“ in der Hilfe im Menü.',
+    ],
+  },
+  {
     v: '1.14.1', date: '2026-11-15',
     ja: [
       'ゲーム名の「ゐあひ斬り伝説」が「ゐあひ斬ぎり伝説」になっていたのを直しました',

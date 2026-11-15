@@ -270,7 +270,7 @@ const EN = {
   '曲が届きませんでした。メニューの「音楽を選ぶ」で、同じ曲（{f}）を選んでください': 'The song didn\'t arrive. Choose the same song ({f}) with "Choose music" in the menu.',
   '届きませんでした。メニューの「音楽を選ぶ」で、同じ曲を選んでください': 'It didn\'t arrive. Choose the same song with "Choose music" in the menu.',
   'まだありません。メニューの「音楽を選ぶ」で曲を選ぶと、ここから部屋の人に送れます。': 'None yet. Choose a song with "Choose music" in the menu, then you can send it to the room from here.',
-  '自分の曲を部屋の曲にする': 'Make my song the room\'s song', '部屋の曲を受け取る': "Get the room's song", '部屋の曲とちがう曲を使っています': "You're using a different song from the room's", 'この曲を部屋の人に送る': 'Send this song to the room', '公開の部屋を作る': 'Create a public room', '公開の部屋をさがす': 'Find public rooms', '公開の部屋': 'Public rooms',
+  '自分の曲を部屋の曲にする': 'Make my song the room\'s song', '部屋の曲を受け取る': "Get the room's song", '部屋の曲とちがう曲を使っています': "You're using a different song from the room's", 'この曲を部屋の人に送る': 'Send this song to the room', '公開の部屋を作る': 'Create a public room', '公開の部屋をさがす': 'Find public rooms', '公開の部屋': 'Public room', '公開の部屋の一覧': 'Public rooms',
   '公開の部屋は、だれでも一覧から見つけて「入りたい」を押せます。入れるのは、あなたが「入れる」を押した人だけです。': 'Anyone can find a public room in the list and ask to join. Only the people you let in can join.',
   '公開の部屋では、曲を送るために相手の端末と直接つながります。そのため、相手にだいたいの地域や回線の会社が分かることがあります（名前や細かい住所は分かりません）。':
     'In public rooms, devices connect directly to each other to send the song. Because of this, others may be able to tell your rough area and internet provider (not your name or exact address).',
@@ -283,7 +283,7 @@ const EN = {
   '締める（新しい人を入れない）': 'Close (no new people)', '締めるのをやめる': 'Open again',
   'みんなで再生が始まりました。画面をタップすると、途中から入ります': 'Playing together has started. Tap the screen to join in.', 'みんなで再生します': 'Playing together',
   'さがしています…': 'Searching…', '一覧を読み込めませんでした。インターネットにつながっているか確かめてください。': "Couldn't load the list. Check your internet connection.",
-  '今は公開の部屋がありません。「公開の部屋を作る」で作れます。': 'There are no public rooms right now. You can make one with "Create a public room".', 
+  '今は公開の部屋がありません。「部屋を作る」→「公開の部屋」で作れます。': 'There are no public rooms right now. You can make one with "Create a room" → "Public room".', 
   '友だちだけの部屋': 'Friends-only room', 'ほかの画面からこの部屋に入り直したので、こちらは部屋を抜けました': 'You rejoined this room from another screen, so this one left the room.', 'しばらくだれも使わなかったので、部屋を閉じました': 'The room was closed because nobody used it for a while.', '部屋の合言葉：{code}': 'Room code: {code}', 'アプリを開いたら、メニューの「みんなで編集」→「部屋に入る」で、この合言葉を入れてください。': 'After opening the app, enter this code under Menu → "Edit together" → "Join a room".', '公開の部屋を作りました。入りたい人が来たら、画面の上に出ます': 'Public room created. When someone asks to join, it shows at the top of the screen.', '締めています。新しい人は入れません。': 'Closed. New people cannot join.', '一覧に出ています。入りたい人が来たら、画面の上に出ます。': 'Listed. When someone asks to join, it shows at the top of the screen.',
   '部屋にいる人（{n}/{max}）': 'People in the room ({n}/{max})', '部屋を作った人の操作': 'Host controls',
   '「みんなで再生」を押すと、全員の端末で、あなたの再生開始（緑の旗）から同時に再生します。': '"Play together" starts playback on everyone\'s device at the same time, from your playback start (green flag).',
@@ -313,11 +313,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 2 },
-  { code: 'ko', name: '한국어', v: 2 },
-  { code: 'es', name: 'Español', v: 2 },
-  { code: 'fr', name: 'Français', v: 2 },
-  { code: 'de', name: 'Deutsch', v: 2 },
+  { code: 'zh-Hant', name: '繁體中文', v: 3 },
+  { code: 'ko', name: '한국어', v: 3 },
+  { code: 'es', name: 'Español', v: 3 },
+  { code: 'fr', name: 'Français', v: 3 },
+  { code: 'de', name: 'Deutsch', v: 3 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);

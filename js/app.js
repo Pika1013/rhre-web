@@ -2,12 +2,12 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=48';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=49';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=35';
+import { CHANGELOG } from './changelog.js?v=36';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=3';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.14.1';
+const VERSION = '1.15.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -5172,7 +5172,18 @@ function maybeJoinRoom() {
   if (q.has('room')) {
     q.delete('room');
     history.replaceState(null, '', `${location.pathname}${q.toString() ? `?${q}` : ''}${location.hash}`);
-    if (isRoomCode(code)) confirmBox(t('みんなで編集'), t('部屋 {code} に入りますか？', { code }), t('入る'), () => joinRoom(code));
+    if (!isRoomCode(code)) return;
+    const ask = () => confirmBox(t('みんなで編集'), t('部屋 {code} に入りますか？', { code }), t('入る'), () => joinRoom(code));
+    const html = document.documentElement;
+    // iPhone の「ホーム画面に追加」の案内が出ているとき：先へ進めないので聞かない（案内に合言葉を出している）
+    if (html.classList.contains('gate-ios')) return;
+    // Android の案内が出ているとき：閉じてから聞く
+    if (html.classList.contains('gate-android')) {
+      const mo = new MutationObserver(() => { if (!html.classList.contains('gate-android')) { mo.disconnect(); ask(); } });
+      mo.observe(html, { attributes: true, attributeFilter: ['class'] });
+      return;
+    }
+    ask();
     return;
   }
   let again = '';
@@ -5386,10 +5397,10 @@ function renderRoomSteps(body, el) {
 
 function renderLobby(body, el) {
   const L = room.lobby;
-  body.append(el('p', 'room-label', t('公開の部屋')), el('p', 'note', PUBLIC_NOTE()));
+  body.append(el('p', 'room-label', t('公開の部屋の一覧')), el('p', 'note', PUBLIC_NOTE()));
   if (L.loading) body.append(el('p', null, t('さがしています…')));
   else if (L.error) body.append(el('p', null, t('一覧を読み込めませんでした。インターネットにつながっているか確かめてください。')));
-  else if (!L.rooms.length) body.append(el('p', null, t('今は公開の部屋がありません。「公開の部屋を作る」で作れます。')));
+  else if (!L.rooms.length) body.append(el('p', null, t('今は公開の部屋がありません。「部屋を作る」→「公開の部屋」で作れます。')));
   else {
     const ul = el('ul', 'room-lobby');
     const langName = (c) => LANGS.find((x) => x.code === c)?.name || '';

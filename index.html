@@ -1046,7 +1046,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.14.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.15.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1399,7 +1399,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.14.1</h2>
+    <h2>RHRE Web v1.15.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1444,11 +1444,22 @@
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
+    <p><b>みんなで編集</b></p>
+    <ul>
+      <li>メニューの「みんなで編集」で、友だちなどと同じリミックスを一緒に編集できます（10 人まで）。名前を決めて、「部屋を作る」か「部屋に入る」を選びます</li>
+      <li>友だちだけの部屋：6 文字の合言葉を知っている人だけが入れます。「合言葉を送る」で LINE などに送れます</li>
+      <li>公開の部屋：だれでも一覧から「入りたい」を送れて、部屋を作った人が「入れる」を押した人だけが入れます</li>
+      <li>部屋の曲は、部屋の人の端末どうしで直接届きます。届いた曲は部屋を抜けると消え、保存する .rhref にも入りません。届かないときは、同じ曲を自分で選んでください</li>
+      <li>ほかの人が選んでいるブロックには、その人の色の点線と名前が出ます。元に戻すで戻るのは自分の操作だけです。画像のブロックの絵とカスタム効果音は送られません</li>
+      <li>部屋を作った人は、「みんなで再生」（全員の端末で同時に再生）、人を外す、締める（新しい人を入れない）ができます</li>
+      <li>全員が抜けると 2 分で、だれも何もしない時間が 2 時間続くと、部屋はなくなります</li>
+    </ul>
     <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
     <p>まだできないこと：ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p class="note">今 RHRE Web を開いている人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
+    <p class="note">「みんなで編集」では、部屋のリミックスの中身と、決めた名前を Cloudflare のサーバーに送ります。全員が抜けると 2 分で消えます。曲はサーバーを通さず、部屋の人の端末どうしで直接送ります。そのため、相手にだいたいの地域や回線の会社が分かることがあります。</p>
     </div>
     <div id="helpEn" hidden>
     <p>RHRE Web opens RHRE fresh .rhref files and plays and edits them with the same rules as the desktop version. Sound effects are loaded from the same database as RHRE fresh, only the ones you use.</p>
@@ -1494,11 +1505,22 @@
       <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
       <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
+    <p><b>Edit together</b></p>
+    <ul>
+      <li>"Edit together" in the menu lets you edit the same remix with friends and others (up to 10 people). Choose a name, then "Create a room" or "Join a room".</li>
+      <li>Friends-only room: only people who know the 6-character room code can join. Use "Send the room code" to share it.</li>
+      <li>Public room: anyone can "Ask to join" from the list, and only the people the host lets in can join.</li>
+      <li>The room's song goes directly between the devices in the room. A song you receive disappears when you leave the room and is not included in .rhref files you save. If it doesn't arrive, choose the same song yourself.</li>
+      <li>Blocks others have selected show a dotted outline in their color with their name. Undo only undoes your own changes. Image block pictures and custom sounds are not sent.</li>
+      <li>The host can use "Play together" (starts playback on everyone's device at the same time), remove people, and close the room to new people.</li>
+      <li>A room disappears 2 minutes after everyone leaves, or after 2 hours with no activity.</li>
+    </ul>
     <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
     <p>Not available yet: pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
     <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
     <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
     <p class="note">To count how many people have RHRE Web open, the app connects to a Cloudflare server while it is open. It sends only a random number for each device, never your name.</p>
+    <p class="note">"Edit together" sends the room's remix and the name you chose to a Cloudflare server. They are deleted 2 minutes after everyone leaves. The song never goes through the server: it is sent directly between the devices in the room, so others may be able to tell your rough area and internet provider.</p>
     </div>
     <div id="helpX" hidden></div>
     <p id="helpDiag" style="color:#9a9a9a;font-size:12px"></p>
@@ -1513,7 +1535,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=110"></script>
+<script type="module" src="js/app.js?v=111"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>
