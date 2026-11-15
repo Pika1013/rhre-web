@@ -12,6 +12,9 @@ import { GAME_NAMES_JA } from './gamenames.js?v=1';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=3';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 
+// みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
+const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
+
 const VERSION = '1.14.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
@@ -803,11 +806,7 @@ function buildTabs() {
     b.addEventListener('click', () => { $('search').value = ''; currentTab = key; renderGrid(); });
     tabs.appendChild(b);
   }
-  $('search').addEventListener('input', () => {
-    // 試し版の「みんなで編集」を出す合図（ホーム画面のアプリには ?collab を付けられないので）
-    if ($('search').value.trim().toLowerCase() === '#collab') { $('search').value = ''; enableCollab(); }
-    renderGrid();
-  });
+  $('search').addEventListener('input', () => renderGrid());
 }
 
 function usedGames() {
@@ -3571,6 +3570,15 @@ function renderGate() {
   $('gateInstall').textContent = L.aInstall;
   if (!$('gateAndroidNote').dataset.done) $('gateAndroidNote').textContent = L.aNote;
   $('gateLang').value = l;
+  // みんなで編集のリンクから来た人：アプリを開いたあとで入れる合言葉を見せる（ホーム画面のアプリには URL の続きが渡らないため）
+  const gr = $('gateRoom');
+  gr.hidden = !LINK_ROOM;
+  if (LINK_ROOM) {
+    gr.textContent = '';
+    const b = document.createElement('b');
+    b.textContent = t('部屋の合言葉：{code}', { code: LINK_ROOM });
+    gr.append(b, document.createElement('br'), t('アプリを開いたら、メニューの「みんなで編集」→「部屋に入る」で、この合言葉を入れてください。'));
+  }
 }
 // 言語を増やしたら上げる。前の版で言語を選んだ人にも、もう一度選んでもらう（「言語が増えました！」）
 const LANG_PICK_VER = 2;
@@ -4503,29 +4511,13 @@ buildTabs();
 updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
-// ---------------------------------------------------------------- みんなで編集（試し版：URL に ?collab か ?room= を付けたときだけ）
+// ---------------------------------------------------------------- みんなで編集（メニューの「みんなで編集」。v1.15.0）
 // 部屋のサーバー（server/room）を通して、ブロック・テンポなどの変更を部屋の全員に配る（js/room.js）。
 // 曲は端末どうしで直接送る（js/songshare.js。サーバーは通らない）。再生開始の緑の旗は、それぞれの好きな所。
 // 同じブロックを同時に変えたときは、サーバーにあとから届いたほうが勝つ。元に戻す・やり直すは自分の操作だけ。
 // 入る前の自分のリミックスは、端末に取っておき（remixBeforeRoom）、抜けるときに戻すか選べる。
 const ROOM_URL = (['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('roomserver')) // 手元で試すとき
   || 'wss://rhre-web-room.pika1013.workers.dev/ws';
-// 試し版：URL の ?collab・?room=、または検索の欄に「#collab」で出す（この端末に覚える）
-let COLLAB = (() => {
-  const q = new URLSearchParams(location.search);
-  const on = q.has('collab') || q.has('room');
-  try {
-    if (on) localStorage.setItem('rhre-collab', '1');
-    return localStorage.getItem('rhre-collab') === '1';
-  } catch (_) { return on; }
-})();
-if (COLLAB) $('menuRoom').hidden = false;
-function enableCollab() {
-  COLLAB = true;
-  try { localStorage.setItem('rhre-collab', '1'); } catch (_) { /* 使えない */ }
-  $('menuRoom').hidden = false;
-  toast(t('試し版の「みんなで編集」を、メニューに出しました'), 4000, 'info');
-}
 
 const room = {
   client: null,
@@ -5169,7 +5161,6 @@ function roomProgressUi() {
 
 // URL の ?room=合言葉 で開いたとき・読み込み直したときに、部屋に入る
 function maybeJoinRoom() {
-  if (!COLLAB) return;
   const q = new URLSearchParams(location.search);
   const code = cleanRoomCode(q.get('room'));
   if (q.has('room')) {
