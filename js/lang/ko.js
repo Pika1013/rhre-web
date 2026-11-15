@@ -236,6 +236,24 @@ export default {
     "Image": "이미지",
     "Shake": "화면 흔들림",
     "<no texture>": "<이미지 없음>",
+    // 部屋を作った人だけができること・お願い（v1.16.0）
+    "Open a file (replaces the room's remix)": "파일 열기(방의 리믹스가 바뀌어요)",
+    "Open the sample (replaces the room's remix)": "샘플 열기(방의 리믹스가 바뀌어요)",
+    "New (empties the room's remix)": "새로 만들기(방의 리믹스가 비어요)",
+    "Change the number of tracks": "트랙 수 바꾸기",
+    "Replace the room's remix": "방의 리믹스 바꾸기",
+    "The room's remix will be replaced for everyone. Continue?": "모두의 방 리믹스가 바뀌어요. 괜찮을까요?",
+    "Replace": "바꾸기",
+    "The host's permission is needed": "방장의 허락이 필요해요",
+    "Only the host can do \"{action}\". Ask the host for permission?": "\"{action}\"은(는) 방장만 할 수 있어요. 방장에게 허락을 요청할까요?",
+    "Ask": "요청하기",
+    "Asked the host for permission": "방장에게 허락을 요청했어요",
+    "The host declined": "방장이 거절했어요",
+    "Permission granted. Press \"Open\" again.": "허락받았어요. \"열기\"를 한 번 더 누르세요.",
+    "Permission granted": "허락받았어요",
+    "{name} replaced the remix": "{name} 님이 리믹스를 바꿨어요",
+    "{name} wants to do: {action}": "{name} 님이 \"{action}\"을(를) 하고 싶어 해요",
+    "Allow": "허락하기",
     // 部屋の名前（v1.15.2）
     "Room name": "방 이름",
     "Room name (up to 20 characters)": "방 이름(최대 20자)",
@@ -691,6 +709,7 @@ export default {
   <li>방의 곡은 방에 있는 사람들의 기기끼리 직접 보내요. 받은 곡은 방에서 나가면 사라지고, 저장하는 .rhref에도 들어가지 않아요. 도착하지 않으면 같은 곡을 직접 골라 주세요</li>
   <li>다른 사람이 선택한 블록에는 그 사람 색의 점선과 이름이 나와요. 실행 취소는 내 조작만 되돌려요. 이미지 블록의 그림과 커스텀 효과음은 보내지 않아요</li>
   <li>방장은 방 이름 붙이기(목록에도 나와요), "함께 재생"(모든 기기에서 동시에 재생), 사람 내보내기, 닫기(새로운 사람 받지 않기)를 할 수 있어요</li>
+  <li>열기·샘플 열기·새로 만들기(모두의 방 리믹스가 바뀌어요), 방의 곡 정하기, 트랙 수·위아래 뒤집기는 방장만 할 수 있어요. 다른 사람이 누르면 방장에게 허락을 요청할 수 있어요</li>
   <li>모두 나가면 2분 뒤에, 아무도 아무것도 하지 않는 시간이 2시간 이어지면 방이 없어져요</li>
 </ul>
 <p><b>설정(톱니바퀴)</b>: 왼쪽 메뉴에서 항목을 골라요. "언어"(화면 언어·게임 이름·미니게임 언어), "외관"(테마 색·배경 이미지), "편집 화면"(메트로놈의 Play-Yan), "플레이얼롱"(타이밍 조정). 트랙 수·튜토리얼·"리믹스 만들어 보기"는 메뉴(≡)에 있어요.</p>

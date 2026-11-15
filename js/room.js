@@ -1,7 +1,7 @@
 // みんなで編集：部屋のサーバー（server/room）とのやり取り。つなぐ・つなぎ直す・送る。
 // 画面やリミックスのことは知らない（app.js が handlers で受け取る）。
 //  handlers：hello(you, back, song, room) ／ state(msg) ／ seeded() ／ ops(msg, mine) ／ sel(id, uids) ／ members(list) ／ song(info) ／ sig(from, data)
-//            waiting() ／ knock(id, nick) ／ room(info) ／ play(msg) ／ stop() ／ err(code) ／ drop()
+//            waiting() ／ knock(id, nick) ／ room(info) ／ play(msg) ／ stop() ／ ask(id, nick, kind) ／ grant(kind, ok) ／ remix(id, nick) ／ err(code) ／ drop()
 
 // 合言葉に使う文字（見分けにくい I・O・0・1 は使わない。サーバーと同じ）
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -108,6 +108,9 @@ export class RoomClient {
       case 'room': this.h.room?.(m.room || {}); break;
       case 'play': this.h.play?.(m); break;
       case 'stop': this.h.stop?.(); break;
+      case 'ask': this.h.ask?.(m.id, m.nick || '', m.kind); break;
+      case 'grant': this.h.grant?.(m.kind, !!m.ok); break;
+      case 'remix': this.h.remix?.(m.id, m.nick || ''); break;
       case 'time': {
         // 時計合わせ：行って帰ってくるのが一番速かったときの値を使う
         const now = Date.now();
@@ -163,6 +166,17 @@ export class RoomClient {
   lock(on) { this.send({ t: 'lock', on: !!on }); }
   info(icons) { this.send({ t: 'info', icons }); }
   title(title) { this.send({ t: 'title', title }); }
+  grant(id, kind, ok) { this.send({ t: 'grant', id, kind, ok: !!ok }); }
+
+  // 部屋を作った人だけができることを、部屋を作った人にお願いする
+  ask(kind) { this.send({ t: 'ask', kind }); }
+
+  // 部屋のリミックスを丸ごと入れ替える（多いときは分ける）
+  replace(ops) {
+    for (let i = 0; i < Math.max(1, ops.length); i += OPS_PER_MSG) {
+      this.send({ t: 'replace', ops: ops.slice(i, i + OPS_PER_MSG), first: i === 0, last: i + OPS_PER_MSG >= ops.length });
+    }
+  }
   play(beat, at) { this.send({ t: 'play', beat, at }); }
   stop() { this.send({ t: 'stop' }); }
 

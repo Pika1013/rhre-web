@@ -4,6 +4,44 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.16.0', date: '2026-11-15',
+    ja: [
+      '「みんなで編集」の部屋では、開く・サンプル・新規作成、部屋の曲を決める、トラックの数・上下反転は、部屋を作った人だけができるようになりました',
+      'ほかの人が押すと、部屋を作った人に許可をお願いできます。許可されると、その操作ができます',
+      '部屋を作った人（または許可された人）がファイルを開くと、部屋のリミックスが全員の分入れ替わります',
+    ],
+    en: [
+      'In "Edit together" rooms, open, open sample and new, choosing the room\'s song, the number of tracks and flipping tracks can now only be done by the host.',
+      'If someone else presses them, they can ask the host for permission. Once allowed, they can do it.',
+      'When the host (or someone allowed) opens a file, the room\'s remix is replaced for everyone.',
+    ],
+    'zh-Hant': [
+      '「一起編輯」的房間中，開啟、開啟範例、新建、決定房間的歌曲、音軌數量、上下翻轉音軌，現在只有房主能做。',
+      '其他人按下時，可以向房主請求許可。獲得許可後就能進行。',
+      '房主（或獲得許可的人）開啟檔案時，房間的混音會替所有人替換。',
+    ],
+    ko: [
+      '"함께 편집" 방에서는 열기·샘플 열기·새로 만들기, 방의 곡 정하기, 트랙 수·위아래 뒤집기를 방장만 할 수 있게 되었어요.',
+      '다른 사람이 누르면 방장에게 허락을 요청할 수 있어요. 허락받으면 할 수 있어요.',
+      '방장(또는 허락받은 사람)이 파일을 열면 모두의 방 리믹스가 바뀌어요.',
+    ],
+    es: [
+      'En las salas de "Editar juntos", abrir, abrir el ejemplo y nuevo, elegir la canción de la sala, el número de pistas e invertir pistas ahora solo los puede hacer el anfitrión.',
+      'Si otra persona los pulsa, puede pedirle permiso al anfitrión. Si se lo concede, puede hacerlo.',
+      'Cuando el anfitrión (o alguien con permiso) abre un archivo, el remix de la sala se reemplaza para todos.',
+    ],
+    fr: [
+      "Dans les salons « Éditer ensemble », ouvrir, ouvrir l'exemple et nouveau, choisir la chanson du salon, le nombre de pistes et inverser les pistes ne peuvent maintenant être faits que par l'hôte.",
+      "Si quelqu'un d'autre appuie dessus, il peut demander l'autorisation à l'hôte. Une fois autorisé, il peut le faire.",
+      "Quand l'hôte (ou une personne autorisée) ouvre un fichier, le remix du salon est remplacé pour tout le monde.",
+    ],
+    de: [
+      'In Räumen von „Gemeinsam bearbeiten“ können Öffnen, Beispiel öffnen und Neu, das Lied des Raums wählen, die Anzahl der Spuren und das Umdrehen der Spuren jetzt nur noch vom Gastgeber gemacht werden.',
+      'Wenn jemand anderes darauf drückt, kann er den Gastgeber um Erlaubnis bitten. Mit Erlaubnis kann er es tun.',
+      'Wenn der Gastgeber (oder jemand mit Erlaubnis) eine Datei öffnet, wird der Remix des Raums für alle ersetzt.',
+    ],
+  },
+  {
     v: '1.15.2', date: '2026-11-15',
     ja: ['「みんなで編集」で、部屋を作った人が部屋の名前を付けられるようになりました（20 文字まで）。名前は部屋の画面・下の段の札・公開の部屋の一覧に出ます'],
     en: ['In "Edit together", the host can now name the room (up to 20 characters). The name shows in the room window, on the badge at the bottom and in the public room list.'],

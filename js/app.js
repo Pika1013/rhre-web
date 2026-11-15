@@ -2,20 +2,20 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=51';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=52';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=38';
+import { CHANGELOG } from './changelog.js?v=39';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
-import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=4';
+import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=5';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.15.2';
+const VERSION = '1.16.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1197,7 +1197,9 @@ function loadStatusText(msg) {
   return m ? t('ミニゲームの定義を読み込み中 {d}/{n}（{g}）', { d: m[1], n: m[2], g: m[3] }) : t(msg);
 }
 async function withLoading(name, job, bytes, { roomJob = false } = {}) {
-  if (room.active && !roomJob) { toast(t('部屋にいる間は、ほかのリミックスを開けません。先に「みんなで編集」から部屋を抜けてください。'), 4000, 'info'); return; }
+  const replacing = room.active && !roomJob;
+  if (replacing && !(room.allowLoad > Date.now())) { toast(t('部屋にいる間は、ほかのリミックスを開けません。先に「みんなで編集」から部屋を抜けてください。'), 4000, 'info'); return; }
+  room.allowLoad = 0;
   stopPlayback();
   loading = true;
   updateButtons();
@@ -1206,6 +1208,8 @@ async function withLoading(name, job, bytes, { roomJob = false } = {}) {
     await job((msg, f) => showLoading(name, loadStatusText(msg), f * 0.25));
     scheduleAutosave();
     saveMusicToStore();
+    // 部屋にいるとき：開いたリミックスを、部屋のリミックスとして全員に送る
+    if (replacing && room.active && remix) roomReplaceRemix();
   } catch (e) {
     console.error(e);
     showErrorBox(t('開けませんでした'), loadErrorCause(e, bytes), e, () => { if (!remix) newRemix(); });
@@ -1719,10 +1723,15 @@ requestAnimationFrame(frame);
 function doAction(act) {
   switch (act) {
     case 'new':
+      if (room.active) { roomNeedHost('new', () => { roomAllowLoad(); newRemix(); }); break; }
       confirmBox(t('新規作成'), t('今のリミックスを閉じて、新しく始めますか？保存していない変更は消えます（自動保存も新しい方に変わります）。'), t('新規作成'), () => newRemix());
       break;
-    case 'open': $('fileInput').click(); break;
+    case 'open':
+      if (room.active) { roomNeedHost('open', () => { roomAllowLoad(); $('fileInput').click(); }, { gesture: true }); break; }
+      $('fileInput').click();
+      break;
     case 'sample':
+      if (room.active) { roomNeedHost('sample', () => { roomAllowLoad(); openSample(); }); break; }
       confirmBox(t('サンプルを開く'), t('今のリミックスを閉じて、サンプルを開きますか？保存していない変更は消えます。'), t('開く'), () => openSample());
       break;
     case 'save': openSave(); break;
@@ -1740,14 +1749,14 @@ function doAction(act) {
       break;
     case 'help': openHelp(); break;
     case 'news': openNews(newsSince); break;
-    case 'tracks': openTracks(); break;
+    case 'tracks': roomNeedHost('tracks', openTracks); break;
     case 'flipTracks':
       // v1.9.7 までの RHRE Web はトラックを上から数えていたので、そのころ作ったリミックスは上下が逆に見える。ワンタップで直せるように
-      confirmBox(t('トラックの上下を反転'), t('すべてのブロックの段を、上下ひっくり返しますか？ RHRE Web v1.9.7 までに作ったリミックスは、上下が逆に見えます（RHRE fresh と向きをそろえたため）。元に戻すボタンで戻せます。'), t('反転する'), () => {
+      roomNeedHost('flip', () => confirmBox(t('トラックの上下を反転'), t('すべてのブロックの段を、上下ひっくり返しますか？ RHRE Web v1.9.7 までに作ったリミックスは、上下が逆に見えます（RHRE fresh と向きをそろえたため）。元に戻すボタンで戻せます。'), t('反転する'), () => {
         if (edit(() => { for (const e of remix.entities) e.track = remix.trackCount - e.track - e.height; })) {
           toast(t('トラックの上下を反転しました'), 2500, 'info');
         }
-      });
+      }));
       break;
     case 'present': startPresentation(); break;
     case 'room': openRoomModal(); break;
@@ -2282,6 +2291,7 @@ window.addEventListener('drop', async (e) => {
   if (!f) return;
   const ab = await f.arrayBuffer();
   if (await isCustomSoundZip(ab, f.name)) { importCustomZip(f); return; }
+  if (room.active) { roomNeedHost('open', () => { roomAllowLoad(); openBuffer(ab, f.name); }); return; }
   openBuffer(ab, f.name);
 });
 // 落としたフォルダの中のファイルを全部（[{ path, read }]。path はフォルダの名前から）
@@ -4604,6 +4614,10 @@ const room = {
   uiAt: 0,
   // 第 3 段階：公開の部屋・入りたい人・みんなで再生
   info: { public: false, num: 0, locked: false, title: '' },
+  asks: [], // 部屋を作った人だけができることのお願い（部屋を作った人の画面に出す）[{ id, nick, kind, at }]
+  grants: {}, // 許可されたこと（種類 → 期限）
+  pendingRun: null, // 許可されたら続ける操作 { kind, go, gesture }
+  allowLoad: 0, // この時刻までは、部屋にいてもファイルを開ける（許可された・部屋を作った人）
   titleDraft: null, // 部屋の名前の欄に入れかけの文字（画面を描き直しても消えないように）
   titleFocus: false,
   isPublic: false,
@@ -4749,6 +4763,49 @@ function roomSendIcons() {
   room.client?.info(icons);
 }
 
+// ---- 部屋を作った人だけができること：ファイルを開く・サンプル・新規作成（部屋のリミックスが全員分入れ替わる）・部屋の曲を決める・トラックの数・上下反転。
+// ほかの人が押すと、部屋を作った人に許可をお願いできる。許可されたら 2 分間できる（サーバーでも確かめる）
+const ASK_LABEL = {
+  open: 'ファイルを開く（部屋のリミックスが入れ替わります）',
+  sample: 'サンプルを開く（部屋のリミックスが入れ替わります）',
+  new: '新規作成（部屋のリミックスが空になります）',
+  song: '自分の曲を部屋の曲にする',
+  tracks: 'トラックの数を変える',
+  flip: 'トラックの上下を反転',
+};
+const REPLACE_KINDS = ['open', 'sample', 'new'];
+function roomNeedHost(kind, run, { gesture = false } = {}) {
+  if (!room.active) { run(); return; }
+  // 部屋のリミックスが入れ替わるものは、一度確かめてから
+  const go = () => {
+    if (REPLACE_KINDS.includes(kind)) confirmBox(t('部屋のリミックスを入れ替える'), t('部屋のリミックスが、全員の分入れ替わります。よろしいですか？'), t('入れ替える'), run);
+    else run();
+  };
+  if (room.you?.host) { go(); return; }
+  // 許可されていれば 1 回だけできる
+  if ((room.grants[kind] || 0) > Date.now()) { delete room.grants[kind]; go(); return; }
+  confirmBox(t('部屋を作った人の許可が要ります'), t('「{action}」は、部屋を作った人だけができます。部屋を作った人に許可をお願いしますか？', { action: t(ASK_LABEL[kind]) }), t('お願いする'), () => {
+    room.pendingRun = { kind, go, gesture };
+    room.client?.ask(kind);
+    toast(t('部屋を作った人に許可をお願いしました'), 3000, 'info');
+  });
+}
+// 部屋にいても、このあと 2 分はファイルを開ける（部屋を作った人・許可された人）
+function roomAllowLoad() { room.allowLoad = Date.now() + 120000; }
+
+// 開いたリミックスを、部屋のリミックスとして全員に送る（前の中身は消える）。曲が入っていれば、部屋の曲にする
+function roomReplaceRemix() {
+  room.client.unacked = [];
+  room.pend.clear();
+  room.parts.clear();
+  room.pendG = 0;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  const ops = [{ k: 'g', v: roomG(remix.roomGlobals()) }, ...remix.entities.map((e) => ({ k: 'put', uid: e.uid, e: remix.entToJSON(e) }))];
+  room.client.replace(ops);
+  if (musicFile && !musicFile.fromRoom) roomShareSong(false);
+}
+
 // ---- みんなで再生：部屋を作った人が押すと、サーバーの時計で 1.5 秒後に全員が同じ所から再生を始める
 function roomPlayTogether() {
   if (!room.active || !room.you?.host || !remix || loading) return;
@@ -4787,8 +4844,26 @@ function renderKnocks() {
   const box = $('knockBox');
   box.textContent = '';
   room.knocks = room.knocks.filter((k) => Date.now() - k.at < 120000);
-  if (!room.knocks.length || !room.you?.host) { box.hidden = true; return; }
+  room.asks = room.asks.filter((a) => Date.now() - a.at < 120000 && room.members.some((m) => m.id === a.id));
+  if ((!room.knocks.length && !room.asks.length) || !room.you?.host) { box.hidden = true; return; }
   box.hidden = false;
+  // ほかの人からのお願い（部屋を作った人だけができること）
+  for (const a of room.asks) {
+    const row = document.createElement('div');
+    row.className = 'knock';
+    const p = document.createElement('span');
+    p.textContent = t('{name}が「{action}」をしたいそうです', { name: a.nick || t('名前なし'), action: t(ASK_LABEL[a.kind]) });
+    const ok = document.createElement('button');
+    ok.className = 'btn primary';
+    ok.textContent = t('許可する');
+    ok.addEventListener('click', () => roomAnswerAsk(a, true));
+    const no = document.createElement('button');
+    no.className = 'btn';
+    no.textContent = t('ことわる');
+    no.addEventListener('click', () => roomAnswerAsk(a, false));
+    row.append(p, ok, no);
+    box.append(row);
+  }
   for (const k of room.knocks) {
     const row = document.createElement('div');
     row.className = 'knock';
@@ -4805,6 +4880,12 @@ function renderKnocks() {
     row.append(p, ok, no);
     box.append(row);
   }
+}
+
+function roomAnswerAsk(a, ok) {
+  room.asks = room.asks.filter((x) => x !== a);
+  room.client?.grant(a.id, a.kind, ok);
+  renderKnocks();
 }
 
 function roomAnswerKnock(k, ok, noticed) {
@@ -4939,6 +5020,38 @@ const roomHandlers = {
     renderRoomUi();
   },
   play(m) { roomStartAt(m.beat, m.at); },
+  // 部屋を作った人へ：ほかの人からのお願い
+  ask(id, nick, kind) {
+    if (!ASK_LABEL[kind]) return;
+    room.asks = room.asks.filter((a) => !(a.id === id && a.kind === kind) && Date.now() - a.at < 120000);
+    room.asks.push({ id, nick, kind, at: Date.now() });
+    renderKnocks();
+  },
+  // お願いした人へ：返事
+  grant(kind, ok) {
+    const p = room.pendingRun?.kind === kind ? room.pendingRun : null;
+    if (!ok) {
+      if (p) room.pendingRun = null;
+      toast(t('部屋を作った人にことわられました'), 3000, 'info');
+      return;
+    }
+    room.grants[kind] = Date.now() + 110000;
+    if (!p) return;
+    room.pendingRun = null;
+    // ファイルを選ぶ画面は、押したときにしか開けない（ブラウザの決まり）ので、もう一度押してもらう
+    if (p.gesture) toast(t('許可されました。もう一度「開く」を押してください'), 5000, 'info');
+    else { delete room.grants[kind]; toast(t('許可されました'), 2000, 'info'); p.go(); }
+  },
+  // だれかが部屋のリミックスを入れ替えた（このあと新しい中身が届く）
+  remix(id, nick) {
+    room.client.unacked = [];
+    room.pend.clear();
+    room.parts.clear();
+    room.pendG = 0;
+    undoStack.length = 0;
+    redoStack.length = 0;
+    toast(t('{name}がリミックスを入れ替えました', { name: nick || t('名前なし') }), 3000, 'info');
+  },
   stop() {
     if (room.together && mode === 'playing') stopPlayback();
     room.together = false;
@@ -4973,6 +5086,7 @@ const roomHandlers = {
     }
     roomUpdatePeers();
     renderRoomUi();
+    renderKnocks(); // 抜けた人のお願いは消す
     roomCheckSong();
   },
   err(code) {
@@ -5102,6 +5216,10 @@ function leaveRoom(reason) {
   room.waiting = false;
   clearTimeout(room.waitTimer);
   room.knocks = [];
+  room.asks = [];
+  room.grants = {};
+  room.pendingRun = null;
+  room.allowLoad = 0;
   room.together = false;
   room.iconsSig = '';
   room.info = { public: false, num: 0, locked: false, title: '' };
@@ -5376,7 +5494,7 @@ function renderRoomUi() {
       r.append(gb);
     }
     const sb = el('button', 'btn', room.song ? t('自分の曲を部屋の曲にする') : t('この曲を部屋の人に送る'));
-    sb.addEventListener('click', () => roomShareSong(false));
+    sb.addEventListener('click', () => roomNeedHost('song', () => roomShareSong(false)));
     r.append(sb);
     sec.append(r);
   }

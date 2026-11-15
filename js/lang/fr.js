@@ -236,6 +236,24 @@ export default {
     "Image": "Image",
     "Shake": "Tremblement",
     "<no texture>": "<aucune image>",
+    // 部屋を作った人だけができること・お願い（v1.16.0）
+    "Open a file (replaces the room's remix)": "Ouvrir un fichier (remplace le remix du salon)",
+    "Open the sample (replaces the room's remix)": "Ouvrir l'exemple (remplace le remix du salon)",
+    "New (empties the room's remix)": "Nouveau (vide le remix du salon)",
+    "Change the number of tracks": "Changer le nombre de pistes",
+    "Replace the room's remix": "Remplacer le remix du salon",
+    "The room's remix will be replaced for everyone. Continue?": "Le remix du salon sera remplacé pour tout le monde. Continuer ?",
+    "Replace": "Remplacer",
+    "The host's permission is needed": "L'autorisation de l'hôte est nécessaire",
+    "Only the host can do \"{action}\". Ask the host for permission?": "Seul l'hôte peut faire « {action} ». Demander l'autorisation à l'hôte ?",
+    "Ask": "Demander",
+    "Asked the host for permission": "Autorisation demandée à l'hôte",
+    "The host declined": "L'hôte a refusé",
+    "Permission granted. Press \"Open\" again.": "Autorisation accordée. Appuyez de nouveau sur « Ouvrir ».",
+    "Permission granted": "Autorisation accordée",
+    "{name} replaced the remix": "{name} a remplacé le remix",
+    "{name} wants to do: {action}": "{name} voudrait : {action}",
+    "Allow": "Autoriser",
     // 部屋の名前（v1.15.2）
     "Room name": "Nom du salon",
     "Room name (up to 20 characters)": "Nom du salon (20 caractères max.)",
@@ -691,6 +709,7 @@ export default {
   <li>La chanson du salon est envoyée directement entre les appareils du salon. Une chanson reçue disparaît quand vous quittez le salon et n'est pas incluse dans les .rhref que vous enregistrez. Si elle n'arrive pas, choisissez vous-même la même chanson.</li>
   <li>Les blocs sélectionnés par les autres affichent un contour pointillé de leur couleur avec leur nom. Annuler n'annule que vos propres modifications. Les images des blocs d'image et les sons personnalisés ne sont pas envoyés.</li>
   <li>L'hôte peut nommer le salon (le nom apparaît aussi dans la liste), utiliser « Lire ensemble » (lance la lecture sur tous les appareils en même temps), retirer des personnes et fermer le salon aux nouveaux.</li>
+  <li>Ouvrir, ouvrir l'exemple et nouveau (ils remplacent le remix du salon pour tout le monde), choisir la chanson du salon, le nombre de pistes et inverser les pistes : seul l'hôte peut le faire. Si quelqu'un d'autre essaie, il peut demander l'autorisation à l'hôte.</li>
   <li>Un salon disparaît 2 minutes après le départ de tout le monde, ou après 2 heures sans activité.</li>
 </ul>
 <p><b>Paramètres (engrenage)</b> : choisissez une section dans le menu de gauche : Langue (langue de l'interface, noms des jeux, langue des mini-jeux), Apparence (couleurs du thème, image de fond), Éditeur (Play-Yan avec le métronome) et Playalong (décalages). Le nombre de pistes, le tutoriel et « Créer un remix » sont dans le menu (≡).</p>

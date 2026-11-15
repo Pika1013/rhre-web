@@ -16,8 +16,10 @@
 // やり取り（どれも JSON）
 //  届く： seed（部屋を作った人が最初のリミックスを送る。多いときは何回かに分ける）／ ops（変更）／ sel（選んでいるブロック）／ nick（名前）
 //        song（部屋の曲の名前・大きさ・目印。曲そのものは送らない）／ have（その曲を持っている）／ sig（端末どうしを直接つなぐための紹介。相手に渡すだけ）
-//        time（時計合わせ）／ 部屋を作った人だけ：admit・deny（入れる・ことわる）／ kick（外す）／ lock（締める）／ play・stop（みんなで再生）／ info（一覧に出すゲーム）／ title（部屋の名前）
+//        time（時計合わせ）／ ask（部屋を作った人だけができることのお願い）／ replace（部屋のリミックスを丸ごと入れ替える。部屋を作った人か、許可された人）
+//        部屋を作った人だけ：admit・deny（入れる・ことわる）／ grant（お願いへの返事）／ kick（外す）／ lock（締める）／ play・stop（みんなで再生）／ info（一覧に出すゲーム）／ title（部屋の名前）
 //  送る： hello（あなたの番号と色・部屋の様子・部屋の曲の情報）／ waiting（返事待ち）／ knock（入りたい人。部屋を作った人へ）／ room（部屋の様子）
+//        ask（お願い。部屋を作った人へ）／ grant（お願いへの返事。お願いした人へ）／ remix（だれかがリミックスを入れ替えた。このあと state が届く）
 //        state（部屋のリミックス。ents は { uid, e } の並び。何回かに分ける）／ seeded ／ ops ／ sel ／ members（いる人）／ song ／ sig ／ time ／ play ／ stop ／ err（入れない理由）
 //  ops の中身：{ k: 'put', uid, e }（ブロックを置く・変える）／ { k: 'del', uid }（消す）／ { k: 'g', v }（テンポ・拍子などをまとめて）
 import { DurableObject } from 'cloudflare:workers';
@@ -41,6 +43,9 @@ const MAX_OPS = 2000;
 const STATE_CHUNK = 400;
 const MAX_SIG = 64_000;
 const HASH_RE = /^[0-9a-f]{16,64}$/;
+// 部屋を作った人だけができること。ほかの人は「お願い」を送り、許可されたら 2 分間だけできる
+const ASK_KINDS = ['open', 'sample', 'new', 'song', 'tracks', 'flip'];
+const GRANT_MS = 120_000;
 
 const cleanNick = (s) => String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 16);
 const cleanTitle = (s) => [...String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim()].slice(0, 20).join(''); // 部屋の名前（20 文字まで）
@@ -266,6 +271,40 @@ export class Room extends DurableObject {
     if (m.t !== 'time') this.touch();
 
     if (m.t === 'time') { this.send(ws, { t: 'time', c: m.c, s: Date.now() }); return; }
+    // 部屋を作った人か、その操作を許可されている（2 分以内）か
+    const granted = (...kinds) => a.host || kinds.some((k) => (a.grants?.[k] || 0) > Date.now());
+
+    if (m.t === 'ask') {
+      // 部屋を作った人だけができることを、ほかの人がしたいとき：部屋を作った人にお願いを渡す
+      if (a.host || !ASK_KINDS.includes(m.kind)) return;
+      const h = this.host();
+      if (h) this.send(h.ws, { t: 'ask', id: a.id, nick: a.nick, kind: m.kind });
+      return;
+    }
+    if (m.t === 'replace') {
+      // 部屋のリミックスを丸ごと入れ替える（ファイルを開く・サンプル・新規作成）。多いときは何回かに分けて届く
+      if (meta.seeding || !granted('open', 'sample', 'new') || !Array.isArray(m.ops) || m.ops.length > MAX_OPS) return;
+      if (m.first) {
+        const keys = [...(await this.ctx.storage.list({ prefix: 'e:' })).keys()];
+        for (let i = 0; i < keys.length; i += 128) await this.ctx.storage.delete(keys.slice(i, i + 128));
+      }
+      await this.applyOps(m.ops);
+      if (m.last) {
+        // 許可は 1 回で終わり（開いたファイルの曲を部屋の曲にする分だけ、続けて 2 分）
+        if (!a.host) {
+          a.grants = { song: Date.now() + GRANT_MS };
+          ws.serializeAttachment(a);
+        }
+        meta.seq++;
+        await this.ctx.storage.put('meta', meta);
+        // ほかの人には「入れ替わった」と知らせてから、新しい中身を送る
+        for (const x of this.members(ws)) {
+          this.send(x.ws, { t: 'remix', id: a.id, nick: a.nick });
+          await this.sendState(x.ws, meta);
+        }
+      }
+      return;
+    }
 
     if (m.t === 'seed') {
       // 部屋を作った人が、最初のリミックスを送ってくる
@@ -302,12 +341,15 @@ export class Room extends DurableObject {
       return;
     }
     if (m.t === 'song') {
-      // 部屋の曲の情報だけ（名前・形式・大きさ・目印）
+      // 部屋の曲の情報だけ（名前・形式・大きさ・目印）。決められるのは部屋を作った人と、許可された人
+      if (!granted('song', 'open', 'sample')) return;
       const s = m.song;
       if (!s || !HASH_RE.test(s.hash || '') || !(s.size > 0)) return;
       const song = { hash: s.hash, name: String(s.name || '').slice(0, 120), ext: String(s.ext || '').replace(/[^a-z0-9]/gi, '').slice(0, 8), size: Math.floor(s.size), by: a.id };
       await this.ctx.storage.put('song', song);
       a.has = song.hash;
+      // 許可は 1 回で終わり
+      if (!a.host && a.grants) { delete a.grants.song; delete a.grants.open; delete a.grants.sample; }
       ws.serializeAttachment(a);
       this.broadcast({ t: 'song', song });
       this.sendMembers();
@@ -334,6 +376,17 @@ export class Room extends DurableObject {
       if (m.t === 'deny') { this.send(w.ws, { t: 'err', code: 'denied' }); try { w.ws.close(4000, 'denied'); } catch (_) { /* もう閉じている */ } return; }
       if (meta.locked || this.members().length >= MAX_MEMBERS) { this.send(w.ws, { t: 'err', code: meta.locked ? 'locked' : 'full' }); try { w.ws.close(4000, 'full'); } catch (_) { /* もう閉じている */ } return; }
       await this.admitSocket(w.ws, w.a, meta);
+      return;
+    }
+    if (m.t === 'grant') {
+      // お願いへの返事：許可したら、その人はその操作を 2 分間できる
+      const x = this.members(ws).find((y) => y.a.id === m.id);
+      if (!x || !ASK_KINDS.includes(m.kind)) return;
+      if (m.ok) {
+        x.a.grants = { ...(x.a.grants || {}), [m.kind]: Date.now() + GRANT_MS };
+        x.ws.serializeAttachment(x.a);
+      }
+      this.send(x.ws, { t: 'grant', kind: m.kind, ok: !!m.ok });
       return;
     }
     if (m.t === 'kick') {

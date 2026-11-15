@@ -263,6 +263,24 @@ const EN = {
   // 特殊
   'トラックの数は 5〜10 です': 'Tracks: 5 to 10', 'はみ出すブロックがあるので、トラックを減らせません': "Can't remove tracks: some blocks would be cut off",
   // みんなで編集
+  // 部屋を作った人だけができること・お願い（v1.16.0）
+  'ファイルを開く（部屋のリミックスが入れ替わります）': "Open a file (replaces the room's remix)",
+  'サンプルを開く（部屋のリミックスが入れ替わります）': "Open the sample (replaces the room's remix)",
+  '新規作成（部屋のリミックスが空になります）': "New (empties the room's remix)",
+  'トラックの数を変える': "Change the number of tracks",
+  '部屋のリミックスを入れ替える': "Replace the room's remix",
+  '部屋のリミックスが、全員の分入れ替わります。よろしいですか？': "The room's remix will be replaced for everyone. Continue?",
+  '入れ替える': "Replace",
+  '部屋を作った人の許可が要ります': "The host's permission is needed",
+  '「{action}」は、部屋を作った人だけができます。部屋を作った人に許可をお願いしますか？': "Only the host can do \"{action}\". Ask the host for permission?",
+  'お願いする': "Ask",
+  '部屋を作った人に許可をお願いしました': "Asked the host for permission",
+  '部屋を作った人にことわられました': "The host declined",
+  '許可されました。もう一度「開く」を押してください': "Permission granted. Press \"Open\" again.",
+  '許可されました': "Permission granted",
+  '{name}がリミックスを入れ替えました': "{name} replaced the remix",
+  '{name}が「{action}」をしたいそうです': "{name} wants to do: {action}",
+  '許可する': "Allow",
   // 部屋の名前（v1.15.2）
   '部屋の名前': 'Room name', '部屋の名前（20 文字まで）': 'Room name (up to 20 characters)', '変える': 'Change', '名前を付ける': 'Set name',
   '{title}・{n} 人': '{title} · {n}', '部屋の名前を変えました': 'Room name changed', '部屋の名前が「{name}」になりました': 'The room is now called "{name}"',
@@ -319,11 +337,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 5 },
-  { code: 'ko', name: '한국어', v: 5 },
-  { code: 'es', name: 'Español', v: 5 },
-  { code: 'fr', name: 'Français', v: 5 },
-  { code: 'de', name: 'Deutsch', v: 5 },
+  { code: 'zh-Hant', name: '繁體中文', v: 6 },
+  { code: 'ko', name: '한국어', v: 6 },
+  { code: 'es', name: 'Español', v: 6 },
+  { code: 'fr', name: 'Français', v: 6 },
+  { code: 'de', name: 'Deutsch', v: 6 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);

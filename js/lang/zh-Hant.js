@@ -236,6 +236,24 @@ export default {
     "Image": "圖片",
     "Shake": "畫面震動",
     "<no texture>": "<沒有圖片>",
+    // 部屋を作った人だけができること・お願い（v1.16.0）
+    "Open a file (replaces the room's remix)": "開啟檔案（房間的混音會被替換）",
+    "Open the sample (replaces the room's remix)": "開啟範例（房間的混音會被替換）",
+    "New (empties the room's remix)": "新建（房間的混音會變成空的）",
+    "Change the number of tracks": "更改音軌數量",
+    "Replace the room's remix": "替換房間的混音",
+    "The room's remix will be replaced for everyone. Continue?": "房間的混音會替所有人換掉。確定嗎？",
+    "Replace": "替換",
+    "The host's permission is needed": "需要房主的許可",
+    "Only the host can do \"{action}\". Ask the host for permission?": "只有房主能進行「{action}」。要向房主請求許可嗎？",
+    "Ask": "請求",
+    "Asked the host for permission": "已向房主請求許可",
+    "The host declined": "房主拒絕了",
+    "Permission granted. Press \"Open\" again.": "已獲得許可。請再按一次「開啟」。",
+    "Permission granted": "已獲得許可",
+    "{name} replaced the remix": "{name} 替換了混音",
+    "{name} wants to do: {action}": "{name} 想要進行「{action}」",
+    "Allow": "允許",
     // 部屋の名前（v1.15.2）
     "Room name": "房間名稱",
     "Room name (up to 20 characters)": "房間名稱（最多 20 個字）",
@@ -691,6 +709,7 @@ export default {
   <li>房間的歌曲會在房間裡的人的裝置之間直接傳送。收到的歌曲在離開房間後會消失，也不會放進儲存的 .rhref。沒有送達時，請自己選擇同一首歌</li>
   <li>其他人選取的方塊會顯示那個人顏色的虛線框和名字。「復原」只會復原自己的操作。圖片方塊的圖和自訂音效不會傳送</li>
   <li>房主可以為房間取名（清單中也會顯示）、使用「一起播放」（所有人的裝置同時播放）、移出別人、關閉（不再讓新的人加入）</li>
+  <li>開啟、開啟範例、新建（會替所有人替換房間的混音）、決定房間的歌曲、音軌數量、上下翻轉音軌，只有房主能做。其他人按下時，可以向房主請求許可</li>
   <li>所有人都離開 2 分鐘後，或 2 小時沒有任何操作時，房間就會消失</li>
 </ul>
 <p><b>設定（齒輪）</b>：在左邊的選單選擇項目：「語言」（介面語言、遊戲名稱、小遊戲語言）、「外觀」（主題顏色、背景圖片）、「編輯畫面」（節拍器的 Play-Yan）、「Playalong」（時機調整）。音軌數、教學、「動手做混音」在選單（≡）裡。</p>

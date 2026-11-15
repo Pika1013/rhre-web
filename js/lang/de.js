@@ -236,6 +236,24 @@ export default {
     "Image": "Bild",
     "Shake": "Wackeln",
     "<no texture>": "<kein Bild>",
+    // 部屋を作った人だけができること・お願い（v1.16.0）
+    "Open a file (replaces the room's remix)": "Datei öffnen (ersetzt den Remix des Raums)",
+    "Open the sample (replaces the room's remix)": "Beispiel öffnen (ersetzt den Remix des Raums)",
+    "New (empties the room's remix)": "Neu (leert den Remix des Raums)",
+    "Change the number of tracks": "Anzahl der Spuren ändern",
+    "Replace the room's remix": "Remix des Raums ersetzen",
+    "The room's remix will be replaced for everyone. Continue?": "Der Remix des Raums wird für alle ersetzt. Fortfahren?",
+    "Replace": "Ersetzen",
+    "The host's permission is needed": "Die Erlaubnis des Gastgebers ist nötig",
+    "Only the host can do \"{action}\". Ask the host for permission?": "Nur der Gastgeber kann „{action}“. Den Gastgeber um Erlaubnis bitten?",
+    "Ask": "Bitten",
+    "Asked the host for permission": "Gastgeber um Erlaubnis gebeten",
+    "The host declined": "Der Gastgeber hat abgelehnt",
+    "Permission granted. Press \"Open\" again.": "Erlaubnis erteilt. Drücke noch einmal „Öffnen“.",
+    "Permission granted": "Erlaubnis erteilt",
+    "{name} replaced the remix": "{name} hat den Remix ersetzt",
+    "{name} wants to do: {action}": "{name} möchte: {action}",
+    "Allow": "Erlauben",
     // 部屋の名前（v1.15.2）
     "Room name": "Raumname",
     "Room name (up to 20 characters)": "Raumname (bis zu 20 Zeichen)",
@@ -691,6 +709,7 @@ export default {
   <li>Das Lied des Raums wird direkt zwischen den Geräten im Raum gesendet. Ein empfangenes Lied verschwindet, wenn du den Raum verlässt, und wird nicht in gespeicherte .rhref-Dateien aufgenommen. Wenn es nicht ankommt, wähle selbst dasselbe Lied.</li>
   <li>Blöcke, die andere ausgewählt haben, zeigen eine gepunktete Umrandung in ihrer Farbe mit ihrem Namen. Rückgängig macht nur deine eigenen Änderungen rückgängig. Bilder von Bildblöcken und eigene Sounds werden nicht gesendet.</li>
   <li>Der Gastgeber kann dem Raum einen Namen geben (er erscheint auch in der Liste), „Gemeinsam abspielen“ (startet die Wiedergabe auf allen Geräten gleichzeitig) nutzen, Leute entfernen und den Raum für Neue schließen.</li>
+  <li>Öffnen, Beispiel öffnen und Neu (ersetzen den Remix des Raums für alle), das Lied des Raums wählen, die Anzahl der Spuren und das Umdrehen der Spuren kann nur der Gastgeber. Wenn jemand anderes es versucht, kann er den Gastgeber um Erlaubnis bitten.</li>
   <li>Ein Raum verschwindet 2 Minuten, nachdem alle gegangen sind, oder nach 2 Stunden ohne Aktivität.</li>
 </ul>
 <p><b>Einstellungen (Zahnrad)</b>: wähle links im Menü einen Bereich: Sprache (Sprache der Oberfläche, Spielnamen, Sprache der Minispiele), Darstellung (Designfarben, Hintergrundbild), Editor (Play-Yan mit dem Metronom) und Playalong (Timing-Ausgleich). Spuranzahl, Tutorial und „Einen Remix machen“ findest du im Menü (≡).</p>

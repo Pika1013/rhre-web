@@ -236,6 +236,24 @@ export default {
     "Image": "Imagen",
     "Shake": "Temblor",
     "<no texture>": "<sin imagen>",
+    // 部屋を作った人だけができること・お願い（v1.16.0）
+    "Open a file (replaces the room's remix)": "Abrir un archivo (reemplaza el remix de la sala)",
+    "Open the sample (replaces the room's remix)": "Abrir el ejemplo (reemplaza el remix de la sala)",
+    "New (empties the room's remix)": "Nuevo (vacía el remix de la sala)",
+    "Change the number of tracks": "Cambiar el número de pistas",
+    "Replace the room's remix": "Reemplazar el remix de la sala",
+    "The room's remix will be replaced for everyone. Continue?": "El remix de la sala se reemplazará para todos. ¿Continuar?",
+    "Replace": "Reemplazar",
+    "The host's permission is needed": "Se necesita el permiso del anfitrión",
+    "Only the host can do \"{action}\". Ask the host for permission?": "Solo el anfitrión puede hacer \"{action}\". ¿Pedir permiso al anfitrión?",
+    "Ask": "Pedir",
+    "Asked the host for permission": "Se pidió permiso al anfitrión",
+    "The host declined": "El anfitrión lo rechazó",
+    "Permission granted. Press \"Open\" again.": "Permiso concedido. Pulsa \"Abrir\" otra vez.",
+    "Permission granted": "Permiso concedido",
+    "{name} replaced the remix": "{name} reemplazó el remix",
+    "{name} wants to do: {action}": "{name} quiere hacer: {action}",
+    "Allow": "Permitir",
     // 部屋の名前（v1.15.2）
     "Room name": "Nombre de la sala",
     "Room name (up to 20 characters)": "Nombre de la sala (hasta 20 caracteres)",
@@ -691,6 +709,7 @@ export default {
   <li>La canción de la sala se envía directamente entre los dispositivos de la sala. La canción recibida desaparece al salir de la sala y no se incluye en los .rhref que guardes. Si no llega, elige tú la misma canción.</li>
   <li>Los bloques que otros tienen seleccionados muestran un contorno punteado de su color con su nombre. Deshacer solo deshace tus propios cambios. No se envían las imágenes de los bloques de imagen ni los sonidos personalizados.</li>
   <li>El anfitrión puede poner nombre a la sala (también aparece en la lista), usar "Reproducir juntos" (reproduce en todos los dispositivos a la vez), sacar a gente y cerrar la sala a gente nueva.</li>
+  <li>Abrir, abrir el ejemplo y nuevo (reemplazan el remix de la sala para todos), elegir la canción de la sala, el número de pistas e invertir pistas solo los puede hacer el anfitrión. Si otra persona lo intenta, puede pedirle permiso al anfitrión.</li>
   <li>Una sala desaparece 2 minutos después de que todos salgan, o tras 2 horas sin actividad.</li>
 </ul>
 <p><b>Configuración (engranaje)</b>: elige una sección en el menú de la izquierda: Idioma (idioma de la interfaz, nombres de juegos, idioma de los minijuegos), Apariencia (colores del tema, imagen de fondo), Editor (Play-Yan con el metrónomo) y Playalong (ajustes de tiempo). El número de pistas, el tutorial y "Hacer un remix" están en el menú (≡).</p>
