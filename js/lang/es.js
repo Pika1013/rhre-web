@@ -236,6 +236,14 @@ export default {
     "Image": "Imagen",
     "Shake": "Temblor",
     "<no texture>": "<sin imagen>",
+    // 部屋の名前（v1.15.2）
+    "Room name": "Nombre de la sala",
+    "Room name (up to 20 characters)": "Nombre de la sala (hasta 20 caracteres)",
+    "Change": "Cambiar",
+    "Set name": "Poner nombre",
+    "{title} · {n}": "{title} · {n}",
+    "Room name changed": "Nombre de la sala cambiado",
+    "The room is now called \"{name}\"": "La sala ahora se llama \"{name}\"",
     // 新しい機能のお知らせ（v1.15.1）
     "You can now edit together!": "¡Ya puedes editar juntos!",
     // みんなで編集（v1.15.0）
@@ -682,7 +690,7 @@ export default {
   <li>Sala pública: cualquiera puede "Pedir entrar" desde la lista, y solo entran las personas que el anfitrión deje pasar.</li>
   <li>La canción de la sala se envía directamente entre los dispositivos de la sala. La canción recibida desaparece al salir de la sala y no se incluye en los .rhref que guardes. Si no llega, elige tú la misma canción.</li>
   <li>Los bloques que otros tienen seleccionados muestran un contorno punteado de su color con su nombre. Deshacer solo deshace tus propios cambios. No se envían las imágenes de los bloques de imagen ni los sonidos personalizados.</li>
-  <li>El anfitrión puede usar "Reproducir juntos" (reproduce en todos los dispositivos a la vez), sacar a gente y cerrar la sala a gente nueva.</li>
+  <li>El anfitrión puede poner nombre a la sala (también aparece en la lista), usar "Reproducir juntos" (reproduce en todos los dispositivos a la vez), sacar a gente y cerrar la sala a gente nueva.</li>
   <li>Una sala desaparece 2 minutos después de que todos salgan, o tras 2 horas sin actividad.</li>
 </ul>
 <p><b>Configuración (engranaje)</b>: elige una sección en el menú de la izquierda: Idioma (idioma de la interfaz, nombres de juegos, idioma de los minijuegos), Apariencia (colores del tema, imagen de fondo), Editor (Play-Yan con el metrónomo) y Playalong (ajustes de tiempo). El número de pistas, el tutorial y "Hacer un remix" están en el menú (≡).</p>

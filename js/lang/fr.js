@@ -236,6 +236,14 @@ export default {
     "Image": "Image",
     "Shake": "Tremblement",
     "<no texture>": "<aucune image>",
+    // 部屋の名前（v1.15.2）
+    "Room name": "Nom du salon",
+    "Room name (up to 20 characters)": "Nom du salon (20 caractères max.)",
+    "Change": "Modifier",
+    "Set name": "Nommer",
+    "{title} · {n}": "{title} · {n}",
+    "Room name changed": "Nom du salon modifié",
+    "The room is now called \"{name}\"": "Le salon s'appelle maintenant « {name} »",
     // 新しい機能のお知らせ（v1.15.1）
     "You can now edit together!": "Vous pouvez maintenant éditer ensemble !",
     // みんなで編集（v1.15.0）
@@ -682,7 +690,7 @@ export default {
   <li>Salon public : tout le monde peut « Demander à entrer » depuis la liste, et seules les personnes que l'hôte laisse entrer peuvent le rejoindre.</li>
   <li>La chanson du salon est envoyée directement entre les appareils du salon. Une chanson reçue disparaît quand vous quittez le salon et n'est pas incluse dans les .rhref que vous enregistrez. Si elle n'arrive pas, choisissez vous-même la même chanson.</li>
   <li>Les blocs sélectionnés par les autres affichent un contour pointillé de leur couleur avec leur nom. Annuler n'annule que vos propres modifications. Les images des blocs d'image et les sons personnalisés ne sont pas envoyés.</li>
-  <li>L'hôte peut utiliser « Lire ensemble » (lance la lecture sur tous les appareils en même temps), retirer des personnes et fermer le salon aux nouveaux.</li>
+  <li>L'hôte peut nommer le salon (le nom apparaît aussi dans la liste), utiliser « Lire ensemble » (lance la lecture sur tous les appareils en même temps), retirer des personnes et fermer le salon aux nouveaux.</li>
   <li>Un salon disparaît 2 minutes après le départ de tout le monde, ou après 2 heures sans activité.</li>
 </ul>
 <p><b>Paramètres (engrenage)</b> : choisissez une section dans le menu de gauche : Langue (langue de l'interface, noms des jeux, langue des mini-jeux), Apparence (couleurs du thème, image de fond), Éditeur (Play-Yan avec le métronome) et Playalong (décalages). Le nombre de pistes, le tutoriel et « Créer un remix » sont dans le menu (≡).</p>

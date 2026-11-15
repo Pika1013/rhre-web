@@ -10,13 +10,13 @@
 //
 // 部屋は 2 種類
 //  ・合言葉の部屋：一覧に出ない。合言葉を知っていれば入れる
-//  ・公開の部屋：一覧に出る（番号・言語・人数・使っているゲームだけ。名前は出さない）。
+//  ・公開の部屋：一覧に出る（番号・部屋の名前・言語・人数・使っているゲーム。人の名前は出さない）。
 //    入るには「入りたい」を送り、部屋を作った人が「入れる」を押した人だけ入れる（合言葉で来ても同じ）
 //
 // やり取り（どれも JSON）
 //  届く： seed（部屋を作った人が最初のリミックスを送る。多いときは何回かに分ける）／ ops（変更）／ sel（選んでいるブロック）／ nick（名前）
 //        song（部屋の曲の名前・大きさ・目印。曲そのものは送らない）／ have（その曲を持っている）／ sig（端末どうしを直接つなぐための紹介。相手に渡すだけ）
-//        time（時計合わせ）／ 部屋を作った人だけ：admit・deny（入れる・ことわる）／ kick（外す）／ lock（締める）／ play・stop（みんなで再生）／ info（一覧に出すゲーム）
+//        time（時計合わせ）／ 部屋を作った人だけ：admit・deny（入れる・ことわる）／ kick（外す）／ lock（締める）／ play・stop（みんなで再生）／ info（一覧に出すゲーム）／ title（部屋の名前）
 //  送る： hello（あなたの番号と色・部屋の様子・部屋の曲の情報）／ waiting（返事待ち）／ knock（入りたい人。部屋を作った人へ）／ room（部屋の様子）
 //        state（部屋のリミックス。ents は { uid, e } の並び。何回かに分ける）／ seeded ／ ops ／ sel ／ members（いる人）／ song ／ sig ／ time ／ play ／ stop ／ err（入れない理由）
 //  ops の中身：{ k: 'put', uid, e }（ブロックを置く・変える）／ { k: 'del', uid }（消す）／ { k: 'g', v }（テンポ・拍子などをまとめて）
@@ -43,6 +43,7 @@ const MAX_SIG = 64_000;
 const HASH_RE = /^[0-9a-f]{16,64}$/;
 
 const cleanNick = (s) => String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 16);
+const cleanTitle = (s) => [...String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim()].slice(0, 20).join(''); // 部屋の名前（20 文字まで）
 const lobbyOf = (env) => env.LOBBY.get(env.LOBBY.idFromName(`${NS}lobby`));
 
 export default {
@@ -82,7 +83,7 @@ export class Lobby extends DurableObject {
       const rooms = [];
       for (const [k, v] of await this.ctx.storage.list({ prefix: 'r:' })) {
         if (now - v.at > LOBBY_STALE_MS) { await this.ctx.storage.delete(k); continue; }
-        rooms.push({ code: v.code, num: v.num, lang: v.lang, count: v.count, icons: v.icons || [], created: v.created });
+        rooms.push({ code: v.code, num: v.num, title: v.title || '', lang: v.lang, count: v.count, icons: v.icons || [], created: v.created });
       }
       rooms.sort((a, b) => (a.count >= MAX_MEMBERS) - (b.count >= MAX_MEMBERS) || b.created - a.created);
       return Response.json({ rooms: rooms.slice(0, 60), max: MAX_MEMBERS });
@@ -117,7 +118,7 @@ export class Room extends DurableObject {
   waiters(except) { return this.sockets(except).filter((m) => m.a.waiting); }
 
   info(a) { return { id: a.id, nick: a.nick, color: a.color, host: !!a.host, has: a.has || '', sel: this.sels.get(a.id) || [] }; }
-  roomInfo(meta) { return { public: !!meta.public, num: meta.num || 0, locked: !!meta.locked }; }
+  roomInfo(meta) { return { public: !!meta.public, num: meta.num || 0, locked: !!meta.locked, title: meta.title || '' }; }
   send(ws, obj) { try { ws.send(JSON.stringify(obj)); } catch (_) { /* 閉じかけ */ } }
   broadcast(obj, except) {
     const s = JSON.stringify(obj);
@@ -131,7 +132,7 @@ export class Room extends DurableObject {
     if (!meta?.public) return;
     const count = this.members(except).length;
     const info = !meta.seeding && !meta.locked && count > 0
-      ? { num: meta.num, lang: meta.lang || '', count, icons: meta.icons || [], created: meta.created }
+      ? { num: meta.num, title: meta.title || '', lang: meta.lang || '', count, icons: meta.icons || [], created: meta.created }
       : null;
     try {
       await lobbyOf(this.env).fetch(new Request('https://lobby/set', { method: 'POST', body: JSON.stringify({ code: meta.code, info }) }));
@@ -353,6 +354,14 @@ export class Room extends DurableObject {
       this.broadcast({ t: 'room', room: this.roomInfo(meta) });
       // 締めたら、返事待ちの人にもことわる
       if (meta.locked) for (const w of this.waiters()) { this.send(w.ws, { t: 'err', code: 'locked' }); try { w.ws.close(4000, 'locked'); } catch (_) { /* もう閉じている */ } }
+      await this.updateLobby(meta);
+      return;
+    }
+    if (m.t === 'title') {
+      // 部屋の名前（部屋を作った人だけ）
+      meta.title = cleanTitle(m.title);
+      await this.ctx.storage.put('meta', meta);
+      this.broadcast({ t: 'room', room: this.roomInfo(meta) });
       await this.updateLobby(meta);
       return;
     }

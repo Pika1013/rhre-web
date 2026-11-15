@@ -165,6 +165,9 @@
   #roomBody .room-join { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   #roomBody .room-join label { flex-basis: 100%; }
   #roomBody .room-members .chip { margin-left: auto; }
+  #roomBody .room-title { margin: 0 0 2px; font-size: 20px; word-break: break-word; }
+  #roomBody .room-title-row { display: flex; gap: 8px; margin: 6px 0 4px; }
+  #roomBody .room-title-row .room-input { flex: 1; min-width: 0; font-size: 15px; padding: 8px 10px; }
   #roomBody .room-lobby { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   #roomBody .room-lobby li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
   #roomBody .rl-head { display: flex; flex-direction: column; min-width: 7em; }
@@ -1056,7 +1059,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.15.1</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.15.2</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1412,7 +1415,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.15.1</h2>
+    <h2>RHRE Web v1.15.2</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1464,7 +1467,7 @@
       <li>公開の部屋：だれでも一覧から「入りたい」を送れて、部屋を作った人が「入れる」を押した人だけが入れます</li>
       <li>部屋の曲は、部屋の人の端末どうしで直接届きます。届いた曲は部屋を抜けると消え、保存する .rhref にも入りません。届かないときは、同じ曲を自分で選んでください</li>
       <li>ほかの人が選んでいるブロックには、その人の色の点線と名前が出ます。元に戻すで戻るのは自分の操作だけです。画像のブロックの絵とカスタム効果音は送られません</li>
-      <li>部屋を作った人は、「みんなで再生」（全員の端末で同時に再生）、人を外す、締める（新しい人を入れない）ができます</li>
+      <li>部屋を作った人は、部屋の名前を付ける（一覧にも出ます）、「みんなで再生」（全員の端末で同時に再生）、人を外す、締める（新しい人を入れない）ができます</li>
       <li>全員が抜けると 2 分で、だれも何もしない時間が 2 時間続くと、部屋はなくなります</li>
     </ul>
     <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
@@ -1525,7 +1528,7 @@
       <li>Public room: anyone can "Ask to join" from the list, and only the people the host lets in can join.</li>
       <li>The room's song goes directly between the devices in the room. A song you receive disappears when you leave the room and is not included in .rhref files you save. If it doesn't arrive, choose the same song yourself.</li>
       <li>Blocks others have selected show a dotted outline in their color with their name. Undo only undoes your own changes. Image block pictures and custom sounds are not sent.</li>
-      <li>The host can use "Play together" (starts playback on everyone's device at the same time), remove people, and close the room to new people.</li>
+      <li>The host can name the room (the name also shows in the list), use "Play together" (starts playback on everyone's device at the same time), remove people, and close the room to new people.</li>
       <li>A room disappears 2 minutes after everyone leaves, or after 2 hours with no activity.</li>
     </ul>
     <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
@@ -1548,7 +1551,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=112"></script>
+<script type="module" src="js/app.js?v=113"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -236,6 +236,14 @@ export default {
     "Image": "Bild",
     "Shake": "Wackeln",
     "<no texture>": "<kein Bild>",
+    // 部屋の名前（v1.15.2）
+    "Room name": "Raumname",
+    "Room name (up to 20 characters)": "Raumname (bis zu 20 Zeichen)",
+    "Change": "Ändern",
+    "Set name": "Namen geben",
+    "{title} · {n}": "{title} · {n}",
+    "Room name changed": "Raumname geändert",
+    "The room is now called \"{name}\"": "Der Raum heißt jetzt „{name}“",
     // 新しい機能のお知らせ（v1.15.1）
     "You can now edit together!": "Du kannst jetzt gemeinsam bearbeiten!",
     // みんなで編集（v1.15.0）
@@ -682,7 +690,7 @@ export default {
   <li>Öffentlicher Raum: jeder kann in der Liste „Beitritt anfragen“, und nur wen der Gastgeber hereinlässt, kann beitreten.</li>
   <li>Das Lied des Raums wird direkt zwischen den Geräten im Raum gesendet. Ein empfangenes Lied verschwindet, wenn du den Raum verlässt, und wird nicht in gespeicherte .rhref-Dateien aufgenommen. Wenn es nicht ankommt, wähle selbst dasselbe Lied.</li>
   <li>Blöcke, die andere ausgewählt haben, zeigen eine gepunktete Umrandung in ihrer Farbe mit ihrem Namen. Rückgängig macht nur deine eigenen Änderungen rückgängig. Bilder von Bildblöcken und eigene Sounds werden nicht gesendet.</li>
-  <li>Der Gastgeber kann „Gemeinsam abspielen“ (startet die Wiedergabe auf allen Geräten gleichzeitig) nutzen, Leute entfernen und den Raum für Neue schließen.</li>
+  <li>Der Gastgeber kann dem Raum einen Namen geben (er erscheint auch in der Liste), „Gemeinsam abspielen“ (startet die Wiedergabe auf allen Geräten gleichzeitig) nutzen, Leute entfernen und den Raum für Neue schließen.</li>
   <li>Ein Raum verschwindet 2 Minuten, nachdem alle gegangen sind, oder nach 2 Stunden ohne Aktivität.</li>
 </ul>
 <p><b>Einstellungen (Zahnrad)</b>: wähle links im Menü einen Bereich: Sprache (Sprache der Oberfläche, Spielnamen, Sprache der Minispiele), Darstellung (Designfarben, Hintergrundbild), Editor (Play-Yan mit dem Metronom) und Playalong (Timing-Ausgleich). Spuranzahl, Tutorial und „Einen Remix machen“ findest du im Menü (≡).</p>

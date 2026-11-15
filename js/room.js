@@ -156,12 +156,13 @@ export class RoomClient {
     for (let i = 0; i < 5; i++) setTimeout(() => this.send({ t: 'time', c: Date.now() }), i * 200);
   }
 
-  // 部屋を作った人だけ：入れる・ことわる・外す・締める・一覧に出すゲーム・みんなで再生
+  // 部屋を作った人だけ：入れる・ことわる・外す・締める・一覧に出すゲーム・部屋の名前・みんなで再生
   admit(id) { this.send({ t: 'admit', id }); }
   deny(id) { this.send({ t: 'deny', id }); }
   kick(id) { this.send({ t: 'kick', id }); }
   lock(on) { this.send({ t: 'lock', on: !!on }); }
   info(icons) { this.send({ t: 'info', icons }); }
+  title(title) { this.send({ t: 'title', title }); }
   play(beat, at) { this.send({ t: 'play', beat, at }); }
   stop() { this.send({ t: 'stop' }); }
 

@@ -4,6 +4,16 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.15.2', date: '2026-11-15',
+    ja: ['「みんなで編集」で、部屋を作った人が部屋の名前を付けられるようになりました（20 文字まで）。名前は部屋の画面・下の段の札・公開の部屋の一覧に出ます'],
+    en: ['In "Edit together", the host can now name the room (up to 20 characters). The name shows in the room window, on the badge at the bottom and in the public room list.'],
+    'zh-Hant': ['「一起編輯」中，房主現在可以為房間取名（最多 20 個字）。名稱會顯示在房間畫面、下方的標籤和公開房間清單中。'],
+    ko: ['"함께 편집"에서 방장이 방 이름을 붙일 수 있게 되었어요(최대 20자). 이름은 방 화면, 아래쪽 표시, 공개 방 목록에 나와요.'],
+    es: ['En "Editar juntos", el anfitrión ahora puede poner nombre a la sala (hasta 20 caracteres). El nombre aparece en la ventana de la sala, en la etiqueta de abajo y en la lista de salas públicas.'],
+    fr: ["Dans « Éditer ensemble », l'hôte peut maintenant nommer le salon (20 caractères max.). Le nom apparaît dans la fenêtre du salon, sur l'étiquette en bas et dans la liste des salons publics."],
+    de: ['In „Gemeinsam bearbeiten“ kann der Gastgeber dem Raum jetzt einen Namen geben (bis zu 20 Zeichen). Der Name erscheint im Raumfenster, auf dem Schild unten und in der Liste der öffentlichen Räume.'],
+  },
+  {
     v: '1.15.1', date: '2026-11-15',
     ja: ['左上のメニューのボタンの下に、「みんなで編集ができるようになりました！」のお知らせを出しました（タップするか、メニューを開くと消えます）'],
     en: ['Added a "You can now edit together!" note under the menu button at the top left (it disappears when you tap it or open the menu).'],

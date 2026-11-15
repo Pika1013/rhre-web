@@ -263,6 +263,9 @@ const EN = {
   // 特殊
   'トラックの数は 5〜10 です': 'Tracks: 5 to 10', 'はみ出すブロックがあるので、トラックを減らせません': "Can't remove tracks: some blocks would be cut off",
   // みんなで編集
+  // 部屋の名前（v1.15.2）
+  '部屋の名前': 'Room name', '部屋の名前（20 文字まで）': 'Room name (up to 20 characters)', '変える': 'Change', '名前を付ける': 'Set name',
+  '{title}・{n} 人': '{title} · {n}', '部屋の名前を変えました': 'Room name changed', '部屋の名前が「{name}」になりました': 'The room is now called "{name}"',
   // 新しい機能のお知らせ（v1.15.1）
   'みんなで編集ができるようになりました！': 'You can now edit together!',
   '閉じる': 'Close',
@@ -316,11 +319,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 4 },
-  { code: 'ko', name: '한국어', v: 4 },
-  { code: 'es', name: 'Español', v: 4 },
-  { code: 'fr', name: 'Français', v: 4 },
-  { code: 'de', name: 'Deutsch', v: 4 },
+  { code: 'zh-Hant', name: '繁體中文', v: 5 },
+  { code: 'ko', name: '한국어', v: 5 },
+  { code: 'es', name: 'Español', v: 5 },
+  { code: 'fr', name: 'Français', v: 5 },
+  { code: 'de', name: 'Deutsch', v: 5 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);
