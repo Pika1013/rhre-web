@@ -105,7 +105,7 @@ export const GAME_NAMES_JA = {
   "Second Contact": "かえってきた通訳者",
   "Tongue Lashing": "カメレオン",
   "LumBEARjack": "マキネコ",
-  "Super Samurai Slice": "ゐあひ斬ぎり伝説",
+  "Super Samurai Slice": "ゐあひ斬り伝説",
   "Sumo Brothers": "ごっつぁん兄弟",
   "Animal Acrobat": "空中ブランコリン",
   "Tangotronic 3000": "ダンスホール",

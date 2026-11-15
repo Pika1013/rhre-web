@@ -1,4 +1,4 @@
-# RHRE Web v1.14.0
+# RHRE Web v1.14.1
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
