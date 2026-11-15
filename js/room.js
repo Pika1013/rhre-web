@@ -1,6 +1,7 @@
 // みんなで編集：部屋のサーバー（server/room）とのやり取り。つなぐ・つなぎ直す・送る。
 // 画面やリミックスのことは知らない（app.js が handlers で受け取る）。
-//  handlers：hello(you, back, song) ／ state(msg) ／ seeded() ／ ops(msg, mine) ／ sel(id, uids) ／ members(list) ／ song(info) ／ sig(from, data) ／ err(code) ／ drop()
+//  handlers：hello(you, back, song, room) ／ state(msg) ／ seeded() ／ ops(msg, mine) ／ sel(id, uids) ／ members(list) ／ song(info) ／ sig(from, data)
+//            waiting() ／ knock(id, nick) ／ room(info) ／ play(msg) ／ stop() ／ err(code) ／ drop()
 
 // 合言葉に使う文字（見分けにくい I・O・0・1 は使わない。サーバーと同じ）
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -30,10 +31,12 @@ export class RoomClient {
 
   get open() { return this.ws?.readyState === 1; }
 
-  connect(code, { create = false, nick = '', device = '' } = {}) {
+  connect(code, { create = false, nick = '', device = '', isPublic = false, lang = '' } = {}) {
     this.code = code;
     this.left = false;
     this.create = create;
+    this.isPublic = isPublic;
+    this.lang = lang;
     this.nick = nick;
     this.device = device;
     this.dial();
@@ -42,7 +45,10 @@ export class RoomClient {
   dial() {
     clearTimeout(this.timer);
     const q = new URLSearchParams({ room: this.code, d: this.device, nick: this.nick });
-    if (this.create) q.set('create', '1');
+    if (this.create) {
+      q.set('create', '1');
+      if (this.isPublic) { q.set('public', '1'); q.set('lang', this.lang); }
+    }
     let ws;
     try { ws = new WebSocket(`${this.url}?${q}`); } catch (_) { this.again(); return; }
     this.ws = ws;
@@ -81,7 +87,8 @@ export class RoomClient {
         const back = !!this.you;
         this.you = m.you;
         this.retry = 0;
-        this.h.hello?.(m.you, back, m.song || null);
+        this.h.hello?.(m.you, back, m.song || null, m.room || {});
+        this.syncClock();
         break;
       }
       case 'state': this.h.state?.(m); break;
@@ -96,6 +103,18 @@ export class RoomClient {
       case 'members': this.h.members?.(m.members || []); break;
       case 'song': this.h.song?.(m.song || null); break;
       case 'sig': this.h.sig?.(m.from, m.data); break;
+      case 'waiting': this.h.waiting?.(); break;
+      case 'knock': this.h.knock?.(m.id, m.nick || ''); break;
+      case 'room': this.h.room?.(m.room || {}); break;
+      case 'play': this.h.play?.(m); break;
+      case 'stop': this.h.stop?.(); break;
+      case 'time': {
+        // 時計合わせ：行って帰ってくるのが一番速かったときの値を使う
+        const now = Date.now();
+        const rtt = now - m.c;
+        if (rtt >= 0 && rtt < (this.bestRtt ?? Infinity)) { this.bestRtt = rtt; this.offset = m.s - (m.c + rtt / 2); }
+        break;
+      }
       case 'err': this.gotErr = true; this.h.err?.(m.code); break;
       default: break;
     }
@@ -129,6 +148,22 @@ export class RoomClient {
       this.send({ t: 'seed', ops: ops.slice(i, i + OPS_PER_MSG), last: i + OPS_PER_MSG >= ops.length });
     }
   }
+
+  // サーバーの時計（みんなで再生を同時に始めるため）。合わせる前は自分の時計
+  serverNow() { return Date.now() + (this.offset || 0); }
+  syncClock() {
+    this.bestRtt = Infinity;
+    for (let i = 0; i < 5; i++) setTimeout(() => this.send({ t: 'time', c: Date.now() }), i * 200);
+  }
+
+  // 部屋を作った人だけ：入れる・ことわる・外す・締める・一覧に出すゲーム・みんなで再生
+  admit(id) { this.send({ t: 'admit', id }); }
+  deny(id) { this.send({ t: 'deny', id }); }
+  kick(id) { this.send({ t: 'kick', id }); }
+  lock(on) { this.send({ t: 'lock', on: !!on }); }
+  info(icons) { this.send({ t: 'info', icons }); }
+  play(beat, at) { this.send({ t: 'play', beat, at }); }
+  stop() { this.send({ t: 'stop' }); }
 
   // 端末どうしを直接つなぐための紹介を、相手に渡してもらう
   sendSig(to, data) { return this.send({ t: 'sig', to, data }); }

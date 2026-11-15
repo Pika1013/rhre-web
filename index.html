@@ -164,6 +164,24 @@
   #roomBody .room-members small { font-weight: 400; opacity: 0.7; }
   #roomBody .room-join { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   #roomBody .room-join label { flex-basis: 100%; }
+  #roomBody .room-members .chip { margin-left: auto; }
+  #roomBody .room-lobby { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  #roomBody .room-lobby li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
+  #roomBody .rl-head { display: flex; flex-direction: column; min-width: 7em; }
+  #roomBody .rl-head span { font-size: 12px; opacity: 0.8; }
+  #roomBody .rl-icons { display: flex; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+  #roomBody .rl-icons img { width: 28px; height: 28px; image-rendering: pixelated; border-radius: 3px; }
+  /* 入りたい人（部屋を作った人の画面の上） */
+  #confirmMsg { white-space: pre-line; }
+  #knockBox {
+    position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 60;
+    display: flex; flex-direction: column; gap: 6px; width: min(520px, calc(100% - 24px));
+  }
+  #knockBox .knock {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px;
+    background: var(--panel, #2b2b2b); border: 2px solid var(--accent, #5fd3ff); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); font-weight: 700;
+  }
+  #knockBox .knock span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #roomBody .room-song { margin: 6px 0 4px; padding: 8px 10px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
   #roomBody .room-song p { margin: 2px 0; }
   #roomBody .room-song-name { font-weight: 800; word-break: break-all; }
@@ -1133,6 +1151,8 @@
     </div>
   </div>
 </div>
+
+<div id="knockBox" hidden></div>
 
 <div class="modal" id="roomModal" hidden>
   <div class="card">

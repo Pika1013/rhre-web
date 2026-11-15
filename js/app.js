@@ -2,14 +2,14 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=46';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=45';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=47';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
 import { CHANGELOG } from './changelog.js?v=34';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
-import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=2';
+import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=3';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 
 const VERSION = '1.14.0';
@@ -803,7 +803,11 @@ function buildTabs() {
     b.addEventListener('click', () => { $('search').value = ''; currentTab = key; renderGrid(); });
     tabs.appendChild(b);
   }
-  $('search').addEventListener('input', () => renderGrid());
+  $('search').addEventListener('input', () => {
+    // 試し版の「みんなで編集」を出す合図（ホーム画面のアプリには ?collab を付けられないので）
+    if ($('search').value.trim().toLowerCase() === '#collab') { $('search').value = ''; enableCollab(); }
+    renderGrid();
+  });
 }
 
 function usedGames() {
@@ -1586,6 +1590,7 @@ function startPlayback(fromSec) {
   player.metronome = metronome;
   player.onEnd = () => {
     mode = 'stopped';
+    room.together = false;
     letScreenSleep();
     view.playhead = null;
     view.dirty = true;
@@ -1660,6 +1665,7 @@ function stopPlayback() {
   }
   mode = 'stopped';
   roomApplyDeferred();
+  if (room.together) { if (room.you?.host) room.client?.stop(); room.together = false; }
   letScreenSleep();
   view.playhead = null;
   view.resetEffects();
@@ -4504,15 +4510,22 @@ fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => 
 // 入る前の自分のリミックスは、端末に取っておき（remixBeforeRoom）、抜けるときに戻すか選べる。
 const ROOM_URL = (['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('roomserver')) // 手元で試すとき
   || 'wss://rhre-web-room.pika1013.workers.dev/ws';
-const COLLAB = (() => {
+// 試し版：URL の ?collab・?room=、または検索の欄に「#collab」で出す（この端末に覚える）
+let COLLAB = (() => {
   const q = new URLSearchParams(location.search);
   const on = q.has('collab') || q.has('room');
   try {
-    if (on) sessionStorage.setItem('rhre-collab', '1');
-    return sessionStorage.getItem('rhre-collab') === '1';
+    if (on) localStorage.setItem('rhre-collab', '1');
+    return localStorage.getItem('rhre-collab') === '1';
   } catch (_) { return on; }
 })();
 if (COLLAB) $('menuRoom').hidden = false;
+function enableCollab() {
+  COLLAB = true;
+  try { localStorage.setItem('rhre-collab', '1'); } catch (_) { /* 使えない */ }
+  $('menuRoom').hidden = false;
+  toast(t('試し版の「みんなで編集」を、メニューに出しました'), 4000, 'info');
+}
 
 const room = {
   client: null,
@@ -4538,7 +4551,21 @@ const room = {
   sentHave: '',
   shareAsked: false,
   uiAt: 0,
+  // 第 3 段階：公開の部屋・入りたい人・みんなで再生
+  info: { public: false, num: 0, locked: false },
+  isPublic: false,
+  waiting: false, // 公開の部屋で、部屋を作った人の返事を待っている
+  waitTimer: 0,
+  knocks: [], // 入りたい人 [{ id, nick, at }]（部屋を作った人だけ）
+  admitNoticed: false,
+  together: false, // みんなで再生している
+  iconsAt: 0,
+  iconsSig: '',
+  lobby: null, // 開いている公開の部屋の一覧（null＝一覧を見ていない）
 };
+const ROOM_HTTP = ROOM_URL.replace(/^ws/, 'http').replace(/\/ws$/, '');
+const ROOM_MAX = 10;
+const PUBLIC_NOTE = () => t('公開の部屋では、曲を送るために相手の端末と直接つながります。そのため、相手にだいたいの地域や回線の会社が分かることがあります（名前や細かい住所は分かりません）。');
 const ROOM_G_KEYS = ['tempoTrackers', 'musicVolumes', 'timeSignatures', 'musicStartSec', 'defaultTempo', 'trackCount'];
 const roomG = (g) => ({ ...g, db: remix.db.commit, name: fileName });
 const roomWho = (m) => m?.nick || t('名前なし');
@@ -4588,6 +4615,7 @@ function roomLocalEdit(beforeStr) {
   if (!fwd.length) return;
   roomSend(fwd);
   undoStack.push({ room: true, fwd, inv });
+  roomSendIcons();
 }
 
 function roomUndo(isRedo) {
@@ -4649,6 +4677,110 @@ async function roomApplyRemote(ops) {
   afterRemoteEdit();
 }
 
+// 公開の部屋：一覧に出す「使っているゲーム」（多い順に 4 つ）。部屋を作った人が、変わったときだけ（15 秒に 1 回まで）
+function roomSendIcons() {
+  if (!room.active || !room.info.public || !room.you?.host || !remix) return;
+  const now = Date.now();
+  if (now - room.iconsAt < 15000) { clearTimeout(room.iconsTimer); room.iconsTimer = setTimeout(roomSendIcons, 15000 - (now - room.iconsAt) + 50); return; }
+  const count = new Map();
+  for (const e of remix.entities) {
+    const id = e.game?.id;
+    if (!id || id.startsWith('special') || id.startsWith('custom') || e.game.isCustom) continue;
+    count.set(id, (count.get(id) || 0) + 1);
+  }
+  const icons = [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id]) => id);
+  const sig = icons.join(',');
+  if (sig === room.iconsSig) return;
+  room.iconsSig = sig;
+  room.iconsAt = now;
+  room.client?.info(icons);
+}
+
+// ---- みんなで再生：部屋を作った人が押すと、サーバーの時計で 1.5 秒後に全員が同じ所から再生を始める
+function roomPlayTogether() {
+  if (!room.active || !room.you?.host || !remix || loading) return;
+  engine.unlock(); // タップの中で音を有効に
+  const beat = remix.playbackStart;
+  const at = room.client.serverNow() + 1500;
+  room.client.play(beat, at);
+  roomStartAt(beat, at);
+  $('roomModal').hidden = true;
+}
+
+function roomStartAt(beat, at) {
+  if (!remix || loading || playMode) return;
+  if (mode === 'playing') stopPlayback();
+  const go = () => {
+    // 遅れて始めるとき（タップを待ったなど）は、その分だけ先から
+    const late = Math.max(0, (room.client ? room.client.serverNow() : Date.now()) - at) / 1000;
+    const from = remix.tempo.b2s(beat) + late * (player.speedSetting || 1);
+    startPlayback(from);
+    room.together = true;
+  };
+  const wait = Math.max(0, at - (room.client ? room.client.serverNow() : Date.now()));
+  // iPhone などで音がまだ有効になっていないときは、タップしてもらってから途中で入る
+  if (engine.ctx && engine.ctx.state !== 'running') {
+    toast(t('みんなで再生が始まりました。画面をタップすると、途中から入ります'), 5000, 'info');
+    const once = () => { document.removeEventListener('pointerdown', once, true); engine.unlock(); setTimeout(go, Math.max(0, at - room.client.serverNow())); };
+    document.addEventListener('pointerdown', once, true);
+    return;
+  }
+  setTimeout(go, wait);
+  toast(t('みんなで再生します'), 1500, 'info');
+}
+
+// ---- 入りたい人（部屋を作った人の画面の上に出す）
+function renderKnocks() {
+  const box = $('knockBox');
+  box.textContent = '';
+  room.knocks = room.knocks.filter((k) => Date.now() - k.at < 120000);
+  if (!room.knocks.length || !room.you?.host) { box.hidden = true; return; }
+  box.hidden = false;
+  for (const k of room.knocks) {
+    const row = document.createElement('div');
+    row.className = 'knock';
+    const p = document.createElement('span');
+    p.textContent = t('{name}が入りたがっています', { name: k.nick || t('名前なし') });
+    const ok = document.createElement('button');
+    ok.className = 'btn primary';
+    ok.textContent = t('入れる');
+    ok.addEventListener('click', () => roomAnswerKnock(k, true));
+    const no = document.createElement('button');
+    no.className = 'btn';
+    no.textContent = t('ことわる');
+    no.addEventListener('click', () => roomAnswerKnock(k, false));
+    row.append(p, ok, no);
+    box.append(row);
+  }
+}
+
+function roomAnswerKnock(k, ok, noticed) {
+  // 公開の部屋で最初に「入れる」を押すときは、注意を出す
+  if (ok && room.info.public && !room.admitNoticed && !noticed) {
+    confirmBox(t('入れる'), PUBLIC_NOTE(), t('入れる'), () => { room.admitNoticed = true; roomAnswerKnock(k, true, true); });
+    return;
+  }
+  room.knocks = room.knocks.filter((x) => x.id !== k.id);
+  if (ok) room.client?.admit(k.id); else room.client?.deny(k.id);
+  renderKnocks();
+}
+
+// ---- 公開の部屋の一覧
+async function showLobby() {
+  room.lobby = { loading: true, rooms: [] };
+  renderRoomUi();
+  try {
+    const res = await fetch(`${ROOM_HTTP}/lobby`, { cache: 'no-store' });
+    const d = await res.json();
+    if (!room.lobby) return;
+    room.lobby = { rooms: d.rooms || [], max: d.max || ROOM_MAX };
+  } catch (_) {
+    if (!room.lobby) return;
+    room.lobby = { rooms: [], error: true };
+  }
+  renderRoomUi();
+}
+
 function afterRemoteEdit() {
   for (const e of [...view.selection]) if (!remix.entities.includes(e)) view.selection.delete(e);
   view.dirty = true;
@@ -4703,9 +4835,12 @@ async function roomUnstash(useIt) {
 }
 
 const roomHandlers = {
-  hello(you, back, song) {
+  hello(you, back, song, info) {
     room.you = you;
     room.state = null;
+    room.info = { public: !!info.public, num: info.num || 0, locked: !!info.locked };
+    room.waiting = false;
+    clearTimeout(room.waitTimer);
     room.sentHave = ''; // つなぎ直すとサーバーは「持っている」を忘れるので、もう一度知らせる
     roomSetSong(song);
     if (room.creating && !back) {
@@ -4728,6 +4863,26 @@ const roomHandlers = {
   },
   sig(from, data) {
     room.share?.onSig(from, data);
+  },
+  waiting() {
+    room.waiting = true;
+    clearTimeout(room.waitTimer);
+    room.waitTimer = setTimeout(() => { if (room.waiting) leaveRoom(t('返事がありませんでした')); }, 120000);
+    renderRoomUi();
+  },
+  knock(id, nick) {
+    room.knocks = room.knocks.filter((k) => k.id !== id && Date.now() - k.at < 120000);
+    room.knocks.push({ id, nick, at: Date.now() });
+    renderKnocks();
+  },
+  room(info) {
+    room.info = { public: !!info.public, num: info.num || 0, locked: !!info.locked };
+    renderRoomUi();
+  },
+  play(m) { roomStartAt(m.beat, m.at); },
+  stop() {
+    if (room.together && mode === 'playing') stopPlayback();
+    room.together = false;
   },
   state(m) {
     const st = room.state || (room.state = { g: null, ents: [] });
@@ -4763,6 +4918,8 @@ const roomHandlers = {
       noroom: room.active ? t('部屋がなくなりました') : t('その合言葉の部屋は見つかりませんでした'),
       full: t('部屋がいっぱいです（10 人まで）'),
       locked: t('この部屋は締め切られています'),
+      denied: t('入れませんでした（部屋を作った人がことわりました）'),
+      kicked: t('部屋から外されました'),
     }[code] || t('部屋に入れませんでした');
     leaveRoom(msg);
   },
@@ -4779,13 +4936,20 @@ function connectRoom(code, create) {
   room.client = new RoomClient(ROOM_URL, roomHandlers);
   room.share?.closeAll();
   room.share = canShareSongs() ? new SongShare((to, data) => room.client?.sendSig(to, data), roomGetSong) : null;
-  room.client.connect(code, { create, nick: settings.nick || '', device: onlineDeviceId() });
+  room.client.connect(code, { create, nick: settings.nick || '', device: onlineDeviceId(), isPublic: room.isPublic, lang: getLang() });
   renderRoomUi();
 }
 
-function createRoom() {
+function createRoom(isPublic, noticed) {
   if (!remix || loading) return;
+  // 公開の部屋は、作る前に注意を出す
+  if (isPublic && !noticed) {
+    confirmBox(t('公開の部屋を作る'), `${t('公開の部屋は、だれでも一覧から見つけて「入りたい」を押せます。入れるのは、あなたが「入れる」を押した人だけです。')}\n\n${PUBLIC_NOTE()}`, t('作る'), () => createRoom(true, true));
+    return;
+  }
   if (mode === 'playing') stopPlayback();
+  room.isPublic = !!isPublic;
+  room.admitNoticed = !!isPublic; // 作るときに注意を見たので、最初の「入れる」では出さない
   room.creating = true;
   room.tries = 0;
   connectRoom(newRoomCode(), true);
@@ -4796,6 +4960,8 @@ function joinRoom(code) {
   if (!isRoomCode(code)) { toast(t('合言葉は 6 文字です（I・O・0・1 は使いません）'), 3000, 'info'); return; }
   if (mode === 'playing') stopPlayback();
   room.creating = false;
+  room.isPublic = false;
+  room.lobby = null;
   connectRoom(code, false);
 }
 
@@ -4836,7 +5002,9 @@ async function roomRebase(st) {
 
 function roomStarted() {
   room.rejoin = false;
+  room.waiting = false;
   room.active = true;
+  setTimeout(roomSendIcons, 500);
   room.reconnecting = false;
   undoStack.length = 0;
   redoStack.length = 0;
@@ -4866,6 +5034,13 @@ function leaveRoom(reason) {
   roomSetSong(null);
   room.sentHave = '';
   room.shareAsked = false;
+  room.waiting = false;
+  clearTimeout(room.waitTimer);
+  room.knocks = [];
+  room.together = false;
+  room.iconsSig = '';
+  room.info = { public: false, num: 0, locked: false };
+  renderKnocks();
   // ほかの人から届いた曲は、部屋を抜けたら消す
   if (musicFile?.fromRoom) {
     musicFile = null;
@@ -5011,6 +5186,7 @@ function maybeJoinRoom() {
 // ---- 画面：下の段の「部屋」の札と、「みんなで編集」のウィンドウ
 function openRoomModal() {
   $('menuModal').hidden = true;
+  room.lobby = null;
   renderRoomUi();
   $('roomModal').hidden = false;
 }
@@ -5021,7 +5197,7 @@ function renderRoomUi() {
   else {
     badge.hidden = false;
     badge.textContent = '';
-    if (room.reconnecting || !room.active) badge.textContent = room.active ? t('つなぎ直しています…') : t('つないでいます…');
+    if (room.reconnecting || !room.active) badge.textContent = room.active ? t('つなぎ直しています…') : room.waiting ? t('返事を待っています…') : t('つないでいます…');
     else {
       for (const m of room.members) {
         const d = document.createElement('span');
@@ -5029,13 +5205,14 @@ function renderRoomUi() {
         d.style.background = PEER_COLORS[m.color % PEER_COLORS.length];
         badge.appendChild(d);
       }
-      badge.append(t('部屋 {code}・{n} 人', { code: room.code, n: room.members.length }));
+      badge.append(room.info.public ? t('公開の部屋 #{num}・{n} 人', { num: room.info.num, n: room.members.length }) : t('部屋 {code}・{n} 人', { code: room.code, n: room.members.length }));
       if (room.get.busy) badge.append(` ・${t('曲 {p}%', { p: Math.floor(room.get.pct * 100) })}`);
     }
   }
   const body = $('roomBody');
   body.textContent = '';
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
+  if (!room.client && room.lobby) { renderLobby(body, el); return; }
   if (!room.client) {
     body.append(el('p', null, t('友だちと同じリミックスを一緒に編集できます。部屋の曲は、部屋の人の端末どうしで直接届きます（サーバーには残りません）。')));
     const nf = el('div', 'field');
@@ -5046,10 +5223,15 @@ function renderRoomUi() {
     ni.maxLength = 16;
     ni.autocomplete = 'off';
     ni.value = settings.nick || '';
-    ni.addEventListener('change', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); });
+    const keepNick = () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); };
+    ni.addEventListener('change', keepNick);
     nf.append(nl, ni);
-    const create = el('button', 'btn primary', t('部屋を作る'));
-    create.addEventListener('click', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); createRoom(); });
+    const create = el('button', 'btn primary', t('合言葉の部屋を作る'));
+    create.addEventListener('click', () => { keepNick(); createRoom(false); });
+    const createPub = el('button', 'btn', t('公開の部屋を作る'));
+    createPub.addEventListener('click', () => { keepNick(); createRoom(true); });
+    const row = el('div', 'row');
+    row.append(create, createPub);
     const jf = el('div', 'field room-join');
     const jl = el('label', null, t('合言葉で入る'));
     jl.htmlFor = 'roomCodeInput';
@@ -5062,11 +5244,23 @@ function renderRoomUi() {
     ji.placeholder = 'ABC234';
     ji.addEventListener('input', () => { const v = cleanRoomCode(ji.value); if (v !== ji.value) ji.value = v; });
     const jb = el('button', 'btn', t('入る'));
-    jb.addEventListener('click', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); joinRoom(ji.value); });
+    jb.addEventListener('click', () => { keepNick(); joinRoom(ji.value); });
     ji.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
     jf.append(jl, ji, jb);
-    body.append(nf, el('div', 'row', null), jf);
-    body.querySelector('.row').append(create);
+    const find = el('button', 'btn', t('公開の部屋をさがす'));
+    find.addEventListener('click', () => { keepNick(); showLobby(); });
+    const row3 = el('div', 'row');
+    row3.append(find);
+    body.append(nf, row, jf, row3);
+    return;
+  }
+  if (room.waiting) {
+    body.append(el('p', null, t('部屋を作った人の返事を待っています…')));
+    const stop = el('button', 'btn', t('やめる'));
+    stop.addEventListener('click', () => leaveRoom());
+    const row = el('div', 'row');
+    row.append(stop);
+    body.append(row);
     return;
   }
   if (!room.active) {
@@ -5078,11 +5272,18 @@ function renderRoomUi() {
     body.append(row);
     return;
   }
+  if (room.info.public) body.append(el('p', 'room-label', t('公開の部屋 #{num}', { num: room.info.num }) + (room.info.locked ? `（${t('締めています')}）` : '')));
   body.append(el('p', 'room-label', t('合言葉')), el('div', 'room-code', room.code));
   const share = el('button', 'btn primary', t('合言葉を送る'));
   share.addEventListener('click', shareRoom);
   const row = el('div', 'row');
   row.append(share);
+  if (room.you?.host) {
+    const tog = el('button', 'btn', t('みんなで再生'));
+    tog.title = t('全員の端末で、あなたの再生開始（緑の旗）から同時に再生します');
+    tog.addEventListener('click', roomPlayTogether);
+    row.append(tog);
+  }
   body.append(row);
   if (room.reconnecting) body.append(el('p', 'note', t('つなぎ直しています…')));
   // 曲
@@ -5119,14 +5320,67 @@ function renderRoomUi() {
     li.append(d, roomWho(m));
     if (m.id === room.you?.id) li.append(el('small', null, t('（あなた）')));
     if (m.host) li.append(el('small', null, t('部屋を作った人')));
+    // 部屋を作った人は、ほかの人を外せる
+    if (room.you?.host && m.id !== room.you.id) {
+      const kb = el('button', 'chip', t('外す'));
+      kb.addEventListener('click', () => confirmBox(t('外す'), t('{name}を部屋から外しますか？この端末からは、もうこの部屋に入れなくなります。', { name: roomWho(m) }), t('外す'), () => room.client?.kick(m.id)));
+      li.append(kb);
+    }
     ul.append(li);
   }
   body.append(ul);
+  if (room.you?.host) {
+    const lk = el('button', 'btn', room.info.locked ? t('締めるのをやめる') : t('締める（新しい人を入れない）'));
+    lk.addEventListener('click', () => room.client?.lock(!room.info.locked));
+    const rl = el('div', 'row');
+    rl.append(lk);
+    body.append(rl);
+  }
   const leave = el('button', 'btn danger', t('部屋を抜ける'));
   leave.addEventListener('click', () => { $('roomModal').hidden = true; leaveRoom(); });
   const row2 = el('div', 'row');
   row2.append(leave);
   body.append(row2);
+}
+
+function renderLobby(body, el) {
+  const L = room.lobby;
+  body.append(el('p', 'room-label', t('公開の部屋')), el('p', 'note', PUBLIC_NOTE()));
+  if (L.loading) body.append(el('p', null, t('さがしています…')));
+  else if (L.error) body.append(el('p', null, t('一覧を読み込めませんでした。インターネットにつながっているか確かめてください。')));
+  else if (!L.rooms.length) body.append(el('p', null, t('今は公開の部屋がありません。「公開の部屋を作る」で作れます。')));
+  else {
+    const ul = el('ul', 'room-lobby');
+    const langName = (c) => LANGS.find((x) => x.code === c)?.name || '';
+    for (const r of L.rooms) {
+      const li = el('li');
+      const head = el('div', 'rl-head');
+      head.append(el('b', null, `#${r.num}`), el('span', null, [langName(r.lang), t('{n}/{max} 人', { n: r.count, max: L.max || ROOM_MAX })].filter(Boolean).join(' ・ ')));
+      const icons = el('div', 'rl-icons');
+      for (const id of r.icons || []) {
+        const img = el('img');
+        img.alt = '';
+        img.loading = 'lazy';
+        img.src = `${remix?.db.base || ''}games/${id}/icon.png`;
+        img.onerror = () => { img.remove(); };
+        icons.append(img);
+      }
+      const full = r.count >= (L.max || ROOM_MAX);
+      const jb = el('button', 'btn primary', full ? t('満員') : t('入りたい'));
+      jb.disabled = full;
+      jb.addEventListener('click', () => joinRoom(r.code));
+      li.append(head, icons, jb);
+      ul.append(li);
+    }
+    body.append(ul);
+  }
+  const row = el('div', 'row');
+  const back = el('button', 'btn', t('もどる'));
+  back.addEventListener('click', () => { room.lobby = null; renderRoomUi(); });
+  const again = el('button', 'btn', t('もう一度さがす'));
+  again.addEventListener('click', showLobby);
+  row.append(back, again);
+  body.append(row);
 }
 
 async function shareRoom() {
