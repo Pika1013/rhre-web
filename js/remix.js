@@ -390,7 +390,11 @@ export async function openRemixFile(arrayBuffer) {
   return { remix, music, extraFiles };
 }
 
-const KNOWN_KEYS = new Set(['type', 'beat', 'track', 'width', 'height', 'datamodel', 'semitone', 'volume', 'stopAtEnd', 'isCustom', 'subtitle']);
+const KNOWN_KEYS = new Set(['type', 'beat', 'track', 'width', 'height', 'datamodel', 'semitone', 'volume', 'stopAtEnd', 'isCustom', 'subtitle', '_uid']);
+// ブロックごとの番号（みんなで編集で、どのブロックかを見分ける。.rhref には保存しない）
+export const newUid = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join('');
+// みんなで編集で送り合う、ブロック以外の値（再生開始の緑の旗は、それぞれの好きな所にするので入れない）
+const ROOM_GLOBALS = ['tempoTrackers', 'musicVolumes', 'timeSignatures', 'musicStartSec', 'defaultTempo', 'trackCount'];
 // 字幕の種類：subtitle（字幕）・songTitle（曲名）・songArtist（アーティスト名）。RHRE fresh の Subtitle.SubtitleType
 export const subtitleKind = (ent) => (ent.o?.subtitleType === 'songTitle' || ent.o?.subtitleType === 'songArtist' ? ent.o.subtitleType : 'subtitle');
 const SOUNDLESS_SPECIAL = new Set(['endEntity', 'subtitleEntity', 'shakeEntity', 'textureEntity', 'tapeMeasure', 'playalongEntity', 'musicDistortEntity', 'pitchBenderEntity']);
@@ -430,6 +434,7 @@ export class Remix {
     const extra = {};
     for (const k of Object.keys(e)) if (!KNOWN_KEYS.has(k)) extra[k] = e[k];
     return {
+      uid: typeof e._uid === 'string' && e._uid ? e._uid : newUid(),
       id: e.datamodel,
       beat: Number(e.beat || 0),
       track: Number(e.track || 0) | 0,
@@ -613,7 +618,7 @@ export class Remix {
   // 元に戻す用の写し
   snapshot() {
     return JSON.stringify({
-      entities: this.entities.map((e) => this.entToJSON(e)),
+      entities: this.entities.map((e) => ({ ...this.entToJSON(e), _uid: e.uid })),
       tempoTrackers: this.tempoTrackers,
       musicVolumes: this.musicVolumes,
       timeSignatures: this.timeSignatures,
@@ -622,6 +627,17 @@ export class Remix {
       defaultTempo: this.defaultTempo,
       trackCount: this.trackCount,
     });
+  }
+
+  // みんなで編集：ブロック以外の値をまとめて出す・入れる（入れたあとは rebuild が要る）
+  roomGlobals() {
+    const g = {};
+    for (const k of ROOM_GLOBALS) g[k] = this[k];
+    return JSON.parse(JSON.stringify(g));
+  }
+
+  setRoomGlobals(g) {
+    for (const k of ROOM_GLOBALS) if (g[k] !== undefined) this[k] = JSON.parse(JSON.stringify(g[k]));
   }
 
   restore(str) {

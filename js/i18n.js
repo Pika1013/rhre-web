@@ -262,6 +262,31 @@ const EN = {
   'データベースを読み込み中…': 'Loading the database…', 'ミニゲームの定義を読み込み中 {d}/{n}（{g}）': 'Loading minigame data {d}/{n} ({g})',
   // 特殊
   'トラックの数は 5〜10 です': 'Tracks: 5 to 10', 'はみ出すブロックがあるので、トラックを減らせません': "Can't remove tracks: some blocks would be cut off",
+  // みんなで編集
+  'みんなで編集': 'Edit together', 'やめる': 'Cancel',
+  '友だちと同じリミックスを一緒に編集できます。部屋の曲は、部屋の人の端末どうしで直接届きます（サーバーには残りません）。':
+    "Edit the same remix together with friends. The room's song goes directly between the devices in the room (it is never kept on a server).",
+  '部屋に入りました': 'You joined the room', '部屋の曲': "Room's song", '曲 {p}%': 'Song {p}%', '曲を送る': 'Send the song', '送る': 'Send',
+  'この曲（{f}）を部屋の人に送ります。送るのは、送ってもよい曲だけにしてください。': 'This song ({f}) will be sent to the people in the room. Only send songs that you are allowed to share.',
+  '曲が届きました：{f}': 'Song received: {f}', 'この端末にあります': 'On this device', '受け取っています {p}%': 'Receiving {p}%', '受け取る準備をしています…': 'Getting ready to receive…',
+  '曲が届きませんでした。メニューの「音楽を選ぶ」で、同じ曲（{f}）を選んでください': 'The song didn\'t arrive. Choose the same song ({f}) with "Choose music" in the menu.',
+  '届きませんでした。メニューの「音楽を選ぶ」で、同じ曲を選んでください': 'It didn\'t arrive. Choose the same song with "Choose music" in the menu.',
+  'まだありません。メニューの「音楽を選ぶ」で曲を選ぶと、ここから部屋の人に送れます。': 'None yet. Choose a song with "Choose music" in the menu, then you can send it to the room from here.',
+  '自分の曲を部屋の曲にする': 'Make my song the room\'s song', '部屋の曲を受け取る': "Get the room's song", '部屋の曲とちがう曲を使っています': "You're using a different song from the room's", 'この曲を部屋の人に送る': 'Send this song to the room',
+  '名前（なくても大丈夫）': 'Name (optional)', '部屋を作る': 'Create a room', '合言葉で入る': 'Join with a room code', '入る': 'Join',
+  '合言葉': 'Room code', '合言葉を送る': 'Send the room code', '部屋を抜ける': 'Leave the room', '（あなた）': ' (you)', '部屋を作った人': 'Host', '名前なし': 'No name',
+  'つないでいます…': 'Connecting…', 'つなぎ直しています…': 'Reconnecting…', '部屋 {code}・{n} 人': 'Room {code} · {n}',
+  '{name}が入りました': '{name} joined', '{name}が抜けました': '{name} left',
+  'その合言葉の部屋は見つかりませんでした': 'No room was found with that code', '部屋がいっぱいです（10 人まで）': 'The room is full (10 people max)',
+  'この部屋は締め切られています': 'This room is closed to new people', '部屋がなくなりました': 'The room is gone', '部屋に入れませんでした': "Couldn't join the room",
+  '合言葉は 6 文字です（I・O・0・1 は使いません）': 'Room codes have 6 characters (I, O, 0 and 1 are not used)',
+  '部屋を作りました。合言葉を送って、友だちを呼びましょう': 'Room created. Send the room code to invite your friends!',
+  '部屋にいる間は、ほかのリミックスを開けません。先に「みんなで編集」から部屋を抜けてください。': 'You can\'t open another remix while in a room. Leave the room from "Edit together" first.',
+  'ほかの人がこのブロックを消しました': 'Someone else deleted this block', '部屋を抜けました': 'You left the room',
+  '部屋に入る前のリミックスに戻りますか？「やめる」を押すと、部屋のリミックスをこのまま続けて編集できます。':
+    'Go back to the remix you had before joining? Press "Cancel" to keep editing the room\'s remix.',
+  '前のリミックスに戻る': 'Go back to my remix', '部屋 {code} に入りますか？': 'Join room {code}?',
+  'RHRE Web で一緒にリミックスを作ろう！合言葉：{code}': "Let's make a remix together in RHRE Web! Room code: {code}", 'コピーしました': 'Copied',
 };
 
 // 画面の言語。v は js/lang/ の訳を直したら上げる（古い訳を保存したままにしないため）
@@ -403,6 +428,7 @@ const STATIC_EN = {
   '音声のみ書き出す': 'Export audio only', '音楽を選ぶ': 'Choose music', '音楽の開始位置': 'Music start position', '音楽を外す': 'Remove music',
   'トラックの数': '☰ Number of tracks', 'プレゼンテーションモード': 'Presentation mode', '使い方': 'Help',
   'テンポ': 'Tempo', '拍子': 'Time signature', '音楽の音量': 'Music volume', 'スウィング': 'Swing', '新規作成': 'New', 'サンプルを開く': 'Open sample', '開く': 'Open', '外す': 'Remove',
+  'みんなで編集': 'Edit together',
 };
 
 export function applyStatic(root = document.body) {

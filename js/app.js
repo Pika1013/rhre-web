@@ -1,14 +1,16 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap, subtitleKind } from './remix.js?v=20';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap, subtitleKind } from './remix.js?v=21';
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=44';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=44';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=46';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=45';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
 import { CHANGELOG } from './changelog.js?v=34';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
+import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=2';
+import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 
 const VERSION = '1.14.0';
 const t2 = t; // ループの変数名 t と重ならないように
@@ -367,11 +369,14 @@ function edit(fn) {
   if (!remix || loading) return false;
   if (playMode) { toast(t('プレイモード中は編集できません。下の段の「やめる」で戻ってから編集してください。'), 3500, 'info'); return false; }
   if (mode === 'playing') { toast(t('再生中は編集できません。■ で止めてから編集してください。'), 3500, 'info'); return false; }
+  // 部屋に入る途中（つないでいる間）は、変更がほかの人に届かないので待ってもらう
+  if (room.client && !room.active) { toast(t('つないでいます…'), 2000, 'info'); return false; }
   const snap = remix.snapshot();
   const r = fn();
   if (r === false) return false;
   remix.rebuild();
-  undoStack.push(snap);
+  if (room.active) roomLocalEdit(snap);
+  else undoStack.push(snap);
   if (undoStack.length > 200) undoStack.shift();
   redoStack.length = 0;
   afterEdit();
@@ -392,6 +397,7 @@ function afterEdit() {
 function undo() {
   if (!remix || !undoStack.length || playMode) return;
   if (mode === 'playing') { toast(t('再生中は元に戻せません。'), 2500, 'info'); return; }
+  if (room.active) { roomUndo(false); return; }
   redoStack.push(remix.snapshot());
   remix.restore(undoStack.pop());
   view.selection.clear();
@@ -401,6 +407,7 @@ function undo() {
 function redo() {
   if (!remix || !redoStack.length || playMode) return;
   if (mode === 'playing') return;
+  if (room.active) { roomUndo(true); return; }
   undoStack.push(remix.snapshot());
   remix.restore(redoStack.pop());
   view.selection.clear();
@@ -481,7 +488,7 @@ function scheduleAutosave() {
     store.set('remix', { json: remix.toJSON(musicFile), name: fileName, extra: extraFiles, savedAt: Date.now() });
   }, 700);
 }
-function saveMusicToStore() { store.set('music', musicFile || null); }
+function saveMusicToStore() { store.set('music', musicFile && !musicFile.fromRoom ? musicFile : null); }
 
 // ---------------------------------------------------------------- 選ぶ・置く・動かす
 
@@ -1186,7 +1193,8 @@ function loadStatusText(msg) {
   const m = /^ミニゲームの定義を読み込み中 (\d+)\/(\d+)（(.*)）$/.exec(msg);
   return m ? t('ミニゲームの定義を読み込み中 {d}/{n}（{g}）', { d: m[1], n: m[2], g: m[3] }) : t(msg);
 }
-async function withLoading(name, job, bytes) {
+async function withLoading(name, job, bytes, { roomJob = false } = {}) {
+  if (room.active && !roomJob) { toast(t('部屋にいる間は、ほかのリミックスを開けません。先に「みんなで編集」から部屋を抜けてください。'), 4000, 'info'); return; }
   stopPlayback();
   loading = true;
   updateButtons();
@@ -1246,11 +1254,13 @@ async function openAutosave() {
 // ---------------------------------------------------------------- 保存
 
 function buildRhref() {
-  const json = remix.toJSON(musicFile);
+  // 部屋でほかの人から届いた曲は、保存するファイルに入れない（曲を持っている人のファイルにだけ入る）
+  const music = musicFile && !musicFile.fromRoom ? musicFile : null;
+  const json = remix.toJSON(music);
   const used = new Set(remix.entities.map((e) => e.extra?.texHash).filter(Boolean));
   json.textures = [...used];
   const files = [{ name: 'remix.json', data: new TextEncoder().encode(JSON.stringify(json)) }];
-  if (musicFile) files.push({ name: 'music.bin', data: musicFile.bytes });
+  if (music) files.push({ name: 'music.bin', data: music.bytes });
   for (const f of extraFiles) {
     const m = /^(.+)\.png$/i.exec(f.name);
     if (m && !used.has(m[1])) continue;
@@ -1518,15 +1528,17 @@ $('musicInput').addEventListener('change', async (e) => {
 });
 
 let confirmAction = null;
-function confirmBox(title, msg, okLabel, fn) {
+let confirmCancelAction = null;
+function confirmBox(title, msg, okLabel, fn, onCancel) {
   $('confirmTitle').textContent = title;
   $('confirmMsg').textContent = msg;
   $('confirmOk').textContent = okLabel;
   confirmAction = fn;
+  confirmCancelAction = onCancel || null;
   $('confirmModal').hidden = false;
 }
-$('confirmOk').addEventListener('click', () => { $('confirmModal').hidden = true; const f = confirmAction; confirmAction = null; f?.(); });
-$('confirmCancel').addEventListener('click', () => { $('confirmModal').hidden = true; confirmAction = null; });
+$('confirmOk').addEventListener('click', () => { $('confirmModal').hidden = true; const f = confirmAction; confirmAction = null; confirmCancelAction = null; f?.(); });
+$('confirmCancel').addEventListener('click', () => { $('confirmModal').hidden = true; confirmAction = null; const f = confirmCancelAction; confirmCancelAction = null; f?.(); });
 
 // ---------------------------------------------------------------- 再生
 
@@ -1630,6 +1642,7 @@ function pause() {
   player.pause();
   pausedSec = player.pausedAt;
   mode = 'paused';
+  roomApplyDeferred();
   letScreenSleep();
   engine.stopKeepAlive();
   updateButtons();
@@ -1646,6 +1659,7 @@ function stopPlayback() {
     updateTimebox(remix.tempo.b2s(remix.playbackStart), remix.playbackStart);
   }
   mode = 'stopped';
+  roomApplyDeferred();
   letScreenSleep();
   view.playhead = null;
   view.resetEffects();
@@ -1684,6 +1698,7 @@ function frame(now) {
   // 揺れるのは再生中だけ（RHRE fresh も PLAYING のときだけ）
   if (mode !== 'playing' && view.shake) { view.shake = null; view.dirty = true; }
   if (playMode && judge) syncHolding();
+  if (room.active) roomTick(now);
   view.stepMomentum(now);
   if (guide.on) positionCoachRing();
   if (view.dirty && !videoJob) {
@@ -1730,6 +1745,7 @@ function doAction(act) {
       });
       break;
     case 'present': startPresentation(); break;
+    case 'room': openRoomModal(); break;
     case 'playmode': setPlayMode(!playMode); break;
     case 'tour': startTour(); break;
   }
@@ -3726,7 +3742,10 @@ async function loadMusicBytes(bytes, filename, opts = {}) {
     view.dirty = true;
     saveMusicToStore();
     if (mode !== 'stopped') stopPlayback();
-    if (opts.manualStart) {
+    if (room.active) roomCheckSong();
+    if (room.active && room.song) {
+      toast(t('音楽を読み込みました：{f}', { f: filename }), 3000, 'info');
+    } else if (opts.manualStart) {
       edit(() => { remix.musicStartSec = 0; });
       toast(t('音楽を読み込みました：{f}', { f: filename }), 3000, 'info');
     } else {
@@ -4130,7 +4149,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
     saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose', videoModal: '#videoClose', newsModal: '#newsClose',
-    songModal: '#songCancel', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk',
+    songModal: '#songCancel', roomModal: '#roomClose', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
     const card = $(mid)?.querySelector('.card');
@@ -4478,8 +4497,655 @@ buildTabs();
 updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
+// ---------------------------------------------------------------- みんなで編集（試し版：URL に ?collab か ?room= を付けたときだけ）
+// 部屋のサーバー（server/room）を通して、ブロック・テンポなどの変更を部屋の全員に配る（js/room.js）。
+// 曲は端末どうしで直接送る（js/songshare.js。サーバーは通らない）。再生開始の緑の旗は、それぞれの好きな所。
+// 同じブロックを同時に変えたときは、サーバーにあとから届いたほうが勝つ。元に戻す・やり直すは自分の操作だけ。
+// 入る前の自分のリミックスは、端末に取っておき（remixBeforeRoom）、抜けるときに戻すか選べる。
+const ROOM_URL = (['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('roomserver')) // 手元で試すとき
+  || 'wss://rhre-web-room.pika1013.workers.dev/ws';
+const COLLAB = (() => {
+  const q = new URLSearchParams(location.search);
+  const on = q.has('collab') || q.has('room');
+  try {
+    if (on) sessionStorage.setItem('rhre-collab', '1');
+    return sessionStorage.getItem('rhre-collab') === '1';
+  } catch (_) { return on; }
+})();
+if (COLLAB) $('menuRoom').hidden = false;
+
+const room = {
+  client: null,
+  active: false, // 部屋のリミックスを編集している
+  creating: false,
+  code: '',
+  you: null,
+  members: [],
+  pend: new Map(), // 送ったがまだ返ってこないブロック（番号 → 数）。その間にほかの人から届いた同じブロックの変更は入れない
+  pendG: 0,
+  parts: new Map(), // cid → { uids, g }
+  deferredG: null, // 再生中に届いたテンポなどの変更（止めたら入れる）
+  queue: Promise.resolve(),
+  state: null, // 届きかけの部屋のリミックス
+  lastSel: '',
+  selAt: 0,
+  tries: 0,
+  reconnecting: false,
+  // 曲（第 2 段階）：部屋の曲の情報・受け取りの様子・送る部品
+  song: null, // { hash, name, ext, size, by }
+  get: { busy: false, pct: 0, failed: false, tried: new Set() },
+  share: null,
+  sentHave: '',
+  shareAsked: false,
+  uiAt: 0,
+};
+const ROOM_G_KEYS = ['tempoTrackers', 'musicVolumes', 'timeSignatures', 'musicStartSec', 'defaultTempo', 'trackCount'];
+const roomG = (g) => ({ ...g, db: remix.db.commit, name: fileName });
+const roomWho = (m) => m?.nick || t('名前なし');
+const roomJobs = (fn) => { room.queue = room.queue.then(fn).catch((e) => console.error(e)); return room.queue; };
+
+// 自分の編集の前後をくらべて、送る変更（fwd）と元に戻す変更（inv）を作る
+function roomDiff(beforeStr, afterStr) {
+  const a = JSON.parse(beforeStr), b = JSON.parse(afterStr);
+  const strip = (e) => { const { _uid, ...rest } = e; return rest; };
+  const A = new Map(a.entities.map((e) => [e._uid, e]));
+  const B = new Map(b.entities.map((e) => [e._uid, e]));
+  const fwd = [], inv = [];
+  for (const [uid, e] of B) {
+    const ne = strip(e);
+    const o = A.get(uid);
+    if (!o) { fwd.push({ k: 'put', uid, e: ne }); inv.push({ k: 'del', uid }); continue; }
+    const oe = strip(o);
+    if (JSON.stringify(oe) !== JSON.stringify(ne)) { fwd.push({ k: 'put', uid, e: ne }); inv.push({ k: 'put', uid, e: oe }); }
+  }
+  for (const [uid, e] of A) if (!B.has(uid)) { fwd.push({ k: 'del', uid }); inv.push({ k: 'put', uid, e: strip(e) }); }
+  const G = (x) => Object.fromEntries(ROOM_G_KEYS.map((k) => [k, x[k]]));
+  if (JSON.stringify(G(a)) !== JSON.stringify(G(b))) { fwd.push({ k: 'g', v: roomG(G(b)) }); inv.push({ k: 'g', v: roomG(G(a)) }); }
+  return { fwd, inv };
+}
+
+function roomSend(ops) {
+  if (!ops.length || !room.client) return;
+  for (const part of room.client.sendOps(ops)) {
+    const uids = part.ops.filter((o) => o.uid).map((o) => o.uid);
+    const g = part.ops.some((o) => o.k === 'g');
+    room.parts.set(part.cid, { uids, g });
+    for (const u of uids) room.pend.set(u, (room.pend.get(u) || 0) + 1);
+    if (g) room.pendG++;
+  }
+}
+
+function roomAck(cid) {
+  const p = room.parts.get(cid);
+  if (!p) return;
+  room.parts.delete(cid);
+  for (const u of p.uids) { const n = (room.pend.get(u) || 1) - 1; if (n > 0) room.pend.set(u, n); else room.pend.delete(u); }
+  if (p.g) room.pendG = Math.max(0, room.pendG - 1);
+}
+
+function roomLocalEdit(beforeStr) {
+  const { fwd, inv } = roomDiff(beforeStr, remix.snapshot());
+  if (!fwd.length) return;
+  roomSend(fwd);
+  undoStack.push({ room: true, fwd, inv });
+}
+
+function roomUndo(isRedo) {
+  const from = isRedo ? redoStack : undoStack, to = isRedo ? undoStack : redoStack;
+  const step = from.pop();
+  if (!step?.room) return;
+  to.push(step);
+  const ops = isRedo ? step.fwd : step.inv;
+  roomApplyNow(ops);
+  roomSend(ops);
+  view.selection.clear();
+  afterEdit();
+}
+
+// 変更をこの端末のリミックスに入れる（ブロックの入れ物はそのまま使い、選んでいるものが外れないように）
+function roomApplyNow(ops) {
+  const byUid = new Map(remix.entities.map((e) => [e.uid, e]));
+  const added = [];
+  let lost = false;
+  for (const op of ops) {
+    if (op.k === 'put' && op.e) {
+      const ne = remix.entFromJSON({ ...op.e, _uid: op.uid });
+      const ex = byUid.get(op.uid);
+      if (ex) { const { flashAt, leafFlash } = ex; Object.assign(ex, ne, { flashAt, leafFlash }); }
+      else { remix.entities.push(ne); byUid.set(op.uid, ne); added.push(ne); }
+    } else if (op.k === 'del') {
+      const ex = byUid.get(op.uid);
+      if (!ex) continue;
+      remix.entities.splice(remix.entities.indexOf(ex), 1);
+      byUid.delete(op.uid);
+      if (view.selection.has(ex)) { view.selection.delete(ex); lost = true; }
+    } else if (op.k === 'g' && op.v) {
+      if (mode === 'playing') room.deferredG = op.v; // 再生中にテンポが変わると再生位置がずれるので、止めてから
+      else remix.setRoomGlobals(op.v);
+    }
+  }
+  remix.rebuild();
+  // 新しく来たブロックの音を読んでおく
+  const urls = [...new Set(added.filter((e) => e.o).flatMap((e) => remix.soundUrlsOf(e.o)))];
+  if (urls.length) engine.loadSounds(urls, remix.db);
+  return { lost };
+}
+
+// ほかの人の変更：まだ読んでいないゲームの定義を読んでから入れる
+async function roomApplyRemote(ops) {
+  // 自分が送って、まだ返ってきていないブロックの変更は入れない（自分の変更があとでサーバーに届いて勝つ）
+  ops = ops.filter((op) => (op.k === 'g' ? !room.pendG : !(room.pend.get(op.uid) > 0)));
+  if (!ops.length || !remix) return;
+  const ids = ops.filter((o) => o.k === 'put' && o.e?.datamodel).map((o) => o.e.datamodel);
+  if (ids.length) await remix.db.ensureAll(ids).catch(() => {});
+  const { lost } = roomApplyNow(ops);
+  // 動かしている途中のブロックを、ほかの人が消したとき
+  if (lost && view.drag && view.drag.mode !== 'scroll') {
+    view.drag = null;
+    view.moveState = null;
+    view.resizeState = null;
+    toast(t('ほかの人がこのブロックを消しました'), 2500, 'info');
+  }
+  afterRemoteEdit();
+}
+
+function afterRemoteEdit() {
+  for (const e of [...view.selection]) if (!remix.entities.includes(e)) view.selection.delete(e);
+  view.dirty = true;
+  updateButtons();
+  updateCtxbar();
+  if (currentTab === 'used' && !$('search').value) renderGrid();
+  scheduleAutosave();
+}
+
+function roomApplyDeferred() {
+  if (!room.deferredG || !remix || mode === 'playing') return;
+  remix.setRoomGlobals(room.deferredG);
+  room.deferredG = null;
+  remix.rebuild();
+  afterRemoteEdit();
+}
+
+// 選んでいるブロックを、ほかの人に知らせる（変わったときだけ、0.25 秒に 1 回まで）
+function roomTick(now) {
+  if (now - room.selAt < 250 || !room.client?.open) return;
+  room.selAt = now;
+  const sig = [...view.selection].map((e) => e.uid).join(',');
+  if (sig === room.lastSel) return;
+  room.lastSel = sig;
+  room.client.send({ t: 'sel', uids: sig ? sig.split(',') : [] });
+}
+
+function roomUpdatePeers() {
+  const peers = new Map();
+  for (const m of room.members) {
+    if (m.id === room.you?.id) continue;
+    const old = view.peers?.get(m.id);
+    peers.set(m.id, { color: PEER_COLORS[m.color % PEER_COLORS.length], nick: m.nick || '', uids: old?.uids || new Set(m.sel || []) });
+  }
+  view.peers = peers;
+  view.dirty = true;
+}
+
+// 入る前の自分のリミックスを取っておく（もう取ってあれば、そのまま＝つなぎ直し・読み込み直しのとき）
+async function roomStash() {
+  if (await store.get('remixBeforeRoom')) return;
+  const rec = await store.get('remix');
+  if (rec) await store.set('remixBeforeRoom', { rec, music: (await store.get('music')) || null });
+}
+async function roomUnstash(useIt) {
+  const s = await store.get('remixBeforeRoom');
+  await store.set('remixBeforeRoom', null);
+  if (!useIt || !s) return;
+  await store.set('remix', s.rec);
+  await store.set('music', s.music);
+  await openAutosave();
+}
+
+const roomHandlers = {
+  hello(you, back, song) {
+    room.you = you;
+    room.state = null;
+    room.sentHave = ''; // つなぎ直すとサーバーは「持っている」を忘れるので、もう一度知らせる
+    roomSetSong(song);
+    if (room.creating && !back) {
+      // 部屋を作った：今のリミックスを送る
+      const ops = [{ k: 'g', v: roomG(remix.roomGlobals()) }, ...remix.entities.map((e) => { const { _uid, ...rest } = { ...remix.entToJSON(e) }; return { k: 'put', uid: e.uid, e: rest }; })];
+      room.client.seed(ops);
+    }
+  },
+  seeded() {
+    room.creating = false;
+    roomStarted();
+    toast(t('部屋を作りました。合言葉を送って、友だちを呼びましょう'), 4000, 'info');
+    // 曲があれば、部屋の人に送るか聞く
+    if (musicFile && !musicFile.fromRoom) roomShareSong(false);
+  },
+  song(info) {
+    roomSetSong(info);
+    roomCheckSong();
+    renderRoomUi();
+  },
+  sig(from, data) {
+    room.share?.onSig(from, data);
+  },
+  state(m) {
+    const st = room.state || (room.state = { g: null, ents: [] });
+    if (m.g) st.g = m.g;
+    st.ents.push(...(m.ents || []));
+    if (!m.last) return;
+    room.state = null;
+    roomJobs(() => (room.active ? roomRebase(st) : roomLoadState(st)));
+  },
+  ops(m, mine) {
+    if (mine) { roomAck(m.cid); return; }
+    roomJobs(() => roomApplyRemote(m.ops || []));
+  },
+  sel(id, uids) {
+    const p = view.peers?.get(id);
+    if (p) { p.uids = new Set(uids); view.dirty = true; }
+  },
+  members(list) {
+    const before = new Map(room.members.map((m) => [m.id, m]));
+    room.members = list;
+    room.you = list.find((m) => m.id === room.you?.id) || room.you;
+    if (room.active && !room.reconnecting) {
+      for (const m of list) if (!before.has(m.id) && m.id !== room.you?.id) toast(t('{name}が入りました', { name: roomWho(m) }), 2500, 'info');
+      for (const [id, m] of before) if (!list.some((x) => x.id === id) && id !== room.you?.id) toast(t('{name}が抜けました', { name: roomWho(m) }), 2500, 'info');
+    }
+    roomUpdatePeers();
+    renderRoomUi();
+    roomCheckSong();
+  },
+  err(code) {
+    if (code === 'exists' && room.creating && room.tries++ < 3) { connectRoom(newRoomCode(), true); return; }
+    const msg = {
+      noroom: room.active ? t('部屋がなくなりました') : t('その合言葉の部屋は見つかりませんでした'),
+      full: t('部屋がいっぱいです（10 人まで）'),
+      locked: t('この部屋は締め切られています'),
+    }[code] || t('部屋に入れませんでした');
+    leaveRoom(msg);
+  },
+  drop() {
+    room.reconnecting = true;
+    renderRoomUi();
+  },
+};
+
+function connectRoom(code, create) {
+  room.client?.leave();
+  room.code = code;
+  room.state = null;
+  room.client = new RoomClient(ROOM_URL, roomHandlers);
+  room.share?.closeAll();
+  room.share = canShareSongs() ? new SongShare((to, data) => room.client?.sendSig(to, data), roomGetSong) : null;
+  room.client.connect(code, { create, nick: settings.nick || '', device: onlineDeviceId() });
+  renderRoomUi();
+}
+
+function createRoom() {
+  if (!remix || loading) return;
+  if (mode === 'playing') stopPlayback();
+  room.creating = true;
+  room.tries = 0;
+  connectRoom(newRoomCode(), true);
+}
+
+function joinRoom(code) {
+  code = cleanRoomCode(code);
+  if (!isRoomCode(code)) { toast(t('合言葉は 6 文字です（I・O・0・1 は使いません）'), 3000, 'info'); return; }
+  if (mode === 'playing') stopPlayback();
+  room.creating = false;
+  connectRoom(code, false);
+}
+
+// 部屋に入った：部屋のリミックスを開く
+async function roomLoadState(st) {
+  await roomStash();
+  const json = emptyRemixJSON();
+  json.databaseVersionCommit = st.g?.db || DEFAULT_DB_COMMIT;
+  json.entities = st.ents.map(({ uid, e }) => ({ ...e, _uid: uid }));
+  const name = st.g?.name || 'remix.rhref';
+  await withLoading(name, async (onStatus) => {
+    const res = await loadRemixJSON(json, { onStatus });
+    if (st.g) { res.remix.setRoomGlobals(st.g); res.remix.rebuild(); }
+    // 読み込み直して入り直したときは、端末に取ってある自分の曲（部屋から届いた曲は保存していない）をそのまま使う
+    const music = room.rejoin ? (await store.get('music')) || null : null;
+    await applyLoaded(res, name, { music, note: '部屋に入りました' });
+  }, null, { roomJob: true });
+  if (!remix || !room.client) return;
+  roomStarted();
+}
+
+// つなぎ直した：サーバーの中身に合わせてから、届いたか分からない自分の変更を入れ直して送り直す
+async function roomRebase(st) {
+  const ops = [];
+  const have = new Set(st.ents.map((x) => x.uid));
+  for (const { uid, e } of st.ents) ops.push({ k: 'put', uid, e });
+  for (const e of remix.entities) if (!have.has(e.uid)) ops.push({ k: 'del', uid: e.uid });
+  if (st.g) ops.push({ k: 'g', v: st.g });
+  const ids = ops.filter((o) => o.k === 'put').map((o) => o.e?.datamodel).filter(Boolean);
+  await remix.db.ensureAll(ids).catch(() => {});
+  roomApplyNow(ops);
+  for (const u of room.client.unacked) roomApplyNow(u.ops);
+  room.client.resend();
+  room.reconnecting = false;
+  afterRemoteEdit();
+  renderRoomUi();
+}
+
+function roomStarted() {
+  room.rejoin = false;
+  room.active = true;
+  room.reconnecting = false;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  room.lastSel = '';
+  try { sessionStorage.setItem('rhre-room', room.code); } catch (_) { /* 使えない */ }
+  roomUpdatePeers();
+  updateButtons();
+  renderRoomUi();
+  roomCheckSong();
+}
+
+function leaveRoom(reason) {
+  const was = room.active;
+  room.client?.leave();
+  room.client = null;
+  room.active = false;
+  room.creating = false;
+  room.reconnecting = false;
+  room.code = '';
+  room.members = [];
+  room.pend.clear();
+  room.parts.clear();
+  room.pendG = 0;
+  room.deferredG = null;
+  room.share?.closeAll();
+  room.share = null;
+  roomSetSong(null);
+  room.sentHave = '';
+  room.shareAsked = false;
+  // ほかの人から届いた曲は、部屋を抜けたら消す
+  if (musicFile?.fromRoom) {
+    musicFile = null;
+    musicBuf = null;
+    if (remix) remix.musicPresent = false;
+    if (mode !== 'stopped') stopPlayback();
+  }
+  view.peers = null;
+  view.dirty = true;
+  if (was) { undoStack.length = 0; redoStack.length = 0; }
+  try { sessionStorage.removeItem('rhre-room'); } catch (_) { /* 使えない */ }
+  updateButtons();
+  renderRoomUi();
+  if (reason) toast(reason, 4000, 'info');
+  if (!was) return;
+  // 入る前のリミックスに戻すか選ぶ（部屋を作った人は、もともと自分のリミックスなので聞かない）
+  store.get('remixBeforeRoom').then((s) => {
+    if (!s) return;
+    confirmBox(t('部屋を抜けました'), t('部屋に入る前のリミックスに戻りますか？「やめる」を押すと、部屋のリミックスをこのまま続けて編集できます。'), t('前のリミックスに戻る'),
+      () => roomUnstash(true), () => roomUnstash(false));
+  });
+}
+
+// ---- 曲（第 2 段階）：端末どうしで直接送る（js/songshare.js）。サーバーには曲の名前・大きさ・目印だけ
+function roomSetSong(song) {
+  if ((song?.hash || '') !== (room.song?.hash || '')) room.get = { busy: false, pct: 0, failed: false, tried: new Set() };
+  room.song = song || null;
+}
+
+// 今この端末から送れる曲（部屋の曲と同じものを持っているとき）
+function roomGetSong() {
+  return musicFile?.hash && room.song && musicFile.hash === room.song.hash ? { hash: musicFile.hash, bytes: musicFile.bytes } : null;
+}
+
+// 部屋の曲を持っていなければ、持っている人から受け取る（だめなら別の人。だれからもだめなら、自分で選んでもらう）
+async function roomCheckSong() {
+  const s = room.song;
+  if (!s || !room.active || !room.client || room.get.busy) return;
+  if (musicFile && !musicFile.hash) musicFile.hash = await songHash(musicFile.bytes).catch(() => '');
+  if (room.song !== s) return;
+  if (musicFile?.hash === s.hash) {
+    if (room.sentHave !== s.hash) { room.client.send({ t: 'have', hash: s.hash }); room.sentHave = s.hash; }
+    room.get.failed = false;
+    renderRoomUi();
+    return;
+  }
+  // 自分で選んだ別の曲を使っているときは、勝手に替えない（「部屋の曲を受け取る」を押したときだけ）
+  if (musicFile && !musicFile.fromRoom && !room.get.want) { renderRoomUi(); return; }
+  if (!room.share) { roomSongFailed(); return; }
+  const holders = room.members.filter((m) => m.has === s.hash && m.id !== room.you?.id && !room.get.tried.has(m.id));
+  if (!holders.length) { if (room.get.tried.size) roomSongFailed(); return; }
+  // 部屋を作った人ばかりに頼まないよう、受け取り済みの人がいればその中から
+  const others = holders.filter((m) => m.id !== s.by);
+  const pick = (others.length ? others : holders)[Math.floor(Math.random() * (others.length || holders.length))];
+  room.get.busy = true;
+  room.get.failed = false;
+  room.get.pct = 0;
+  renderRoomUi();
+  try {
+    const bytes = await room.share.fetch(pick.id, s.hash, (p) => { room.get.pct = p; roomProgressUi(); });
+    if (room.song !== s) return;
+    if ((await songHash(bytes)) !== s.hash) throw new Error('hash');
+    await roomUseSong(bytes, s);
+    room.get.busy = false;
+    room.client?.send({ t: 'have', hash: s.hash });
+    room.sentHave = s.hash;
+    toast(t('曲が届きました：{f}', { f: s.name }), 3000, 'info');
+    renderRoomUi();
+  } catch (e) {
+    if (room.song !== s) return;
+    room.get.busy = false;
+    room.get.tried.add(pick.id);
+    setTimeout(roomCheckSong, 300);
+  }
+}
+
+function roomSongFailed() {
+  if (room.get.failed) return;
+  room.get.failed = true;
+  toast(t('曲が届きませんでした。メニューの「音楽を選ぶ」で、同じ曲（{f}）を選んでください', { f: room.song?.name || '' }), 6000, 'info');
+  renderRoomUi();
+}
+
+// 届いた曲を使う（音楽の開始位置は部屋のものをそのまま使う。端末には保存しない）
+async function roomUseSong(bytes, s) {
+  const buf = await engine.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  buf.rhreLeadIn = rhreMusicLeadIn(bytes, buf);
+  if (mode !== 'stopped') stopPlayback();
+  musicFile = { bytes, filename: s.name || `music.${s.ext || 'mp3'}`, extension: s.ext || 'mp3', fromRoom: true, hash: s.hash };
+  musicBuf = buf;
+  remix.musicPresent = true;
+  view.dirty = true;
+}
+
+// 自分の曲を、部屋の曲として送る。最初の 1 回だけ「送ってもよい曲だけ」と確かめる
+async function roomShareSong(ok) {
+  if (!musicFile || musicFile.fromRoom || !room.active) return;
+  if (!ok && !room.shareAsked) {
+    confirmBox(t('曲を送る'), t('この曲（{f}）を部屋の人に送ります。送るのは、送ってもよい曲だけにしてください。', { f: musicFile.filename }), t('送る'), () => roomShareSong(true));
+    return;
+  }
+  room.shareAsked = true;
+  if (!musicFile.hash) musicFile.hash = await songHash(musicFile.bytes);
+  room.client?.send({ t: 'song', song: { hash: musicFile.hash, name: musicFile.filename, ext: musicFile.extension, size: musicFile.bytes.byteLength } });
+  room.sentHave = musicFile.hash;
+}
+
+const fmtMB = (n) => `${(n / 1048576).toFixed(1)} MB`;
+const roomHashing = new WeakSet(); // 目印を作っている途中の曲
+function roomSongStatus() {
+  const s = room.song;
+  if (!s) return '';
+  if (musicFile?.hash === s.hash) return t('この端末にあります');
+  if (musicFile && !musicFile.fromRoom && !room.get.want) return t('部屋の曲とちがう曲を使っています');
+  if (room.get.busy) return t('受け取っています {p}%', { p: Math.floor(room.get.pct * 100) });
+  if (room.get.failed) return t('届きませんでした。メニューの「音楽を選ぶ」で、同じ曲を選んでください');
+  return t('受け取る準備をしています…');
+}
+// 受け取っている途中は、札と曲の欄の文字だけ書き換える（0.3 秒に 1 回まで）
+function roomProgressUi() {
+  const now = performance.now();
+  if (now - room.uiAt < 300) return;
+  room.uiAt = now;
+  renderRoomUi();
+}
+
+// URL の ?room=合言葉 で開いたとき・読み込み直したときに、部屋に入る
+function maybeJoinRoom() {
+  if (!COLLAB) return;
+  const q = new URLSearchParams(location.search);
+  const code = cleanRoomCode(q.get('room'));
+  if (q.has('room')) {
+    q.delete('room');
+    history.replaceState(null, '', `${location.pathname}${q.toString() ? `?${q}` : ''}${location.hash}`);
+    if (isRoomCode(code)) confirmBox(t('みんなで編集'), t('部屋 {code} に入りますか？', { code }), t('入る'), () => joinRoom(code));
+    return;
+  }
+  let again = '';
+  try { again = sessionStorage.getItem('rhre-room') || ''; } catch (_) { /* 使えない */ }
+  if (isRoomCode(again)) { room.rejoin = true; joinRoom(again); }
+}
+
+// ---- 画面：下の段の「部屋」の札と、「みんなで編集」のウィンドウ
+function openRoomModal() {
+  $('menuModal').hidden = true;
+  renderRoomUi();
+  $('roomModal').hidden = false;
+}
+
+function renderRoomUi() {
+  const badge = $('roomBadge');
+  if (!room.client) badge.hidden = true;
+  else {
+    badge.hidden = false;
+    badge.textContent = '';
+    if (room.reconnecting || !room.active) badge.textContent = room.active ? t('つなぎ直しています…') : t('つないでいます…');
+    else {
+      for (const m of room.members) {
+        const d = document.createElement('span');
+        d.className = 'room-dot';
+        d.style.background = PEER_COLORS[m.color % PEER_COLORS.length];
+        badge.appendChild(d);
+      }
+      badge.append(t('部屋 {code}・{n} 人', { code: room.code, n: room.members.length }));
+      if (room.get.busy) badge.append(` ・${t('曲 {p}%', { p: Math.floor(room.get.pct * 100) })}`);
+    }
+  }
+  const body = $('roomBody');
+  body.textContent = '';
+  const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
+  if (!room.client) {
+    body.append(el('p', null, t('友だちと同じリミックスを一緒に編集できます。部屋の曲は、部屋の人の端末どうしで直接届きます（サーバーには残りません）。')));
+    const nf = el('div', 'field');
+    const nl = el('label', null, t('名前（なくても大丈夫）'));
+    nl.htmlFor = 'roomNick';
+    const ni = el('input');
+    ni.id = 'roomNick';
+    ni.maxLength = 16;
+    ni.autocomplete = 'off';
+    ni.value = settings.nick || '';
+    ni.addEventListener('change', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); });
+    nf.append(nl, ni);
+    const create = el('button', 'btn primary', t('部屋を作る'));
+    create.addEventListener('click', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); createRoom(); });
+    const jf = el('div', 'field room-join');
+    const jl = el('label', null, t('合言葉で入る'));
+    jl.htmlFor = 'roomCodeInput';
+    const ji = el('input');
+    ji.id = 'roomCodeInput';
+    ji.maxLength = 6;
+    ji.autocomplete = 'off';
+    ji.autocapitalize = 'characters';
+    ji.spellcheck = false;
+    ji.placeholder = 'ABC234';
+    ji.addEventListener('input', () => { const v = cleanRoomCode(ji.value); if (v !== ji.value) ji.value = v; });
+    const jb = el('button', 'btn', t('入る'));
+    jb.addEventListener('click', () => { settings.nick = ni.value.trim().slice(0, 16); saveSettings(); joinRoom(ji.value); });
+    ji.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
+    jf.append(jl, ji, jb);
+    body.append(nf, el('div', 'row', null), jf);
+    body.querySelector('.row').append(create);
+    return;
+  }
+  if (!room.active) {
+    body.append(el('p', null, room.reconnecting ? t('つなぎ直しています…') : t('つないでいます…')));
+    const stop = el('button', 'btn', t('やめる'));
+    stop.addEventListener('click', () => leaveRoom());
+    const row = el('div', 'row');
+    row.append(stop);
+    body.append(row);
+    return;
+  }
+  body.append(el('p', 'room-label', t('合言葉')), el('div', 'room-code', room.code));
+  const share = el('button', 'btn primary', t('合言葉を送る'));
+  share.addEventListener('click', shareRoom);
+  const row = el('div', 'row');
+  row.append(share);
+  body.append(row);
+  if (room.reconnecting) body.append(el('p', 'note', t('つなぎ直しています…')));
+  // 曲
+  const sec = el('div', 'room-song');
+  if (room.song) {
+    sec.append(el('p', 'room-label', t('部屋の曲')), el('p', 'room-song-name', `${room.song.name}（${fmtMB(room.song.size)}）`), el('p', 'note', roomSongStatus()));
+  } else {
+    sec.append(el('p', 'room-label', t('部屋の曲')), el('p', 'note', t('まだありません。メニューの「音楽を選ぶ」で曲を選ぶと、ここから部屋の人に送れます。')));
+  }
+  // 曲の目印をまだ作っていなければ作ってから出し直す（部屋の曲と同じ曲かを見分けるため）
+  if (musicFile && !musicFile.hash && !roomHashing.has(musicFile)) {
+    const mf = musicFile;
+    roomHashing.add(mf);
+    songHash(mf.bytes).then((h) => { mf.hash = h; if (musicFile === mf) { renderRoomUi(); roomCheckSong(); } }).catch(() => {}).finally(() => roomHashing.delete(mf));
+  }
+  if (musicFile && !musicFile.fromRoom && musicFile.hash && (!room.song || musicFile.hash !== room.song.hash)) {
+    const r = el('div', 'row');
+    if (room.song && !room.get.want) {
+      const gb = el('button', 'btn', t('部屋の曲を受け取る'));
+      gb.addEventListener('click', () => { room.get.want = true; room.get.tried.clear(); room.get.failed = false; roomCheckSong(); renderRoomUi(); });
+      r.append(gb);
+    }
+    const sb = el('button', 'btn', room.song ? t('自分の曲を部屋の曲にする') : t('この曲を部屋の人に送る'));
+    sb.addEventListener('click', () => roomShareSong(false));
+    r.append(sb);
+    sec.append(r);
+  }
+  body.append(sec);
+  const ul = el('ul', 'room-members');
+  for (const m of room.members) {
+    const li = el('li');
+    const d = el('span', 'room-dot');
+    d.style.background = PEER_COLORS[m.color % PEER_COLORS.length];
+    li.append(d, roomWho(m));
+    if (m.id === room.you?.id) li.append(el('small', null, t('（あなた）')));
+    if (m.host) li.append(el('small', null, t('部屋を作った人')));
+    ul.append(li);
+  }
+  body.append(ul);
+  const leave = el('button', 'btn danger', t('部屋を抜ける'));
+  leave.addEventListener('click', () => { $('roomModal').hidden = true; leaveRoom(); });
+  const row2 = el('div', 'row');
+  row2.append(leave);
+  body.append(row2);
+}
+
+async function shareRoom() {
+  const url = `${location.origin}${location.pathname}?room=${room.code}`;
+  const text = t('RHRE Web で一緒にリミックスを作ろう！合言葉：{code}', { code: room.code });
+  try {
+    if (navigator.share) { await navigator.share({ text, url }); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    toast(t('コピーしました'), 2000, 'info');
+  } catch (_) {
+    toast(`${text} ${url}`, 6000, 'info');
+  }
+}
+$('roomBadge').addEventListener('click', openRoomModal);
+
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null), addTexture: (hash, bytes) => addTextureImage(hash, bytes) };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, room, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null), addTexture: (hash, bytes) => addTextureImage(hash, bytes), edit: (fn) => edit(fn), undo: () => undo(), redo: () => redo() };
 
 applySettings();
 setStatus(t('読み込み中…')); // index.html の最初の文字は日本語なので、画面の言語で出し直す
@@ -4491,4 +5157,5 @@ langLate?.then((l) => { if (l && uiLang() === l) refreshLanguage(); });
   const restored = await openAutosave().catch(() => false);
   if (!restored) await openSample();
   maybeStartTour();
+  maybeJoinRoom();
 })();

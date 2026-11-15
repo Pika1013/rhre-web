@@ -712,6 +712,8 @@ export class EditorView {
     for (const e of R.entities) {
       if (e.type === 'textureEntity' && e.beat <= b1) this.drawTexture(g, e, L);
     }
+    // みんなで編集：ほかの人が選んでいるブロック
+    if (this.peers?.size && !iconsOnly) this.drawPeers(g, L);
     this.drawEditOverlay(g, L);
     if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
@@ -924,6 +926,42 @@ export class EditorView {
     g.imageSmoothingEnabled = w / nw < 2; // ドット絵のような小さい画像は、ぼやけないように
     if (sel) g.globalAlpha = 0.25;
     g.drawImage(sel ? tintedImage(img) : img, x, bottom - h, w, h);
+    g.restore();
+  }
+
+  // みんなで編集：ほかの人が選んでいるブロックに、その人の色の点線の枠。いちばん左のブロックの上に名前
+  drawPeers(g, L) {
+    const byUid = new Map(this.remix.entities.map((e) => [e.uid, e]));
+    g.save();
+    for (const p of this.peers.values()) {
+      if (!p.uids?.size) continue;
+      let first = null;
+      g.strokeStyle = p.color;
+      g.lineWidth = 3;
+      g.setLineDash([7, 4]);
+      for (const uid of p.uids) {
+        const e = byUid.get(uid);
+        if (!e) continue;
+        const x = this.x(e.beat), w = Math.max(3, e.width * this.ppb);
+        if (x > this.W || x + w < 0) continue;
+        const y = this.trackY(e.track, e.height, L) + 1, h = e.height * L.rowH - 2;
+        g.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        if (!first || x < first.x - 0.5 || (Math.abs(x - first.x) <= 0.5 && y < first.y)) first = { x, y };
+      }
+      g.setLineDash([]);
+      if (first && p.nick) {
+        const fs = 11;
+        g.font = `700 ${fs}px ${FONT}`;
+        const tw = g.measureText(p.nick).width;
+        const tx = Math.max(2, first.x), ty = Math.max(L.tracksTop, first.y - fs - 4);
+        g.fillStyle = p.color;
+        g.fillRect(tx, ty, tw + 8, fs + 4);
+        g.fillStyle = '#111';
+        g.textAlign = 'left';
+        g.textBaseline = 'top';
+        g.fillText(p.nick, tx + 4, ty + 2);
+      }
+    }
     g.restore();
   }
 

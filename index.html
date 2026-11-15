@@ -150,6 +150,24 @@
     background: var(--panel); border: 2px solid var(--accent); border-radius: 10px;
     caret-color: var(--accent); outline: none; -webkit-appearance: none; appearance: none;
   }
+  /* みんなで編集：下の段の部屋の札と、ウィンドウの中 */
+  #roomBadge {
+    margin-left: 10px; padding: 1px 8px; border: 1px solid var(--line, #555); border-radius: 999px; background: transparent;
+    color: inherit; font: inherit; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; white-space: nowrap;
+  }
+  .room-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+  #roomBadge .room-dot:last-of-type { margin-right: 4px; }
+  #roomBody .room-label { margin: 6px 0 0; font-size: 13px; opacity: 0.75; }
+  #roomBody .room-code { font-size: 34px; font-weight: 800; letter-spacing: 0.18em; margin: 2px 0 8px; user-select: all; -webkit-user-select: all; }
+  #roomBody .room-members { list-style: none; margin: 10px 0; padding: 0; }
+  #roomBody .room-members li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-weight: 700; }
+  #roomBody .room-members small { font-weight: 400; opacity: 0.7; }
+  #roomBody .room-join { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  #roomBody .room-join label { flex-basis: 100%; }
+  #roomBody .room-song { margin: 6px 0 4px; padding: 8px 10px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
+  #roomBody .room-song p { margin: 2px 0; }
+  #roomBody .room-song-name { font-weight: 800; word-break: break-all; }
+  #roomBody .room-join input { width: 8em; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
   #toast {
     position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 5; width: min(520px, calc(100% - 24px));
     box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #5a1d1d; border: 2px solid #c94a4a;
@@ -989,7 +1007,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.14.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.14.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1074,6 +1092,7 @@
       <button class="btn" data-act="tracks">トラックの数</button>
       <button class="btn" data-act="flipTracks">トラックの上下を反転</button>
       <button class="btn" data-act="present">プレゼンテーションモード</button>
+      <button class="btn" data-act="room" id="menuRoom" hidden>みんなで編集</button>
       <button class="btn" data-act="playmode" id="menuPlayMode">プレイモード</button>
       <hr>
       <button class="btn" data-act="tour">チュートリアル</button>
@@ -1112,6 +1131,14 @@
       <button class="btn danger" id="markerDel">削除</button>
       <button class="btn" id="markerCancel">やめる</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="roomModal" hidden>
+  <div class="card">
+    <h2>みんなで編集</h2>
+    <div id="roomBody"></div>
+    <div class="row"><button class="btn" id="roomClose">閉じる</button></div>
   </div>
 </div>
 

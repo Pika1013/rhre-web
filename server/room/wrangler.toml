@@ -1,0 +1,19 @@
+# RHRE Web の「みんなで編集」の部屋のサーバー（Cloudflare Workers + Durable Objects）
+# オンライン人数のサーバー（server/online）とは別。こちらを直しても人数の表示には影響しない
+# 手元で試す：cd server/room && wrangler dev --port 8788
+# 公開：cd server/room && wrangler deploy
+name = "rhre-web-room"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "Lobby"]
