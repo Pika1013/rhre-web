@@ -4,6 +4,37 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.14.1', date: '2026-11-15',
+    ja: [
+      'ゲーム名の「ゐあひ斬り伝説」が「ゐあひ斬ぎり伝説」になっていたのを直しました',
+      '再生を始める位置ちょうど（0 拍目など）に置いた音楽の音量の変更が、再生・音声の書き出し・動画の書き出しで効かないことがあったのを直しました',
+    ],
+    en: [
+      'Fixed a typo in the Japanese name of Super Samurai Slice.',
+      'Fixed music volume changes placed exactly at the playback start (such as beat 0) sometimes being ignored during playback, audio export and video export.',
+    ],
+    'zh-Hant': [
+      '修正了 Super Samurai Slice 日文名稱的錯字。',
+      '修正了放在播放開始位置（例如第 0 拍）的音樂音量變更，在播放、匯出音訊和匯出影片時有時不會生效的問題。',
+    ],
+    ko: [
+      'Super Samurai Slice의 일본어 이름 오타를 고쳤어요.',
+      '재생 시작 위치(0박 등)에 놓은 음악 음량 변경이 재생·오디오 내보내기·동영상 내보내기에서 적용되지 않을 때가 있던 문제를 고쳤어요.',
+    ],
+    es: [
+      'Se corrigió una errata en el nombre japonés de Super Samurai Slice.',
+      'Se corrigió que los cambios de volumen de la música colocados justo en el inicio de la reproducción (como el tiempo 0) a veces no se aplicaban al reproducir, al exportar audio y al exportar vídeo.',
+    ],
+    fr: [
+      "Correction d'une faute dans le nom japonais de Super Samurai Slice.",
+      "Correction : les changements de volume de la musique placés exactement au début de la lecture (comme le temps 0) étaient parfois ignorés pendant la lecture, l'export audio et l'export vidéo.",
+    ],
+    de: [
+      'Tippfehler im japanischen Namen von Super Samurai Slice behoben.',
+      'Behoben: Änderungen der Musiklautstärke genau am Wiedergabestart (z. B. Schlag 0) wurden bei der Wiedergabe sowie beim Audio- und Videoexport manchmal ignoriert.',
+    ],
+  },
+  {
     v: '1.14.0', date: '2026-11-15',
     ja: [
       '「特殊」タブのブロックを、RHRE fresh と同じ作りにしました。一覧も RHRE fresh と同じく「Special Entities」「Visual Effects」に分かれています',

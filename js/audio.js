@@ -389,9 +389,14 @@ function scheduleMusic(ctx, dest, remix, musicBuf, ctxStart, fromSec, speed = 1)
   src.buffer = musicBuf;
   src.playbackRate.value = speed;
   const g = ctx.createGain();
-  g.gain.setValueAtTime(remix.musicVolumeAt(remix.tempo.s2b(fromSec)), ctxStart);
+  // 始めの音量：始める位置の「ほんの少し後」の音量にする。RHRE fresh は毎コマ「その拍より前の変更点」で決めるので、
+  // 始める位置ちょうど（0 拍目など）にある変更点も、再生が少し進めばすぐ効く。ここでは最初にまとめて予約するので、
+  // 少し後で見ないと、その変更点が始めの音量にも下の予約にも入らず、100% のまま流れてしまう（v1.14.0 まで）
+  const startBeat = remix.tempo.s2b(fromSec) + 1e-4;
+  g.gain.setValueAtTime(remix.musicVolumeAt(startBeat), ctxStart);
+  const startT = remix.tempo.b2s(startBeat);
   for (const p of remix.musicVolumeAutomation()) {
-    if (p.t <= fromSec) continue;
+    if (p.t <= startT) continue;
     const at = ctxStart + (p.t - fromSec) / speed;
     if (p.ramp) g.gain.linearRampToValueAtTime(p.v, at);
     else g.gain.setValueAtTime(p.v, at);

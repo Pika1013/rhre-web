@@ -1,18 +1,18 @@
 import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap, subtitleKind } from './remix.js?v=21';
 import { analyzeTempo } from './tempo.js?v=2';
-import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
+import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
 import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=48';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=34';
-import { GAME_NAMES_JA } from './gamenames.js?v=1';
+import { CHANGELOG } from './changelog.js?v=35';
+import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=3';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 
-const VERSION = '1.14.0';
+const VERSION = '1.14.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
