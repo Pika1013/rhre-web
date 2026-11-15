@@ -5,6 +5,8 @@
 //  ・/lobby：公開の部屋の一覧（JSON）
 // 受け取るのは、リミックスの中身・端末ごとのランダムな番号・好きに付けた名前だけ。曲はここを通らない。
 // 全員が抜けて 2 分たったら、部屋の中身をすべて消す（サーバーに何も残さない）。
+// だれも何もしない時間が 2 時間続いた部屋も、閉じて中身を消す（つないだまま放っておかれた部屋）。
+// 同じ端末（d）が前のつながりを残したまま入り直したときは、前のつながりと入れ替える（同じ人が 2 人に見えないように）。
 //
 // 部屋は 2 種類
 //  ・合言葉の部屋：一覧に出ない。合言葉を知っていれば入れる
@@ -24,7 +26,11 @@ const ALLOWED_ORIGINS = ['https://pika1013.github.io', 'http://localhost:8123', 
 const MAX_MEMBERS = 10;
 const STALE_MS = 90_000; // 90 秒以上 ping が来ない人は、いないとみなす
 const EMPTY_KEEP_MS = 120_000; // 全員いなくなってから消すまで（電波が切れてつなぎ直す人のため）
-const REFRESH_MS = 10 * 60_000; // 人がいる間、一覧の情報を出し直す間隔
+const REFRESH_MS = 10 * 60_000; // 人がいる間の見回り（一覧の出し直し・使われていない部屋を閉じる）の間隔
+const IDLE_MS = 2 * 60 * 60_000; // だれも何もしない時間がこれだけ続いたら、部屋を閉じる
+// 部屋と一覧の名前の頭。変えると、それまでの部屋はだれも入れなくなる（中身は見回りで消える）。
+// v2：2026-11-15 の正式公開の前に、試しで作った部屋をすべて消すため
+const NS = 'v2:';
 const LOBBY_STALE_MS = 25 * 60_000; // これより長く出し直しの無い部屋は、一覧から消す
 const CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/; // 見分けにくい I・O・0・1 は使わない
 const UID_RE = /^[a-z0-9]{1,24}$/i;
@@ -37,7 +43,7 @@ const MAX_SIG = 64_000;
 const HASH_RE = /^[0-9a-f]{16,64}$/;
 
 const cleanNick = (s) => String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 16);
-const lobbyOf = (env) => env.LOBBY.get(env.LOBBY.idFromName('lobby'));
+const lobbyOf = (env) => env.LOBBY.get(env.LOBBY.idFromName(`${NS}lobby`));
 
 export default {
   async fetch(request, env) {
@@ -48,7 +54,7 @@ export default {
       if (!ALLOWED_ORIGINS.includes(origin)) return new Response('Forbidden', { status: 403 });
       const code = (url.searchParams.get('room') || '').toUpperCase();
       if (!CODE_RE.test(code)) return new Response('Bad room', { status: 400 });
-      return env.ROOM.get(env.ROOM.idFromName(code)).fetch(request);
+      return env.ROOM.get(env.ROOM.idFromName(NS + code)).fetch(request);
     }
     if (url.pathname === '/lobby') {
       const res = await lobbyOf(env).fetch(new Request('https://lobby/list'));
@@ -100,7 +106,7 @@ export class Room extends DurableObject {
     for (const ws of this.ctx.getWebSockets()) {
       if (ws === except) continue;
       const a = ws.deserializeAttachment();
-      if (!a?.id) continue;
+      if (!a?.id || a.replaced) continue;
       const last = Math.max(this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() || 0, a.t || 0);
       if (now - last > STALE_MS) { try { ws.close(1001, 'stale'); } catch (_) { /* もう閉じている */ } continue; }
       out.push({ ws, a });
@@ -140,9 +146,17 @@ export class Room extends DurableObject {
     const done = () => new Response(null, { status: 101, webSocket: client });
     const fail = (code) => { this.send(server, { t: 'err', code }); try { server.close(4000, code); } catch (_) { /* もう閉じている */ } return done(); };
 
+    const d = (url.searchParams.get('d') || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40);
+    // 同じ端末の前のつながりが残っていたら閉じて、色と「部屋を作った人」を引き継ぐ
+    const prev = d && !create ? this.sockets(server).find((x) => x.a.d === d) : null;
+    if (prev) {
+      prev.a.replaced = true;
+      prev.ws.serializeAttachment(prev.a);
+      this.send(prev.ws, { t: 'err', code: 'replaced' });
+      try { prev.ws.close(4000, 'replaced'); } catch (_) { /* もう閉じている */ }
+    }
     const others = this.members(server);
     let meta = await this.ctx.storage.get('meta');
-    const d = (url.searchParams.get('d') || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40);
     if (create) {
       if (meta && (others.length || this.waiters(server).length)) return fail('exists'); // 同じ合言葉の部屋がもうある（作る側が別の合言葉で作り直す）
       await this.ctx.storage.deleteAll(); // 前の部屋の残り
@@ -153,7 +167,7 @@ export class Room extends DurableObject {
         public: url.searchParams.get('public') === '1',
         num: 1000 + Math.floor(Math.random() * 9000),
         lang: LANG_RE.test(lang) ? lang : '',
-        icons: [], locked: false, banned: [], admitted: [],
+        icons: [], locked: false, banned: [], admitted: [], active: Date.now(),
       };
       await this.ctx.storage.put('meta', meta);
     } else {
@@ -167,13 +181,14 @@ export class Room extends DurableObject {
       id: crypto.randomUUID().replace(/-/g, '').slice(0, 10),
       nick: cleanNick(url.searchParams.get('nick')),
       d,
-      color: -1,
-      host: create,
+      color: prev && !prev.a.waiting ? prev.a.color : -1,
+      host: create || !!(prev && !prev.a.waiting && prev.a.host),
       t: Date.now(),
     };
+    this.touch();
     await this.ctx.storage.setAlarm(Date.now() + REFRESH_MS); // 人がいる間は消さない（一覧の出し直しだけ）
     // 公開の部屋：部屋を作った人の返事を待つ（一度入れてもらった端末のつなぎ直し・読み込み直しと、だれもいないときは待たない）
-    if (!create && meta.public && others.length && !(d && meta.admitted?.includes(d))) {
+    if (!create && meta.public && others.length && !(prev && !prev.a.waiting) && !(d && meta.admitted?.includes(d))) {
       a.waiting = true;
       server.serializeAttachment(a);
       this.send(server, { t: 'waiting' });
@@ -188,11 +203,13 @@ export class Room extends DurableObject {
   // 部屋に入れる：色を決めて、部屋のリミックスを送る
   async admitSocket(ws, a, meta, others = this.members(ws)) {
     const used = new Set(others.map((m) => m.a.color));
-    let color = 0;
+    // 入り直した端末は、前と同じ色（空いていれば）
+    let color = a.color >= 0 && !used.has(a.color) ? a.color : 0;
     while (used.has(color)) color++;
     a.color = color;
     a.waiting = false;
-    if (!others.some((m) => m.a.host)) a.host = true;
+    if (others.some((m) => m.a.host)) a.host = false;
+    else a.host = true;
     ws.serializeAttachment(a);
     if (a.d && !meta.admitted?.includes(a.d)) {
       meta.admitted = [...(meta.admitted || []), a.d].slice(-50);
@@ -245,6 +262,7 @@ export class Room extends DurableObject {
     if (a.waiting) return; // 返事待ちの人からは受け取らない
     const meta = await this.ctx.storage.get('meta');
     if (!meta) return;
+    if (m.t !== 'time') this.touch();
 
     if (m.t === 'time') { this.send(ws, { t: 'time', c: m.c, s: Date.now() }); return; }
 
@@ -361,9 +379,17 @@ export class Room extends DurableObject {
     await this.left(ws);
   }
 
+  // だれかが何かをした（使われている）。保存は 1 分に 1 回まで
+  touch() {
+    this.lastActive = Date.now();
+    if (Date.now() - (this.savedActive || 0) < 60_000) return;
+    this.savedActive = Date.now();
+    this.ctx.storage.get('meta').then((meta) => { if (meta) { meta.active = this.lastActive; return this.ctx.storage.put('meta', meta); } }).catch(() => {});
+  }
+
   async left(ws) {
     const a = ws.deserializeAttachment();
-    if (a?.waiting || !a?.id) return; // 返事待ちの人・入れなかった人が抜けても、部屋は変わらない
+    if (a?.waiting || !a?.id || a.replaced) return; // 返事待ちの人・入れなかった人・入れ替わった前のつながりが抜けても、部屋は変わらない
     this.sels.delete(a.id);
     const meta = await this.ctx.storage.get('meta');
     const rest = this.members(ws);
@@ -386,6 +412,14 @@ export class Room extends DurableObject {
 
   async alarm() {
     const meta = await this.ctx.storage.get('meta');
+    // だれも何もしない時間が続いた部屋は閉じる（つないだまま放っておかれた部屋）
+    const active = Math.max(this.lastActive || 0, meta?.active || meta?.created || 0);
+    if (meta && Date.now() - active > IDLE_MS) {
+      for (const s of this.sockets()) { this.send(s.ws, { t: 'err', code: 'expired' }); try { s.ws.close(4000, 'expired'); } catch (_) { /* もう閉じている */ } }
+      if (meta.public) await this.updateLobby({ ...meta, locked: true });
+      await this.ctx.storage.deleteAll();
+      return;
+    }
     if (this.members().length) {
       // 人がいる：一覧の情報を出し直して、また 10 分後に
       await this.updateLobby(meta);

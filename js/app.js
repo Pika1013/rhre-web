@@ -4897,8 +4897,12 @@ const roomHandlers = {
     room.members = list;
     room.you = list.find((m) => m.id === room.you?.id) || room.you;
     if (room.active && !room.reconnecting) {
-      for (const m of list) if (!before.has(m.id) && m.id !== room.you?.id) toast(t('{name}が入りました', { name: roomWho(m) }), 2500, 'info');
-      for (const [id, m] of before) if (!list.some((x) => x.id === id) && id !== room.you?.id) toast(t('{name}が抜けました', { name: roomWho(m) }), 2500, 'info');
+      // 同じ人がつなぎ直して入れ替わっただけ（同じ色・同じ名前）のときは知らせない
+      const joined = list.filter((m) => !before.has(m.id) && m.id !== room.you?.id);
+      const left = [...before.values()].filter((m) => !list.some((x) => x.id === m.id) && m.id !== room.you?.id);
+      const same = (a, b) => a.color === b.color && a.nick === b.nick;
+      for (const m of joined) if (!left.some((x) => same(x, m))) toast(t('{name}が入りました', { name: roomWho(m) }), 2500, 'info');
+      for (const m of left) if (!joined.some((x) => same(x, m))) toast(t('{name}が抜けました', { name: roomWho(m) }), 2500, 'info');
     }
     roomUpdatePeers();
     renderRoomUi();
@@ -4912,6 +4916,8 @@ const roomHandlers = {
       locked: t('この部屋は締め切られています'),
       denied: t('入れませんでした（部屋を作った人がことわりました）'),
       kicked: t('部屋から外されました'),
+      replaced: t('ほかの画面からこの部屋に入り直したので、こちらは部屋を抜けました'),
+      expired: t('しばらくだれも使わなかったので、部屋を閉じました'),
     }[code] || t('部屋に入れませんでした');
     leaveRoom(msg);
   },
