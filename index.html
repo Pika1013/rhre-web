@@ -176,6 +176,16 @@
   #gate .g-room { margin: 0 0 4px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--accent, #5fd3ff); font-size: 14px; line-height: 1.5; text-align: center; }
   #gate .g-room b { font-size: 18px; letter-spacing: 0.06em; }
   #knockBox[hidden] { display: none; }
+  /* 新しい機能のお知らせ：メニューのボタンを指す白い吹き出し（位置は app.js の placeFeatureTip）。タップかメニューを開くと消える */
+  #featureTip {
+    position: fixed; z-index: 15; max-width: calc(100vw - 24px); box-sizing: border-box; margin: 0; padding: 9px 14px;
+    border: 0; border-radius: 12px; background: #fff; color: #111; font: inherit; font-size: 14px; font-weight: 800; line-height: 1.4;
+    text-align: left; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); cursor: pointer;
+  }
+  #featureTip[hidden] { display: none; }
+  #featureTip::before {
+    content: ''; position: absolute; top: -6px; left: var(--ft-arrow, 14px); width: 13px; height: 13px; background: #fff; transform: rotate(45deg);
+  }
   /* みんなで編集：段階ごとの画面 */
   #roomBody .room-step { margin: 0; font-size: 12px; font-weight: 700; opacity: 0.65; }
   #roomBody .room-q { margin: 2px 0 12px; font-size: 18px; }
@@ -1046,7 +1056,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.15.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.15.1</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1174,6 +1184,9 @@
 </div>
 
 <div id="knockBox" hidden></div>
+
+<!-- 新しい機能のお知らせ（左上のメニューのボタンの下に、一度だけ） -->
+<button id="featureTip" type="button" hidden></button>
 
 <div class="modal" id="roomModal" hidden>
   <div class="card">
@@ -1399,7 +1412,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.15.0</h2>
+    <h2>RHRE Web v1.15.1</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1535,7 +1548,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=111"></script>
+<script type="module" src="js/app.js?v=112"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

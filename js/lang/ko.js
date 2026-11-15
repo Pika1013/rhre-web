@@ -236,6 +236,8 @@ export default {
     "Image": "이미지",
     "Shake": "화면 흔들림",
     "<no texture>": "<이미지 없음>",
+    // 新しい機能のお知らせ（v1.15.1）
+    "You can now edit together!": "이제 함께 편집할 수 있어요!",
     // みんなで編集（v1.15.0）
     "Edit together": "함께 편집",
     "You joined the room": "방에 들어왔어요",
@@ -477,7 +479,6 @@ export default {
     "Export": "내보내기",
     "Save video": "동영상 저장",
     "In the home screen app or the Android app, minigames you have used once work without an internet connection (the first time needs the internet).": "홈 화면에 추가한 앱이나 Android 앱에서는 한 번 쓴 미니게임을 인터넷 없이도 쓸 수 있어요(처음 한 번은 인터넷이 필요해요).",
-    "New": "새로 만들기",
     "Open (.rhref)": "열기(.rhref)",
     "Open sample": "샘플 열기",
     "Save (.rhref)": "저장(.rhref)",

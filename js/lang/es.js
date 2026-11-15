@@ -236,6 +236,8 @@ export default {
     "Image": "Imagen",
     "Shake": "Temblor",
     "<no texture>": "<sin imagen>",
+    // 新しい機能のお知らせ（v1.15.1）
+    "You can now edit together!": "¡Ya puedes editar juntos!",
     // みんなで編集（v1.15.0）
     "Edit together": "Editar juntos",
     "You joined the room": "Entraste en la sala",
@@ -477,7 +479,6 @@ export default {
     "Export": "Exportar",
     "Save video": "Guardar vídeo",
     "In the home screen app or the Android app, minigames you have used once work without an internet connection (the first time needs the internet).": "En la app de la pantalla de inicio o en la app de Android, los minijuegos que ya has usado una vez funcionan sin conexión a internet (la primera vez la necesita).",
-    "New": "Nuevo",
     "Open (.rhref)": "Abrir (.rhref)",
     "Open sample": "Abrir ejemplo",
     "Save (.rhref)": "Guardar (.rhref)",

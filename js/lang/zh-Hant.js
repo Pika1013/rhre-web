@@ -236,6 +236,8 @@ export default {
     "Image": "圖片",
     "Shake": "畫面震動",
     "<no texture>": "<沒有圖片>",
+    // 新しい機能のお知らせ（v1.15.1）
+    "You can now edit together!": "現在可以一起編輯了！",
     // みんなで編集（v1.15.0）
     "Edit together": "一起編輯",
     "You joined the room": "已進入房間",
@@ -477,7 +479,6 @@ export default {
     "Export": "匯出",
     "Save video": "儲存影片",
     "In the home screen app or the Android app, minigames you have used once work without an internet connection (the first time needs the internet).": "在加到主畫面的 App 或 Android App 中，用過一次的小遊戲在沒有網路時也能使用（第一次需要網路）。",
-    "New": "新增",
     "Open (.rhref)": "開啟（.rhref）",
     "Open sample": "開啟範例",
     "Save (.rhref)": "儲存（.rhref）",

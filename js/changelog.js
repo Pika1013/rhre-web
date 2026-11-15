@@ -4,6 +4,16 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.15.1', date: '2026-11-15',
+    ja: ['左上のメニューのボタンの下に、「みんなで編集ができるようになりました！」のお知らせを出しました（タップするか、メニューを開くと消えます）'],
+    en: ['Added a "You can now edit together!" note under the menu button at the top left (it disappears when you tap it or open the menu).'],
+    'zh-Hant': ['在左上角選單按鈕的下方，加上了「現在可以一起編輯了！」的提示（點一下或打開選單就會消失）。'],
+    ko: ['왼쪽 위 메뉴 버튼 아래에 "이제 함께 편집할 수 있어요!" 알림을 넣었어요(탭하거나 메뉴를 열면 사라져요).'],
+    es: ['Se añadió un aviso "¡Ya puedes editar juntos!" debajo del botón de menú, arriba a la izquierda (desaparece al tocarlo o al abrir el menú).'],
+    fr: ["Ajout d'un message « Vous pouvez maintenant éditer ensemble ! » sous le bouton de menu en haut à gauche (il disparaît quand vous le touchez ou ouvrez le menu)."],
+    de: ['Unter dem Menüknopf oben links erscheint jetzt der Hinweis „Du kannst jetzt gemeinsam bearbeiten!“ (er verschwindet, wenn du ihn antippst oder das Menü öffnest).'],
+  },
+  {
     v: '1.15.0', date: '2026-11-15',
     ja: [
       'メニューに「みんなで編集」ができました。友だちなどと同じリミックスを一緒に編集できます（10 人まで）。だれかがブロックを置いたり動かしたりすると、ほかの人の画面にもすぐ出ます',

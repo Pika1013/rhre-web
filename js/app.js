@@ -2,12 +2,12 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=49';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=50';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=36';
+import { CHANGELOG } from './changelog.js?v=37';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=3';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.15.0';
+const VERSION = '1.15.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1756,7 +1756,7 @@ function doAction(act) {
   }
 }
 
-$('menuBtn').addEventListener('click', () => { $('menuModal').hidden = false; });
+$('menuBtn').addEventListener('click', () => { closeFeatureTip(); $('menuModal').hidden = false; });
 $('menuModal').addEventListener('click', (e) => {
   if (e.target === $('menuModal')) { $('menuModal').hidden = true; return; }
   const act = e.target.closest('[data-act]')?.dataset.act;
@@ -3502,9 +3502,67 @@ function maybeStartTour() {
   if (root.classList.contains('gate-ios') || root.classList.contains('gate-android')) return;
   if (needLangPick()) { showLangPick(); return; }
   if (needGameNamesAsk()) { askGameNames(maybeStartTour); return; }
-  if (settings.tutorialDone || tour.on) return;
+  if (settings.tutorialDone || tour.on) {
+    // チュートリアルを終えた人には、新しい機能のお知らせ（一度だけ）
+    if (settings.tutorialDone && !tour.on) setTimeout(showFeatureTip, 800);
+    return;
+  }
   setTimeout(() => { if (!settings.tutorialDone && !tour.on) startTour(); }, 400);
 }
+
+// ---------------------------------------------------------------- 新しい機能のお知らせ
+// 更新内容を見ない人にも気づいてもらうため、左上のメニューのボタンの下に吹き出しを一度だけ出す。
+// 吹き出しをタップするか、メニュー・「みんなで編集」を開いたら消えて、もう出さない（settings.tipCollab）。今は「みんなで編集」（v1.15.1）
+let tipTimer = 0;
+function showFeatureTip() {
+  if (settings.tipCollab || tour.on || guide.on) return;
+  $('featureTip').textContent = t('みんなで編集ができるようになりました！');
+  $('featureTip').hidden = false;
+  placeFeatureTip();
+  clearInterval(tipTimer);
+  tipTimer = setInterval(placeFeatureTip, 400); // お知らせの帯が消えた・画面を回したときに位置を合わせ直す
+}
+// メニューのボタンのすぐ下に（矢印がメニューを指すように）。「アップデートしました！」などの帯と重なるときは、帯のほうを吹き出しの下にずらす
+function placeFeatureTip() {
+  const tip = $('featureTip');
+  if (tip.hidden) return;
+  const btn = $('menuBtn');
+  const r = btn.getBoundingClientRect();
+  // プレゼンテーション・プレイモード・チュートリアルの間は隠しておく
+  if (!btn.offsetParent || !r.width || presenting || playMode || tour.on || guide.on) {
+    tip.style.visibility = 'hidden';
+    $('updateBar').style.top = '';
+    $('newsBar').style.top = '';
+    return;
+  }
+  tip.style.visibility = '';
+  const left = Math.max(8, r.left - 6);
+  const top = r.bottom + 12;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  tip.style.setProperty('--ft-arrow', `${Math.max(8, r.left + r.width / 2 - left - 9)}px`);
+  const right = left + tip.offsetWidth, bottom = top + tip.offsetHeight;
+  let y = bottom + 8;
+  for (const id of ['updateBar', 'newsBar']) {
+    const bar = $(id);
+    if (bar.hidden) continue;
+    bar.style.top = '';
+    const b = bar.getBoundingClientRect();
+    if (!b.width || b.left >= right || b.right <= left || b.top >= bottom + 4) continue;
+    const parentTop = bar.offsetParent ? bar.offsetParent.getBoundingClientRect().top : 0;
+    bar.style.top = `${Math.round(y - parentTop)}px`;
+    y += b.height + 8;
+  }
+}
+function closeFeatureTip() {
+  clearInterval(tipTimer);
+  $('updateBar').style.top = '';
+  $('newsBar').style.top = '';
+  if (!settings.tipCollab) { settings.tipCollab = true; saveSettings(); }
+  $('featureTip').hidden = true;
+}
+$('featureTip').addEventListener('click', closeFeatureTip);
+addEventListener('resize', placeFeatureTip);
 
 // ゲーム名を日本語にするか、画面が日本語の人に一度だけ聞く（あとから設定の「ゲーム名」で変えられる）
 const needGameNamesAsk = () => getLang() === 'ja' && settings.gameNamesJa == null && !tour.on;
@@ -4404,6 +4462,7 @@ $('uiLangSelect').addEventListener('change', async () => {
 // 画面の言語を変えたあと、言葉を出し直す
 function refreshLanguage() {
   applySettings();
+  if (!$('featureTip').hidden) showFeatureTip();
   renderGate();
   if (newsSince) $('newsText').textContent = t('アップデートしました！（v{v}）', { v: VERSION });
   if (!remix) return;
@@ -5193,6 +5252,7 @@ function maybeJoinRoom() {
 
 // ---- 画面：下の段の「部屋」の札と、「みんなで編集」のウィンドウ
 function openRoomModal() {
+  closeFeatureTip(); // 「みんなで編集」を開いたら、お知らせはもう出さない
   $('menuModal').hidden = true;
   room.lobby = null;
   room.step = 'name';
