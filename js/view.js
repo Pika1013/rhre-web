@@ -26,8 +26,12 @@ export const C = {
     multiCue: '#f4a8d8',
     pitchDependent: '#a3dcff',
     special: '#9b9b9b',
-    playalongEntity: '#86dcb6',
-    musicDistortEntity: '#d6d6d6', // RHRE fresh と同じくキューの色
+    // RHRE fresh の getRenderColor と同じく、プレイアロング・画像・Music Distortion・ピッチベンドはキューの色、メジャーは繰り返しの色
+    playalongEntity: '#d6d6d6',
+    textureEntity: '#d6d6d6',
+    musicDistortEntity: '#d6d6d6',
+    pitchBenderEntity: '#d6d6d6',
+    tapeMeasure: '#ffc56e',
     missing: '#ff4d4d',
   },
 };
@@ -49,7 +53,41 @@ export function fmtTime(sec) {
 }
 
 // キャンバスに描く言葉（設定で英語にできる）
-export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量', tempoHint: 'ここをタップでテンポ、拍子、音量を変更できます→' };
+export const LABELS = { music: '音楽開始', playback: '再生開始', volume: '音量', tempoHint: 'ここをタップでテンポ、拍子、音量を変更できます→', noTexture: '<画像なし>' };
+
+// プレゼンテーション（と動画）では出さないブロック（RHRE fresh の hideInPresentationMode）
+const HIDE_IN_PRESENTATION = new Set(['subtitleEntity', 'shakeEntity', 'tapeMeasure', 'musicDistortEntity', 'playalongEntity']);
+
+// プレイアロングのブロックのアイコン（RHRE fresh の images/gameicon/playable_entities.png）
+const PLAYALONG_ICON = new Image();
+PLAYALONG_ICON.src = 'assets/playalong/playable_entities.png?v=1';
+
+// 曲名・アーティスト名の帯（RHRE fresh の images/ui/song_title.png。640×32、右の端が斜め）
+const SONG_BAR = new Image();
+SONG_BAR.src = 'assets/ui/song_title.png?v=1';
+const SONG_BAR_SEC = 0.5; // 出入りにかかる秒（RHRE fresh の SONG_SUBTITLE_TRANSITION）
+// libGDX の Interpolation.circle
+const circleEase = (a) => (a <= 0.5 ? (1 - Math.sqrt(1 - (2 * a) ** 2)) / 2 : (Math.sqrt(1 - (2 * a - 2) ** 2) + 1) / 2);
+const hiddenBar = () => ({ str: '', at: -Infinity, out: false });
+
+// 選んでいる画像は、RHRE fresh と同じく選択の色（0, 0.75, 0.75）を掛けた絵にする
+const tintCache = new WeakMap();
+function tintedImage(img) {
+  let c = tintCache.get(img);
+  if (c) return c;
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  x.globalCompositeOperation = 'multiply';
+  x.fillStyle = 'rgb(0,191,191)';
+  x.fillRect(0, 0, w, h);
+  x.globalCompositeOperation = 'destination-in';
+  x.drawImage(img, 0, 0);
+  tintCache.set(img, c);
+  return c;
+}
 
 // テーマ（色）。トラックまわりの色を入れ替える
 const THEMES = {
@@ -595,6 +633,8 @@ export class EditorView {
     const R = this.remix;
     const L = this.layout();
     const b0 = this.scrollBeat, b1 = this.beatAt(W);
+    // 画面揺れ（RHRE fresh と同じく、トラックまわりをまとめてずらす。左上の今のゲームや曲名の帯は揺らさない）
+    if (this.shake) g.translate(this.shake.x, this.shake.y);
 
     // 拍の線と番号
     let step = 1;
@@ -663,11 +703,15 @@ export class EditorView {
     const iconsOnly = this.h.iconsOnly?.();
     for (const e of R.entities) {
       if (e.minBeat > b1 || e.maxBeat < b0) continue;
-      // Music Distortion は、プレゼンテーション（と動画）では出さない（RHRE fresh の hideInPresentationMode）
-      if (iconsOnly && e.type === 'musicDistortEntity') continue;
+      // 字幕・画面揺れ・プレイアロングなどは、プレゼンテーション（と動画）では出さない（RHRE fresh の hideInPresentationMode）
+      if (iconsOnly && HIDE_IN_PRESENTATION.has(e.type)) continue;
       this.drawEntity(g, e, L, now);
     }
     g.globalAlpha = 1;
+    // 画像は、ほかのブロックと拍の線の上に描く（RHRE fresh の renderOnTop）。横はブロックの幅、縦は縦横比のまま上へ伸ばす
+    for (const e of R.entities) {
+      if (e.type === 'textureEntity' && e.beat <= b1) this.drawTexture(g, e, L);
+    }
     this.drawEditOverlay(g, L);
     if (this.playMode) this.drawPlayalongInputs(g, L, b0, b1);
 
@@ -767,6 +811,8 @@ export class EditorView {
       }
     }
 
+    if (this.shake) g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
     // 今のゲーム（RHRE fresh の GameDisplayStage）：プレゼンテーションの再生中・一時停止中だけ、左上の「終了」の右に
     const gd = this.gameDisplay;
     if (gd && this.playhead != null) {
@@ -774,6 +820,121 @@ export class EditorView {
       const sec = sectionAt(gd.sections, this.playhead);
       if (sec) this.drawGameName(g, sec, gd);
     }
+
+    // 曲名・アーティスト名の帯
+    this.drawSongBars(g, now, L);
+  }
+
+  // ---------------------------------------------------------------- 再生中の効果（RHRE fresh の Editor と同じ）
+
+  // 再生中に毎コマ呼ぶ：画面揺れと、曲名・アーティスト名の帯の出入り。now はミリ秒（動画の書き出しでは動画の時計）
+  updateEffects(beat, now) {
+    const R = this.remix;
+    if (!R) return;
+    // 画面揺れ：再生位置にある Shake Screen の強さ（2^(音程/12)）を掛け合わせ、その範囲でばらばらにずらす
+    let shake = 0;
+    for (const e of R.entities) {
+      if (e.type === 'shakeEntity' && beat >= e.beat && beat < e.beat + e.width) shake = (shake || 1) * 2 ** (e.semitone / 12);
+    }
+    if (shake) {
+      // RHRE fresh は 0.125 段（＝横も同じ画素数）まで。ここでは 1 段の高さで同じ割合にする
+      const amp = 0.125 * this.layout().rowH;
+      const r = () => (Math.random() < 0.5 ? -1 : 1) * Math.random() * shake * amp;
+      this.shake = { x: r(), y: r() };
+    } else this.shake = null;
+    // 曲名・アーティスト名：ブロックに入ったら左右からすべり込み、出たら戻る（RHRE fresh の SubtitleEntity の onStart / onEnd）
+    const bars = (this.songBars ||= { songTitle: hiddenBar(), songArtist: hiddenBar() });
+    const prev = this.songActive || new Set();
+    const now2 = new Set();
+    for (const e of R.songTexts || []) if (beat >= e.beat && beat < e.beat + e.width) now2.add(e);
+    for (const e of prev) if (!now2.has(e)) { const b = bars[e.o?.subtitleType]; if (b) { b.out = false; b.at = now; } }
+    for (const e of now2) if (!prev.has(e)) bars[e.o.subtitleType] = { str: String(e.subtitle ?? ''), at: now, out: true };
+    this.songActive = now2;
+  }
+
+  // 止めたとき：揺れを止め、曲名の帯をすぐ隠す（RHRE fresh の resetAllSongSubtitles）
+  resetEffects() {
+    this.shake = null;
+    this.songBars = { songTitle: hiddenBar(), songArtist: hiddenBar() };
+    this.songActive = new Set();
+    this.dirty = true;
+  }
+
+  // 曲名（左から）とアーティスト名（右から、帯は上下左右反対）。RHRE fresh の Editor.renderBar と同じ作りを、
+  // 1280×720 の画面（トラックの所の高さ 466）を今の大きさに縮めて描く
+  drawSongBars(g, now, L) {
+    const bars = this.songBars;
+    if (!bars || !SONG_BAR.complete || !SONG_BAR.naturalWidth) return;
+    const { W, H } = this;
+    const s = Math.min(W / 1280, H / 466);
+    const texW = 640 * 1.15 * s, texH = 32 * 1.15 * s;
+    const pad = 8 * s, fs = 24 * s;
+    let moving = false;
+    const draw = (b, bottom, y) => {
+      const t = (now - b.at) / 1000 / SONG_BAR_SEC;
+      if (t < 1) moving = true;
+      const raw = circleEase(clamp(t, 0, 1));
+      const xp = b.out ? raw : 1 - raw;
+      if (xp <= 0) return;
+      const x = !bottom ? texW * xp - texW : W - xp * texW;
+      g.save();
+      if (!bottom) g.drawImage(SONG_BAR, x, y, texW, texH);
+      else { g.translate(x + texW, y + texH); g.scale(-1, -1); g.drawImage(SONG_BAR, 0, 0, texW, texH); }
+      g.restore();
+      if (!b.str) return;
+      const textW = (640 - 32) * 1.15 * s - pad * 2;
+      g.save();
+      g.font = `700 ${fs}px ${FONT}`;
+      g.textBaseline = 'middle';
+      g.lineJoin = 'round';
+      g.lineWidth = 3 * s;
+      g.strokeStyle = '#000000';
+      g.fillStyle = '#ffffff';
+      // 入りきらない文字は横に縮める（RHRE fresh の drawCompressed）
+      const tw = g.measureText(b.str).width;
+      const sx = tw > textW ? textW / tw : 1;
+      const left = !bottom ? x + pad : x + texH + pad;
+      g.translate(!bottom ? left + textW : left, y + texH / 2);
+      g.scale(sx, 1);
+      g.textAlign = !bottom ? 'right' : 'left';
+      g.strokeText(b.str, 0, 0);
+      g.fillText(b.str, 0, 0);
+      g.restore();
+    };
+    // RHRE fresh では、曲名の帯は一番下のトラックの 12.4 下、アーティスト名はその 1.1 本分下（720 の画面で）。
+    // 下に場所が無い（ふだんの編集画面）ときは、画面の下の端から 4.3 の所にアーティスト名が来るように持ち上げる
+    const titleTop = Math.min(L.tracksBottom + 12.4 * s, H - 4.3 * s - texH * 2.1);
+    draw(bars.songTitle, false, titleTop);
+    draw(bars.songArtist, true, titleTop + texH * 1.1);
+    if (moving) this.dirty = true;
+  }
+
+  // 画像（RHRE fresh の TextureEntity.renderWithGlass）：左下をブロックの左下に合わせ、横はブロックの幅、縦は縦横比のまま。
+  // 選んでいるときは、ブロックの上に選択の色を掛けた絵を薄く（25%）
+  drawTexture(g, e, L) {
+    const img = this.h.textureImage?.(e);
+    const nw = img?.naturalWidth || img?.width, nh = img?.naturalHeight || img?.height;
+    if (!img || !nw || !nh) return;
+    const x = this.x(e.beat), w = e.width * this.ppb;
+    if (x > this.W || x + w < 0) return;
+    const h = (w * nh) / nw;
+    const bottom = this.trackY(e.track, e.height, L) + e.height * L.rowH - 1;
+    const sel = this.selection.has(e);
+    g.save();
+    g.imageSmoothingEnabled = w / nw < 2; // ドット絵のような小さい画像は、ぼやけないように
+    if (sel) g.globalAlpha = 0.25;
+    g.drawImage(sel ? tintedImage(img) : img, x, bottom - h, w, h);
+    g.restore();
+  }
+
+  // End Remix（RHRE fresh の EndRemixEntity）：トラックの線の色で、左に幅の 1/8 の細い線、右の端から幅の半分の太い線
+  drawEndRemix(g, e, L) {
+    const x = this.x(e.beat), w = e.width * this.ppb;
+    const top = this.trackY(e.track, e.height, L), h = e.height * L.rowH;
+    g.fillStyle = this.selection.has(e) ? C.select : C.grid;
+    g.fillRect(x, top, Math.max(1, w * 0.125), h);
+    const tw = Math.max(2, w * 0.5);
+    g.fillRect(x + w - tw, top, tw, h);
   }
 
   // 左上の今のゲーム：アイコンとゲームの名前（白に黒いふち）。動画の書き出し（video.js）と同じ見た目。
@@ -1163,6 +1324,12 @@ export class EditorView {
   }
 
   drawEntity(g, e, L, now) {
+    if (e.type === 'endEntity') { this.drawEndRemix(g, e, L); return; }
+    // 画像が読めているときは、選んでいなければブロックは描かず、絵だけ（あとで drawTexture）
+    if (e.type === 'textureEntity' && !this.selection.has(e)) {
+      const img = this.h.textureImage?.(e);
+      if (img && (img.naturalWidth || img.width)) return;
+    }
     const x = this.x(e.beat);
     const w = Math.max(3, e.width * this.ppb);
     const y = this.trackY(e.track, e.height, L) + 1;
@@ -1230,29 +1397,15 @@ export class EditorView {
     g.lineWidth = sel ? 3 : 2;
     g.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
-    if (e.type === 'textureEntity') {
-      const img = this.h.textureImage?.(e);
-      if (img) {
-        // 縦横比はそのまま、ブロックの中に収まる大きさで真ん中に
-        const bw = w - 4, bh = h - 4;
-        const s = Math.min(bw / (img.naturalWidth || img.width || 1), bh / (img.naturalHeight || img.height || 1));
-        const dw = (img.naturalWidth || img.width) * s, dh = (img.naturalHeight || img.height) * s;
-        g.save();
-        g.beginPath(); g.rect(x + 2, y + 2, bw, bh); g.clip();
-        g.drawImage(img, x + 2 + (bw - dw) / 2, y + 2 + (bh - dh) / 2, dw, dh);
-        g.restore();
-        if (sel) { g.strokeStyle = C.select; g.lineWidth = 3; g.strokeRect(x + 1, y + 1, w - 2, h - 2); }
-        return;
-      }
-    }
     if (w < 14) return;
     g.save();
     g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
     const iconSize = Math.min(L.rowH - 8, 30);
     let tx = x + 4;
-    // プレイアロング：小さいアイコン（水色の四角に白い丸）
-    if (e.type === 'playalongEntity' && w > iconSize + 2) {
-      drawPlayalongIcon(g, x + 4, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize);
+    // プレイアロング：RHRE fresh と同じアイコン（playable_entities.png）
+    if (e.type === 'playalongEntity' && w > iconSize + 2 && PLAYALONG_ICON.complete && PLAYALONG_ICON.naturalWidth) {
+      g.imageSmoothingEnabled = false;
+      g.drawImage(PLAYALONG_ICON, x + 4, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize, iconSize);
       tx += iconSize + 3;
     }
     const icon = e.game && e.type !== 'playalongEntity' ? getIcon(e.game.icon, () => { this.dirty = true; }) : null;
@@ -1270,13 +1423,17 @@ export class EditorView {
     g.textBaseline = 'top';
     const maxW = x + w - 4 - tx;
     if (maxW > 8) {
-      const label = e.type === 'subtitleEntity' && e.subtitle ? `${e.name}：${String(e.subtitle).replace(/\n/g, ' ')}`
-        : e.type === 'playalongEntity' ? (this.h.playalongLabel?.(e) ?? `Playalong ${e.name}`) : e.name;
+      // 字幕は RHRE fresh と同じく、名前の下に "文字"（改行は ↵）。画像を選んでいないときは <画像なし>
+      const label = e.type === 'subtitleEntity' ? `${e.name}\n"${String(e.subtitle ?? '').replace(/\r\n|\r|\n/g, '↵')}"`
+        : e.type === 'textureEntity' && !e.extra?.texHash ? `${e.name}\n${LABELS.noTexture}`
+          : e.type === 'playalongEntity' ? (this.h.playalongLabel?.(e) ?? `Playalong ${e.name}`) : e.name;
       const lines = wrap(g, label, maxW, Math.max(1, Math.floor((h - 4) / (fs + 2))));
       lines.forEach((ln, i) => g.fillText(ln, tx, y + 3 + i * (fs + 2)));
     }
     if (e.semitone || e.volume !== 100) {
-      const tag = [e.semitone ? (e.semitone > 0 ? `+${e.semitone}` : `${e.semitone}`) : '', e.volume !== 100 ? `${e.volume}%` : ''].filter(Boolean).join(' ');
+      // 画面揺れは、音程ではなく揺れの強さ（RHRE fresh の getTextForSemitone：2^(音程/12) を % で）
+      const tag = e.type === 'shakeEntity' ? `${Math.round(2 ** (e.semitone / 12) * 100)}%`
+        : [e.semitone ? (e.semitone > 0 ? `+${e.semitone}` : `${e.semitone}`) : '', e.volume !== 100 ? `${e.volume}%` : ''].filter(Boolean).join(' ');
       g.font = `700 ${Math.max(9, fs - 2)}px ${FONT}`;
       g.textAlign = 'right';
       g.textBaseline = 'bottom';
@@ -1358,20 +1515,6 @@ function drawBigInput(g, input, cx, cy, r, hollow, tint) {
   }
 }
 
-// ブロックの小さいアイコン（プレイアロング）
-function drawPlayalongIcon(g, x, y, s) {
-  g.save();
-  g.fillStyle = '#3fb7c9';
-  g.fillRect(x, y, s, s);
-  g.fillStyle = '#ffffff';
-  g.beginPath(); g.arc(x + s / 2, y + s / 2, s * 0.36, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#3fb7c9';
-  g.font = `800 ${Math.round(s * 0.46)}px ${FONT}`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('A', x + s / 2, y + s / 2 + s * 0.03);
-  g.restore();
-}
-
 // プレイアロングの記号（A＝赤い丸、B＝黄色い丸、十字＝灰色の十字と矢印、タッチ＝指の丸）。描いた幅を返す
 const ARROW = { BUTTON_DPAD_UP: -Math.PI / 2, BUTTON_DPAD_DOWN: Math.PI / 2, BUTTON_DPAD_LEFT: Math.PI, BUTTON_DPAD_RIGHT: 0 };
 export function drawInputGlyph(g, input, x, y, s) {
@@ -1424,6 +1567,12 @@ function wrap(g, text, maxW, maxLines) {
   const out = [];
   let line = '';
   for (const ch of text) {
+    if (ch === '\n') {
+      out.push(line);
+      line = '';
+      if (out.length === maxLines) return out.map((l, i) => (i === maxLines - 1 ? `${l}…` : l));
+      continue;
+    }
     if (g.measureText(line + ch).width > maxW && line) {
       out.push(line);
       line = ch === ' ' ? '' : ch;

@@ -164,7 +164,7 @@ export default {
     " If the list is closed, open it with \"Choose a game\" at the bottom left.": "如果清單是關著的，請用左下的「選擇遊戲」打開。",
     "Remix complete!": "混音完成！",
     "Place the end marker": "放上結束標記",
-    "Open the \"Special\" tab → \"End, subtitles, images\" → \"End Remix\", and place it where the song should end. Playback stops there.": "打開「特殊」分頁 →「結尾、字幕、圖片」→「End Remix」，放在歌曲要結束的位置。播放會在那裡停止。",
+    "Open the \"Special\" tab → \"End, subtitles, images, etc.\" → \"End Remix\", and place it where the song should end. Playback stops there.": "打開「特殊」分頁 →「結尾、字幕、圖片等」→「End Remix」，放在歌曲要結束的位置。播放會在那裡停止。",
     "Export it": "匯出吧",
     "Open the menu (☰) at the top left → \"Export audio only\" to save it as audio.": "打開左上的選單（☰）→「僅匯出音訊」，存成音訊檔。",
     "Your remix is done. Great job!": "你的混音完成了，辛苦了！",
@@ -217,7 +217,7 @@ export default {
     "Custom": "自訂",
     "Search": "搜尋",
     "Pattern": "片段",
-    "End, subtitles, images": "結尾、字幕、圖片",
+    "End, subtitles, images, etc.": "結尾、字幕、圖片等",
     "Tap ☆ above the pattern list to add a game here.": "點片段清單上方的 ☆，就能把遊戲加到這裡。",
     "Games you place show up here, newest first.": "放過的遊戲會顯示在這裡，最新的在前面。",
     "Remove from favorites": "從我的最愛移除",
@@ -234,6 +234,8 @@ export default {
     "End": "結尾",
     "Subtitle": "字幕",
     "Image": "圖片",
+    "Shake": "畫面震動",
+    "<no texture>": "<沒有圖片>",
     "selected": "個已選取",
     "Pitch": "音高",
     "Volume": "音量",
@@ -548,7 +550,7 @@ export default {
   <li>調整長度：可以拉長的方塊，選取後兩端會出現白色把手</li>
   <li>刪除、複製、音高、音量：選取後，上方工具列會變成藍色的編輯列（按 ✕ 返回）</li>
   <li>速度、拍號、音樂音量：點音軌下方（♩=… 那一欄），在上方切換種類。速度可以用「變化所需拍數」慢慢改變，也能加上搖擺。標記可以長按抓住移動，拍號的大數字可以點擊直接輸入</li>
-  <li>字幕、圖片、Playalong：從「特殊」分頁放置。選取字幕或圖片後，會出現「編輯文字」「選擇圖片」</li>
+  <li>字幕、圖片、畫面震動、Playalong：從「特殊」分頁放置。選取字幕或圖片後，會出現「編輯文字」「選擇圖片」。圖片會以和方塊相同的寬度畫在音軌上。Song Title、Song Artist 會在播放時以橫條從左右滑入。畫面震動的音高調得越高，震動越強</li>
   <li>自訂音效：在「自訂」分頁加入自己的音訊檔。RHRE fresh 的 customSounds 裡的資料夾也能整個加入（「+ 新增資料夾」。iPhone 需要 iOS 18.4 以上。Android 等請壓縮成 zip，用「+ 新增 .zip」）。也支援 data.json、icon.png。電腦上也可以把資料夾或 zip 拖進畫面</li>
   <li>儲存：按儲存按鈕（或選單的「儲存」）並取名。iPhone 請在分享選單選「儲存到檔案」</li>
   <li>作業中會自動儲存，下次開啟時會從上次的地方繼續</li>
@@ -570,7 +572,7 @@ export default {
   <li>展示模式（選單）：隱藏上下的工具列，只把音軌大大地顯示出來。用右上的按鈕播放、停止，用左上的 ✕ 返回。播放中左上會顯示目前的遊戲</li>
 </ul>
 <p><b>設定（齒輪）</b>：在左邊的選單選擇項目：「語言」（介面語言、遊戲名稱、小遊戲語言）、「外觀」（主題顏色、背景圖片）、「編輯畫面」（節拍器的 Play-Yan）、「Playalong」（時機調整）。音軌數、教學、「動手做混音」在選單（≡）裡。</p>
-<p>目前還不支援：畫面震動、Pitch Bend、量尺（含有這些的混音可以開啟，但沒有效果）、MP3 等格式的匯出、MIDI 匯入。</p>
+<p>目前還不支援：Pitch Bend、量尺（含有這些的混音可以開啟，但沒有效果）、MP3 等格式的匯出、MIDI 匯入。</p>
 <p><b>像 App 一樣使用</b>：iPhone 請用 Safari 的分享按鈕 →「加入主畫面」。Android 請用 Chrome 的「安裝應用程式」，或在 GitHub 下載 Android App。在加到主畫面的 App 和 Android App 中，用過一次的小遊戲在沒有網路時也能使用。</p>
 <p class="note">本網站使用 GoatCounter 計算造訪次數。不使用 Cookie，也不收集可識別個人的資訊。</p>
 <p class="note">為了計算目前開著 RHRE Web 的人數，開啟期間會連線到 Cloudflare 的伺服器。只會傳送每台裝置的隨機號碼，不會傳送名字等資訊。</p>

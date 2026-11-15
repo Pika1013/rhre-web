@@ -391,6 +391,8 @@ export async function openRemixFile(arrayBuffer) {
 }
 
 const KNOWN_KEYS = new Set(['type', 'beat', 'track', 'width', 'height', 'datamodel', 'semitone', 'volume', 'stopAtEnd', 'isCustom', 'subtitle']);
+// 字幕の種類：subtitle（字幕）・songTitle（曲名）・songArtist（アーティスト名）。RHRE fresh の Subtitle.SubtitleType
+export const subtitleKind = (ent) => (ent.o?.subtitleType === 'songTitle' || ent.o?.subtitleType === 'songArtist' ? ent.o.subtitleType : 'subtitle');
 const SOUNDLESS_SPECIAL = new Set(['endEntity', 'subtitleEntity', 'shakeEntity', 'textureEntity', 'tapeMeasure', 'playalongEntity', 'musicDistortEntity', 'pitchBenderEntity']);
 
 export class Remix {
@@ -446,6 +448,8 @@ export class Remix {
   entToJSON(ent) {
     const out = { type: 'model', ...ent.extra, beat: ent.beat, track: ent.track, width: ent.width, height: ent.height, datamodel: ent.id };
     if (!ent.o || !SOUNDLESS_SPECIAL.has(ent.o.type)) { out.semitone = ent.semitone; out.volume = ent.volume; }
+    // 画面揺れは音程（揺れの強さ）だけ持つ（RHRE fresh の ShakeEntity は IRepitchable）
+    else if (ent.o.type === 'shakeEntity') out.semitone = ent.semitone;
     if (ent.stopAtEnd) out.stopAtEnd = true;
     if (ent.isCustom) out.isCustom = true;
     if (ent.subtitle != null) out.subtitle = ent.subtitle;
@@ -469,14 +473,15 @@ export class Remix {
     this.model.clearCaches();
     this.tempo = new TempoMap(this.tempoTrackers, this.defaultTempo);
     this.missing = new Set();
-    this.subtitles = [];
+    this.subtitles = []; // ふつうの字幕（画面の下に出す）
+    this.songTexts = []; // 曲名・アーティスト名（RHRE fresh と同じく、左右から帯で出す）
     let endBeat = null;
     let lastBeat = 0;
     for (const ent of this.entities) {
       this.refreshEnt(ent);
       if (!ent.o) this.missing.add(ent.id);
       if (ent.type === 'endEntity') endBeat = endBeat == null ? ent.beat : Math.min(endBeat, ent.beat);
-      if (ent.type === 'subtitleEntity') this.subtitles.push(ent);
+      if (ent.type === 'subtitleEntity') (subtitleKind(ent) === 'subtitle' ? this.subtitles : this.songTexts).push(ent);
       lastBeat = Math.max(lastBeat, ent.maxBeat);
     }
     this.entities.sort((a, b) => a.beat - b.beat || a.track - b.track);
@@ -497,7 +502,8 @@ export class Remix {
 
   isStretchable(ent) { return this.model.stretchable(ent.o); }
   // 音の出るブロックなら、どれでも音程を変えられる（RHRE fresh の Ignore pitch restrictions を入れたのと同じ）
-  canRepitch(ent) { return this.model.hasSound(ent.o); }
+  // 画面揺れも音程を変えられる（揺れの強さ。RHRE fresh と同じく 2^(音程/12) 倍）
+  canRepitch(ent) { return this.model.hasSound(ent.o) || ent.o?.type === 'shakeEntity'; }
   hasVolume(ent) { return this.model.hasSound(ent.o); }
 
   // 別のエンティティと重なるか（RHRE では重ねて置けない）

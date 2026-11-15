@@ -4,6 +4,58 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.14.0', date: '2026-11-15',
+    ja: [
+      '「特殊」タブのブロックを、RHRE fresh と同じ作りにしました。一覧も RHRE fresh と同じく「Special Entities」「Visual Effects」に分かれています',
+      '「Shake Screen」（画面揺れ）を置けるようになりました。再生中に画面が揺れます。音程を上げるほど強く揺れます',
+      '画像は、画面の中央下ではなく、トラックの上にブロックと同じ幅で出るようになりました。画像が遅れて出ることもなくなりました',
+      '「Song Title」（曲名）と「Song Artist」（アーティスト名）は、再生中に左右から帯で出るようになりました',
+      'End Remix・字幕・プレイアロングのブロックの見た目も RHRE fresh と同じにしました。プレゼンテーションモードと動画では、字幕・画面揺れ・プレイアロングのブロックは出ません',
+    ],
+    en: [
+      'The blocks in the "Special" tab now work like in RHRE fresh. The list is also split into "Special Entities" and "Visual Effects", as in RHRE fresh.',
+      'You can now place "Shake Screen". The screen shakes during playback, and the higher its pitch, the stronger it shakes.',
+      'Images are now drawn over the tracks, as wide as the block, instead of at the bottom center of the screen. They no longer show up late.',
+      '"Song Title" and "Song Artist" now slide in as banners from the left and right during playback.',
+      'End Remix, subtitle and Playalong blocks now look like in RHRE fresh. Subtitle, screen shake and Playalong blocks are hidden in presentation mode and in videos.',
+    ],
+    'zh-Hant': [
+      '「特殊」分頁的方塊改成和 RHRE fresh 相同的做法。清單也和 RHRE fresh 一樣，分成「Special Entities」和「Visual Effects」。',
+      '現在可以放置「Shake Screen」（畫面震動）。播放時畫面會震動，音高調得越高，震動越強。',
+      '圖片不再顯示在畫面中央下方，而是以和方塊相同的寬度畫在音軌上。圖片也不會再慢一拍才出現。',
+      '「Song Title」（曲名）和「Song Artist」（演出者）會在播放時以橫條從左右滑入。',
+      'End Remix、字幕和 Playalong 方塊的外觀也和 RHRE fresh 相同。在展示模式和影片中，不會顯示字幕、畫面震動和 Playalong 的方塊。',
+    ],
+    ko: [
+      '"특수" 탭의 블록을 RHRE fresh와 같은 방식으로 바꿨어요. 목록도 RHRE fresh처럼 "Special Entities"와 "Visual Effects"로 나뉘어요.',
+      '"Shake Screen"(화면 흔들림)을 놓을 수 있게 되었어요. 재생 중에 화면이 흔들리고, 음정을 올릴수록 세게 흔들려요.',
+      '이미지는 화면 가운데 아래가 아니라, 블록과 같은 폭으로 트랙 위에 나와요. 이미지가 늦게 나오는 일도 없어졌어요.',
+      '"Song Title"(곡 이름)과 "Song Artist"(아티스트 이름)는 재생 중에 좌우에서 띠로 미끄러져 나와요.',
+      'End Remix·자막·플레이얼롱 블록의 모양도 RHRE fresh와 같게 했어요. 프레젠테이션 모드와 동영상에서는 자막·화면 흔들림·플레이얼롱 블록이 나오지 않아요.',
+    ],
+    es: [
+      'Los bloques de la pestaña "Especial" ahora funcionan como en RHRE fresh. La lista también se divide en "Special Entities" y "Visual Effects", como en RHRE fresh.',
+      'Ya puedes colocar "Shake Screen" (temblor de pantalla). La pantalla tiembla durante la reproducción, y cuanto más alto el tono, más fuerte tiembla.',
+      'Las imágenes ahora se dibujan sobre las pistas, con el ancho del bloque, en lugar de abajo en el centro de la pantalla. Ya no aparecen con retraso.',
+      '"Song Title" (título) y "Song Artist" (artista) ahora entran como franjas desde la izquierda y la derecha durante la reproducción.',
+      'Los bloques End Remix, de subtítulos y de Playalong ahora se ven como en RHRE fresh. Los bloques de subtítulos, temblor de pantalla y Playalong no se muestran en el modo presentación ni en los vídeos.',
+    ],
+    fr: [
+      "Les blocs de l'onglet « Spécial » fonctionnent maintenant comme dans RHRE fresh. La liste est aussi séparée en « Special Entities » et « Visual Effects », comme dans RHRE fresh.",
+      "Vous pouvez maintenant placer « Shake Screen » (tremblement d'écran). L'écran tremble pendant la lecture, et plus la hauteur est élevée, plus il tremble fort.",
+      "Les images sont maintenant dessinées sur les pistes, à la largeur du bloc, au lieu d'en bas au centre de l'écran. Elles n'apparaissent plus en retard.",
+      "« Song Title » (titre) et « Song Artist » (artiste) glissent maintenant depuis la gauche et la droite en bandeaux pendant la lecture.",
+      "Les blocs End Remix, sous-titre et Playalong ressemblent maintenant à ceux de RHRE fresh. Les blocs de sous-titre, de tremblement d'écran et de Playalong sont masqués en mode présentation et dans les vidéos.",
+    ],
+    de: [
+      'Die Blöcke im Tab „Spezial“ funktionieren jetzt wie in RHRE fresh. Die Liste ist wie in RHRE fresh in „Special Entities“ und „Visual Effects“ aufgeteilt.',
+      'Du kannst jetzt „Shake Screen“ (Bildschirmwackeln) platzieren. Der Bildschirm wackelt während der Wiedergabe – je höher die Tonhöhe, desto stärker.',
+      'Bilder werden jetzt über die Spuren gezeichnet, so breit wie der Block, statt unten in der Mitte des Bildschirms. Sie erscheinen nicht mehr verspätet.',
+      '„Song Title“ (Titel) und „Song Artist“ (Interpret) gleiten während der Wiedergabe als Banner von links und rechts herein.',
+      'End-Remix-, Untertitel- und Playalong-Blöcke sehen jetzt aus wie in RHRE fresh. Untertitel-, Bildschirmwackeln- und Playalong-Blöcke werden im Präsentationsmodus und in Videos ausgeblendet.',
+    ],
+  },
+  {
     v: '1.13.0', date: '2026-11-15',
     ja: [
       '画面の言語に、繁體中文（台湾・香港）・한국어（韓国語）・Español（スペイン語）・Français（フランス語）・Deutsch（ドイツ語）が増えました。設定の「言語」→「画面の言語」で変えられます',

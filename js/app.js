@@ -1,16 +1,16 @@
-import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap } from './remix.js?v=19';
+import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_DB_COMMIT, TempoMap, subtitleKind } from './remix.js?v=20';
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=23';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=43';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=43';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT } from './i18n.js?v=44';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=44';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=9';
-import { CHANGELOG } from './changelog.js?v=33';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
+import { CHANGELOG } from './changelog.js?v=34';
 import { GAME_NAMES_JA } from './gamenames.js?v=1';
 
-const VERSION = '1.13.0';
+const VERSION = '1.14.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -671,7 +671,8 @@ function duplicateSelection() {
 function changeSemitone(d) {
   const targets = [...view.selection].filter((e) => remix.canRepitch(e));
   if (!targets.length) { toast(t('選んだブロックは音程を変えられません'), 2200, 'info'); return; }
-  edit(() => { for (const e of targets) e.semitone = clamp(e.semitone + d, -36, 36); });
+  // 画面揺れは RHRE fresh と同じく ±24 まで（ほかは ±36）
+  edit(() => { for (const e of targets) e.semitone = e.type === 'shakeEntity' ? clamp(e.semitone + d, -24, 24) : clamp(e.semitone + d, -36, 36); });
   previewSelection();
 }
 
@@ -727,7 +728,8 @@ function updateCtxbar() {
   if (one?.type === 'textureEntity') html += grp(`<button class="txtbtn" data-c="image"${playing ? ' disabled' : ''}>${esc(t('画像を選ぶ'))}</button>`);
   // 音程・音量は、変えられるブロックがあるときだけ
   if (!sel.length || sel.some((e) => remix.canRepitch(e))) {
-    const semi = one ? (one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`) : '…';
+    // 画面揺れは、音程ではなく揺れの強さを % で（RHRE fresh の ShakeEntity.getTextForSemitone）
+    const semi = !one ? '…' : one.type === 'shakeEntity' ? `${Math.round(2 ** (one.semitone / 12) * 100)}%` : one.semitone > 0 ? `+${one.semitone}` : `${one.semitone}`;
     html += grp(`<span class="hint">${esc(t('音程'))}</span>${btn('semi-', ICON.minus, '音程')}<span class="val"><small>${esc(t('音程'))}</small>${semi}</span>${btn('semi+', ICON.plus, '音程')}`);
   }
   if (!sel.length || sel.some((e) => remix.hasVolume(e))) {
@@ -860,7 +862,7 @@ function renderGrid() {
   } else if (!q && currentTab === 'special') {
     const b = document.createElement('button');
     b.className = 'game txt';
-    b.textContent = t('終わり・字幕・画像');
+    b.textContent = t('終わり・字幕・画像など');
     b.addEventListener('click', () => openSpecial());
     grid.appendChild(b);
     // ボタンを押して遊ぶキュー（プレゼンテーションモードで遊べる）
@@ -920,10 +922,13 @@ function renderGrid() {
   }
 }
 
+// RHRE fresh の「Special Entities」（End Remix）と「Visual Effects」（字幕・曲名・アーティスト名・画像・画面揺れ）を、
+// それぞれ見出しを付けて 1 つの一覧に並べる
+const SPECIAL_SETS = [['special', ['endEntity']], ['specialVfx', ['subtitleEntity', 'textureEntity', 'shakeEntity']]];
 async function openSpecial() {
-  const [a, b] = await Promise.all([remix.db.loadGame('special').catch(() => null), remix.db.loadGame('specialVfx').catch(() => null)]);
-  const objs = [...(a?.objects || []).filter((o) => o.type === 'endEntity'), ...(b?.objects || []).filter((o) => o.type === 'subtitleEntity' || o.type === 'textureEntity')];
-  showGameList({ id: '__special', name: t('特殊'), nameKey: '特殊', objects: objs });
+  const games = await Promise.all(SPECIAL_SETS.map(([id]) => remix.db.loadGame(id).catch(() => null)));
+  const extra = SPECIAL_SETS.map(([id, types], i) => ({ title: games[i]?.name || id, objects: (games[i]?.objects || []).filter((o) => types.includes(o.type)) }));
+  showGameList({ id: '__special', name: t('特殊'), nameKey: '特殊', objects: [] }, null, null, extra);
 }
 
 function openPlayalongList() {
@@ -964,7 +969,7 @@ async function openGame(gid, jumpBeat, highlightObj) {
   }
 }
 
-const KIND = { musicDistortEntity: '特殊', pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像', playalongEntity: 'ボタン' };
+const KIND = { shakeEntity: '画面揺れ', musicDistortEntity: '特殊', pattern: 'パターン', keepTheBeat: '繰り返し', equidistant: '等間隔', randomCue: 'ランダム', multiCue: '複合', pitchDependent: '音程別', endEntity: '終わり', subtitleEntity: '字幕', textureEntity: '画像', playalongEntity: 'ボタン' };
 const PV_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
 
 function renderListHead(game) {
@@ -1016,7 +1021,7 @@ function renderListHead(game) {
 }
 
 // 一覧に出す項目と並び：パターンなど → Music Distortion（DJ School）→ キューなど
-const LIST_TYPES = ['endEntity', 'subtitleEntity', 'textureEntity', 'playalongEntity', 'musicDistortEntity'];
+const LIST_TYPES = ['endEntity', 'subtitleEntity', 'textureEntity', 'shakeEntity', 'playalongEntity', 'musicDistortEntity'];
 const listRank = (o) => (isMulti(o) ? 0 : o.type === 'musicDistortEntity' ? 1 : 2);
 function listObjects(objs, filter) {
   let out = objs.filter((o) => !o.hidden && (o.type === 'cue' || isMulti(o) || LIST_TYPES.includes(o.type)));
@@ -1605,7 +1610,6 @@ function rewind() {
   view.scrollBeat = -(view.W * 0.3) / view.ppb;
   view.dirty = true;
   $('subtitle').hidden = true;
-  showStageImage($('stageImg'), null);
   if (mode === 'playing') {
     startPlayback(from);
     if (playMode) { resetJudge(); judge?.skipBefore(from - 0.05); }
@@ -1644,47 +1648,19 @@ function stopPlayback() {
   mode = 'stopped';
   letScreenSleep();
   view.playhead = null;
-  view.dirty = true;
+  view.resetEffects();
   $('subtitle').hidden = true;
-  showStageImage($('stageImg'), null);
   updateButtons();
   updateCtxbar();
 }
 
-// 再生位置にある「特殊」の画像（最後に始まったもの）
-function activeTexture(beat) {
-  let cur = null;
-  for (const e of remix.entities) {
-    if (e.type === 'textureEntity' && e.extra?.texHash && beat >= e.beat && beat < e.beat + e.width) {
-      if (!cur || e.beat >= cur.beat) cur = e;
-    }
-  }
-  return cur;
-}
-// 画面の中央下に、縦横比を変えずに出す。小さい画像は枠（maxW×maxH）いっぱいまで拡大する
-function showStageImage(el, ent, maxW, maxH) {
-  const img = ent ? textureImages.get(ent.extra.texHash) : null;
-  if (!img) { if (!el.hidden) { el.hidden = true; el.removeAttribute('src'); el.dataset.hash = ''; } return; }
-  if (el.dataset.hash !== ent.extra.texHash) { el.src = img.src; el.dataset.hash = ent.extra.texHash; }
-  const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
-  if (nw && nh && maxW && maxH) {
-    const s = Math.min(maxW / nw, maxH / nh);
-    el.style.width = `${Math.round(nw * s)}px`;
-    el.style.height = `${Math.round(nh * s)}px`;
-    // ドット絵のような小さい画像は、ぼやけないように拡大する
-    el.style.imageRendering = s >= 2 ? 'pixelated' : 'auto';
-  }
-  el.hidden = false;
-}
-
+// 画面の中央下の字幕（曲名・アーティスト名は view.js の帯で出す）
 function updateSubtitle(beat) {
   const active = remix.subtitles.filter((s) => beat >= s.beat && beat < s.beat + s.width);
   const el = $('subtitle');
   const text = active.map((s) => s.subtitle).join('\n');
   if (text) { if (el.textContent !== text) el.textContent = text; el.hidden = false; }
   else el.hidden = true;
-  const ed = $('editor');
-  showStageImage($('stageImg'), activeTexture(beat), ed.clientWidth * 0.5, ed.clientHeight * 0.4);
 }
 
 function frame(now) {
@@ -1697,6 +1673,7 @@ function frame(now) {
       if (!leaf || (leaf.beat >= ent.beat - 1e-6 && leaf.beat < ent.beat + ent.width + 1e-6)) ent.flashAt = now;
       if (leaf) (ent.leafFlash ||= []).push({ ...leaf, at: now });
     }
+    view.updateEffects(beat, now); // 画面揺れ・曲名の帯
     view.dirty = true;
     updateTimebox(Math.max(t, player.t0), beat);
     updateSubtitle(beat);
@@ -1704,6 +1681,8 @@ function frame(now) {
   } else if (remix && mode === 'paused') {
     view.playhead = remix.tempo.s2b(pausedSec);
   }
+  // 揺れるのは再生中だけ（RHRE fresh も PLAYING のときだけ）
+  if (mode !== 'playing' && view.shake) { view.shake = null; view.dirty = true; }
   if (playMode && judge) syncHolding();
   view.stepMomentum(now);
   if (guide.on) positionCoachRing();
@@ -2076,7 +2055,7 @@ $('gameNamesSelect').addEventListener('change', () => {
 function refreshGameNames() {
   if (!remix) return;
   const shown = shownGame;
-  // 「特殊」タブにはゲーム名が無い。描き直すと一覧が「終わり・字幕・画像」に差し替わるので、そのままにする
+  // 「特殊」タブにはゲーム名が無い。描き直すと一覧が「終わり・字幕・画像など」に差し替わるので、そのままにする
   if ($('search').value.trim() || currentTab !== 'special') renderGrid();
   if (shown?.id === '__playalong') openPlayalongList();
   else if (shown && gamesIndex.some((g) => g.id === shown.id)) openGame(shown.id);
@@ -2319,7 +2298,8 @@ function openTextEditor(ent) {
 }
 $('textOk').addEventListener('click', () => {
   const ent = textTarget;
-  const v = $('textInput').value;
+  let v = $('textInput').value;
+  if (ent && subtitleKind(ent) !== 'subtitle') v = v.replace(/[\r\n]+/g, ' ');
   $('textModal').hidden = true;
   if (ent && v !== (ent.subtitle || '')) edit(() => { ent.subtitle = v; });
   updateCtxbar();
@@ -4030,7 +4010,7 @@ function guideRender() {
     btns = [{ label: t('リミックス完成！'), cls: 'finish', fn: () => guideGo('end') }];
   } else if (st === 'end') {
     title = t('終わりの印を置こう');
-    text = t('「特殊」タブ →「終わり・字幕・画像」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。');
+    text = t('「特殊」タブ →「終わり・字幕・画像など」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。');
     btns = [{ label: t('戻る'), fn: () => guideGo('cues') }];
   } else if (st === 'export') {
     title = t('書き出してみよう');
@@ -4331,6 +4311,7 @@ function applySettings() {
   LABELS.playback = t('再生開始');
   LABELS.volume = t('音量');
   LABELS.tempoHint = t('ここをタップでテンポ、拍子、音量を変更できます→');
+  LABELS.noTexture = t('<画像なし>');
   applyStatic(document.body);
   for (const b of document.querySelectorAll('#tabs .tab')) b.textContent = t(b.dataset.ja);
   const sp = Number(settings.speed) || 1;
@@ -4498,7 +4479,7 @@ updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // 動作確認用（URL に ?debug を付けたときだけ）
-if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null) };
+if (/[?&]debug\b/.test(location.search)) window.__rhre = { view, engine, player, get remix() { return remix; }, get judge() { return judge; }, get musicBuf() { return musicBuf; }, get videoBlob() { return videoBlob; }, get videoDiag() { return videoDiag; }, loadMusic: (bytes, name) => loadMusicBytes(bytes, name), askTempo: () => askTempo(null), addTexture: (hash, bytes) => addTextureImage(hash, bytes) };
 
 applySettings();
 setStatus(t('読み込み中…')); // index.html の最初の文字は日本語なので、画面の言語で出し直す

@@ -164,7 +164,7 @@ export default {
     " If the list is closed, open it with \"Choose a game\" at the bottom left.": " Si la liste est fermée, ouvrez-la avec « Choisir un jeu » en bas à gauche.",
     "Remix complete!": "Remix terminé !",
     "Place the end marker": "Placez le marqueur de fin",
-    "Open the \"Special\" tab → \"End, subtitles, images\" → \"End Remix\", and place it where the song should end. Playback stops there.": "Ouvrez l'onglet « Spécial » → « Fin, sous-titres, images » → « End Remix », et placez-le là où la chanson doit se terminer. La lecture s'y arrête.",
+    "Open the \"Special\" tab → \"End, subtitles, images, etc.\" → \"End Remix\", and place it where the song should end. Playback stops there.": "Ouvrez l'onglet « Spécial » → « Fin, sous-titres, images, etc. » → « End Remix », et placez-le là où la chanson doit se terminer. La lecture s'y arrête.",
     "Export it": "Exportez-le",
     "Open the menu (☰) at the top left → \"Export audio only\" to save it as audio.": "Ouvrez le menu (☰) en haut à gauche → « Exporter l'audio seul » pour l'enregistrer en audio.",
     "Your remix is done. Great job!": "Votre remix est terminé. Beau travail !",
@@ -217,7 +217,7 @@ export default {
     "Custom": "Perso",
     "Search": "Rechercher",
     "Pattern": "Motif",
-    "End, subtitles, images": "Fin, sous-titres, images",
+    "End, subtitles, images, etc.": "Fin, sous-titres, images, etc.",
     "Tap ☆ above the pattern list to add a game here.": "Touchez ☆ au-dessus de la liste des motifs pour ajouter un jeu ici.",
     "Games you place show up here, newest first.": "Les jeux que vous placez apparaissent ici, les plus récents en premier.",
     "Remove from favorites": "Retirer des favoris",
@@ -234,6 +234,8 @@ export default {
     "End": "Fin",
     "Subtitle": "Sous-titre",
     "Image": "Image",
+    "Shake": "Tremblement",
+    "<no texture>": "<aucune image>",
     "selected": "sélectionnés",
     "Pitch": "Hauteur",
     "Volume": "Volume",
@@ -548,7 +550,7 @@ export default {
   <li>Redimensionner : les blocs extensibles affichent des poignées blanches aux deux bouts quand ils sont sélectionnés.</li>
   <li>Supprimer, dupliquer, hauteur, volume : sélectionner un bloc transforme la barre du haut en barre d'édition bleue (✕ pour revenir).</li>
   <li>Tempo, signature rythmique, volume de la musique : touchez la rangée sous les pistes (♩=…) et choisissez le type en haut. Le tempo peut changer progressivement (« Durée du changement ») et avoir du swing. Appuyez longuement sur un marqueur pour le faire glisser, et touchez les grands chiffres de la signature rythmique pour les saisir.</li>
-  <li>Sous-titres, images, Playalong : placez-les depuis l'onglet « Spécial ». Sélectionner un sous-titre ou une image affiche « Modifier le texte » ou « Choisir une image ».</li>
+  <li>Sous-titres, images, tremblement d'écran, Playalong : placez-les depuis l'onglet « Spécial ». Sélectionner un sous-titre ou une image affiche « Modifier le texte » ou « Choisir une image ». Les images sont dessinées sur les pistes, à la largeur du bloc. Song Title et Song Artist glissent depuis la gauche et la droite en bandeaux pendant la lecture. Plus vous montez la hauteur du tremblement d'écran, plus il tremble fort.</li>
   <li>Sons personnalisés : ajoutez vos propres fichiers audio dans l'onglet « Perso ». Vous pouvez aussi ajouter des dossiers entiers du dossier customSounds de RHRE fresh avec « + Ajouter un dossier » (sur iPhone, iOS 18.4 ou ultérieur ; sur Android et ailleurs, compressez-le en .zip et utilisez « + Ajouter un .zip »). data.json et icon.png fonctionnent aussi. Sur ordinateur, vous pouvez aussi déposer un dossier ou un .zip sur la page.</li>
   <li>Enregistrer : appuyez sur le bouton d'enregistrement (ou « Enregistrer » dans le menu) et choisissez un nom. Sur iPhone, choisissez « Enregistrer dans Fichiers » dans le menu de partage.</li>
   <li>Votre travail est enregistré automatiquement et reprend à la prochaine ouverture de l'app.</li>
@@ -570,7 +572,7 @@ export default {
   <li>Mode présentation (menu) : masque les barres du haut et du bas et n'affiche que les pistes. Utilisez les boutons en haut à droite pour lire et arrêter, et le ✕ en haut à gauche pour revenir. Pendant la lecture, le jeu en cours s'affiche en haut à gauche.</li>
 </ul>
 <p><b>Paramètres (engrenage)</b> : choisissez une section dans le menu de gauche : Langue (langue de l'interface, noms des jeux, langue des mini-jeux), Apparence (couleurs du thème, image de fond), Éditeur (Play-Yan avec le métronome) et Playalong (décalages). Le nombre de pistes, le tutoriel et « Créer un remix » sont dans le menu (≡).</p>
-<p>Pas encore disponible : tremblement d'écran, pitch bend, mètre ruban (les remix qui en contiennent s'ouvrent, mais sans effet), export en MP3 et autres formats, import MIDI.</p>
+<p>Pas encore disponible : pitch bend, mètre ruban (les remix qui en contiennent s'ouvrent, mais sans effet), export en MP3 et autres formats, import MIDI.</p>
 <p><b>L'utiliser comme une app</b> : sur iPhone, touchez Partager dans Safari → « Sur l'écran d'accueil ». Sur Android, utilisez « Installer l'application » dans Chrome, ou l'app Android sur GitHub. Dans l'app de l'écran d'accueil et l'app Android, les mini-jeux déjà utilisés une fois fonctionnent aussi hors ligne.</p>
 <p class="note">Ce site compte les visites avec GoatCounter. Il n'utilise pas de cookies et ne collecte rien qui permette de vous identifier.</p>
 <p class="note">Pour compter combien de personnes ont RHRE Web ouvert, l'app se connecte à un serveur Cloudflare tant qu'elle est ouverte. Elle n'envoie qu'un numéro aléatoire par appareil, jamais votre nom.</p>

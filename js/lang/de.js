@@ -164,7 +164,7 @@ export default {
     " If the list is closed, open it with \"Choose a game\" at the bottom left.": " Wenn die Liste geschlossen ist, öffne sie mit „Spiel wählen“ unten links.",
     "Remix complete!": "Remix fertig!",
     "Place the end marker": "Endmarkierung platzieren",
-    "Open the \"Special\" tab → \"End, subtitles, images\" → \"End Remix\", and place it where the song should end. Playback stops there.": "Öffne den Tab „Spezial“ → „Ende, Untertitel, Bilder“ → „End Remix“ und platziere es dort, wo das Lied enden soll. Die Wiedergabe stoppt dort.",
+    "Open the \"Special\" tab → \"End, subtitles, images, etc.\" → \"End Remix\", and place it where the song should end. Playback stops there.": "Öffne den Tab „Spezial“ → „Ende, Untertitel, Bilder usw.“ → „End Remix“ und platziere es dort, wo das Lied enden soll. Die Wiedergabe stoppt dort.",
     "Export it": "Exportiere ihn",
     "Open the menu (☰) at the top left → \"Export audio only\" to save it as audio.": "Öffne das Menü (☰) oben links → „Nur Audio exportieren“, um ihn als Audio zu speichern.",
     "Your remix is done. Great job!": "Dein Remix ist fertig. Gut gemacht!",
@@ -217,7 +217,7 @@ export default {
     "Custom": "Eigene",
     "Search": "Suche",
     "Pattern": "Muster",
-    "End, subtitles, images": "Ende, Untertitel, Bilder",
+    "End, subtitles, images, etc.": "Ende, Untertitel, Bilder usw.",
     "Tap ☆ above the pattern list to add a game here.": "Tippe über der Musterliste auf ☆, um ein Spiel hier hinzuzufügen.",
     "Games you place show up here, newest first.": "Spiele, die du platzierst, erscheinen hier – die neuesten zuerst.",
     "Remove from favorites": "Aus Favoriten entfernen",
@@ -234,6 +234,8 @@ export default {
     "End": "Ende",
     "Subtitle": "Untertitel",
     "Image": "Bild",
+    "Shake": "Wackeln",
+    "<no texture>": "<kein Bild>",
     "selected": "ausgewählt",
     "Pitch": "Tonhöhe",
     "Volume": "Lautstärke",
@@ -548,7 +550,7 @@ export default {
   <li>Länge ändern: dehnbare Blöcke zeigen beim Auswählen weiße Griffe an beiden Enden.</li>
   <li>Löschen, Duplizieren, Tonhöhe, Lautstärke: wenn du einen Block auswählst, wird die obere Leiste zur blauen Bearbeitungsleiste (✕ zum Zurückkehren).</li>
   <li>Tempo, Taktart, Musiklautstärke: tippe auf die Zeile unter den Spuren (♩=…) und wähle oben die Art. Das Tempo kann sich allmählich ändern („Übergangslänge“) und Swing haben. Halte eine Markierung gedrückt, um sie zu ziehen, und tippe auf die großen Ziffern der Taktart, um sie einzugeben.</li>
-  <li>Untertitel, Bilder, Playalong: platziere sie über den Tab „Spezial“. Wenn du einen Untertitel oder ein Bild auswählst, erscheint „Text bearbeiten“ oder „Bild wählen“.</li>
+  <li>Untertitel, Bilder, Bildschirmwackeln, Playalong: platziere sie über den Tab „Spezial“. Wenn du einen Untertitel oder ein Bild auswählst, erscheint „Text bearbeiten“ oder „Bild wählen“. Bilder werden über die Spuren gezeichnet, so breit wie der Block. Song Title und Song Artist gleiten während der Wiedergabe als Banner von links und rechts herein. Je höher du die Tonhöhe des Bildschirmwackelns stellst, desto stärker wackelt es.</li>
   <li>Eigene Sounds: füge im Tab „Eigene“ deine eigenen Audiodateien hinzu. Du kannst auch ganze Ordner aus dem customSounds-Ordner von RHRE fresh mit „+ Ordner hinzufügen“ hinzufügen (auf dem iPhone ab iOS 18.4; auf Android und anderen Geräten als .zip komprimieren und „+ .zip hinzufügen“ nutzen). data.json und icon.png werden auch unterstützt. Am Computer kannst du einen Ordner oder eine .zip auch einfach auf die Seite ziehen.</li>
   <li>Speichern: drücke den Speichern-Knopf (oder „Speichern“ im Menü) und wähle einen Namen. Auf dem iPhone wähle im Teilen-Menü „In Dateien sichern“.</li>
   <li>Deine Arbeit wird automatisch gespeichert und geht beim nächsten Öffnen weiter.</li>
@@ -570,7 +572,7 @@ export default {
   <li>Präsentationsmodus (Menü): blendet die obere und untere Leiste aus und zeigt nur die Spuren. Mit den Knöpfen oben rechts spielst du ab und stoppst, mit dem ✕ oben links kehrst du zurück. Während der Wiedergabe steht oben links das aktuelle Spiel.</li>
 </ul>
 <p><b>Einstellungen (Zahnrad)</b>: wähle links im Menü einen Bereich: Sprache (Sprache der Oberfläche, Spielnamen, Sprache der Minispiele), Darstellung (Designfarben, Hintergrundbild), Editor (Play-Yan mit dem Metronom) und Playalong (Timing-Ausgleich). Spuranzahl, Tutorial und „Einen Remix machen“ findest du im Menü (≡).</p>
-<p>Noch nicht verfügbar: Bildschirmwackeln, Pitch Bend, Maßband (Remixe, die so etwas enthalten, lassen sich öffnen, aber ohne Wirkung), Export als MP3 und andere Formate, MIDI-Import.</p>
+<p>Noch nicht verfügbar: Pitch Bend, Maßband (Remixe, die so etwas enthalten, lassen sich öffnen, aber ohne Wirkung), Export als MP3 und andere Formate, MIDI-Import.</p>
 <p><b>Wie eine App nutzen</b>: auf dem iPhone in Safari auf Teilen → „Zum Home-Bildschirm“ tippen. Auf Android in Chrome „App installieren“ wählen oder die Android-App von GitHub nutzen. In der App auf dem Startbildschirm und in der Android-App funktionieren Minispiele, die du einmal benutzt hast, auch offline.</p>
 <p class="note">Diese Seite zählt Besuche mit GoatCounter. Sie verwendet keine Cookies und sammelt nichts, was dich identifiziert.</p>
 <p class="note">Um zu zählen, wie viele Leute RHRE Web gerade geöffnet haben, verbindet sich die App, solange sie offen ist, mit einem Cloudflare-Server. Sie sendet nur eine zufällige Nummer pro Gerät, niemals deinen Namen.</p>

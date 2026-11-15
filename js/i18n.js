@@ -114,7 +114,7 @@ const EN = {
   '下の一覧でミニゲームを選び、パターンの名前を押してから、トラックの空いている所をタップ。': 'Choose a minigame in the list below, tap a pattern name, then tap an empty spot on the tracks.',
   '一覧が閉じているときは、左下の「ゲームを選ぶ」で開けます。': ' If the list is closed, open it with "Choose a game" at the bottom left.',
   'リミックス完成！': 'Remix complete!', '終わりの印を置こう': 'Place the end marker',
-  '「特殊」タブ →「終わり・字幕・画像」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。': 'Open the "Special" tab → "End, subtitles, images" → "End Remix", and place it where the song should end. Playback stops there.',
+  '「特殊」タブ →「終わり・字幕・画像など」→「End Remix」を選んで、曲を終わらせたい所に置こう。そこで再生が止まります。': 'Open the "Special" tab → "End, subtitles, images, etc." → "End Remix", and place it where the song should end. Playback stops there.',
   '書き出してみよう': 'Export it', '左上のメニュー（☰）→「音声のみ書き出す」で、曲として保存できます。': 'Open the menu (☰) at the top left → "Export audio only" to save it as audio.',
   'リミックス完成！おつかれさま！': 'Your remix is done. Great job!',
   '保存ボタンで .rhref に保存すれば、続きを編集したり RHRE fresh で開いたりできます。これで基本操作はおしまいです。': 'Save a .rhref with the save button to keep editing later or open it in RHRE fresh. That covers the basics!',
@@ -153,7 +153,7 @@ const EN = {
   // タブ・ピッカー
   'GBA': 'GBA', 'DS': 'DS', 'Wii': 'Wii', '3DS': '3DS', 'Groove': 'Groove', 'サイド': 'Side', 'その他': 'Other', '特殊': 'Special',
   '使用中': 'In use', 'お気に入り': 'Favorites', '最近': 'Recent', 'カスタム': 'Custom', '検索': 'Search', 'パターン': 'Patterns',
-  '終わり・字幕・画像': 'End, subtitles, images',
+  '終わり・字幕・画像など': 'End, subtitles, images, etc.',
   'パターン一覧の上の ☆ を押すと、ここに並びます。': 'Tap ☆ above the pattern list to add a game here.',
   '置いたミニゲームが、ここに新しい順で並びます。': 'Games you place show up here, newest first.',
   'お気に入りから外す': 'Remove from favorites', 'お気に入りに入れる': 'Add to favorites',
@@ -162,7 +162,7 @@ const EN = {
   'ミニゲームを選ぶと、パターンが並びます。名前を押してからトラックの空いている所をタップすると置けます。スピーカーのボタンで試聴できます。':
     'Pick a minigame to list its patterns. Tap a name, then tap an empty spot on a track to place it. the speaker button previews it.',
   'パターン': 'Pattern', '繰り返し': 'Repeat', '等間隔': 'Equidistant', 'ランダム': 'Random', '複合': 'Multi', '音程別': 'By pitch',
-  '終わり': 'End', '字幕': 'Subtitle', '画像': 'Image',
+  '終わり': 'End', '字幕': 'Subtitle', '画像': 'Image', '画面揺れ': 'Shake', '<画像なし>': '<no texture>',
   // 編集バー
   '個': 'selected', '音程': 'Pitch', '音量': 'Volume', '複数選択': 'Multi-select', '文字を編集': 'Edit text', '画像を選ぶ': 'Choose image',
   'コピー': 'Copy', '貼り付け': 'Paste', '分解': 'Split', '削除': 'Delete', '複製': 'Duplicate',
@@ -268,11 +268,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 1 },
-  { code: 'ko', name: '한국어', v: 1 },
-  { code: 'es', name: 'Español', v: 1 },
-  { code: 'fr', name: 'Français', v: 1 },
-  { code: 'de', name: 'Deutsch', v: 1 },
+  { code: 'zh-Hant', name: '繁體中文', v: 2 },
+  { code: 'ko', name: '한국어', v: 2 },
+  { code: 'es', name: 'Español', v: 2 },
+  { code: 'fr', name: 'Français', v: 2 },
+  { code: 'de', name: 'Deutsch', v: 2 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);

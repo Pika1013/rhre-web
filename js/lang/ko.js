@@ -164,7 +164,7 @@ export default {
     " If the list is closed, open it with \"Choose a game\" at the bottom left.": " 목록이 닫혀 있으면 왼쪽 아래의 \"게임 선택\"으로 여세요.",
     "Remix complete!": "리믹스 완성!",
     "Place the end marker": "끝 표시 놓기",
-    "Open the \"Special\" tab → \"End, subtitles, images\" → \"End Remix\", and place it where the song should end. Playback stops there.": "\"특수\" 탭 → \"끝, 자막, 이미지\" → \"End Remix\"를 열고, 곡이 끝날 곳에 놓으세요. 재생이 거기서 멈춰요.",
+    "Open the \"Special\" tab → \"End, subtitles, images, etc.\" → \"End Remix\", and place it where the song should end. Playback stops there.": "\"특수\" 탭 → \"끝, 자막, 이미지 등\" → \"End Remix\"를 열고, 곡이 끝날 곳에 놓으세요. 재생이 거기서 멈춰요.",
     "Export it": "내보내기",
     "Open the menu (☰) at the top left → \"Export audio only\" to save it as audio.": "왼쪽 위 메뉴(☰) → \"오디오만 내보내기\"로 오디오 파일로 저장하세요.",
     "Your remix is done. Great job!": "리믹스가 완성됐어요. 수고했어요!",
@@ -217,7 +217,7 @@ export default {
     "Custom": "커스텀",
     "Search": "검색",
     "Pattern": "패턴",
-    "End, subtitles, images": "끝, 자막, 이미지",
+    "End, subtitles, images, etc.": "끝, 자막, 이미지 등",
     "Tap ☆ above the pattern list to add a game here.": "패턴 목록 위의 ☆를 탭하면 게임이 여기에 추가돼요.",
     "Games you place show up here, newest first.": "놓은 게임이 최신순으로 여기에 나와요.",
     "Remove from favorites": "즐겨찾기에서 빼기",
@@ -234,6 +234,8 @@ export default {
     "End": "끝",
     "Subtitle": "자막",
     "Image": "이미지",
+    "Shake": "화면 흔들림",
+    "<no texture>": "<이미지 없음>",
     "selected": "개 선택",
     "Pitch": "음정",
     "Volume": "음량",
@@ -548,7 +550,7 @@ export default {
   <li>길이 바꾸기: 늘릴 수 있는 블록은 선택하면 양 끝에 흰 손잡이가 나와요</li>
   <li>삭제·복제·음정·음량: 선택하면 위쪽 툴바가 파란 편집 바로 바뀌어요(✕로 돌아가기)</li>
   <li>템포·박자표·음악 음량: 트랙 아래(♩=… 줄)를 탭하고 위쪽에서 종류를 골라요. 템포는 "변화에 걸리는 박 수"로 서서히 바꾸거나 스윙을 줄 수도 있어요. 표시는 길게 눌러 잡고 움직일 수 있고, 박자표의 큰 숫자는 탭해서 바로 입력할 수 있어요</li>
-  <li>자막·이미지·플레이얼롱: "특수" 탭에서 놓아요. 자막과 이미지는 선택하면 "글자 편집" "이미지 선택"이 나와요</li>
+  <li>자막·이미지·화면 흔들림·플레이얼롱: "특수" 탭에서 놓아요. 자막과 이미지는 선택하면 "글자 편집" "이미지 선택"이 나와요. 이미지는 블록과 같은 폭으로 트랙 위에 그려져요. Song Title·Song Artist는 재생 중에 좌우에서 띠로 미끄러져 나와요. 화면 흔들림은 음정을 올릴수록 세게 흔들려요</li>
   <li>커스텀 효과음: "커스텀" 탭에서 내 오디오 파일을 넣어요. RHRE fresh의 customSounds 안의 폴더도 폴더째 넣을 수 있어요("+ 폴더 추가". iPhone은 iOS 18.4 이상. Android 등에서는 zip으로 압축해서 "+ .zip 추가"). data.json·icon.png도 지원해요. 컴퓨터에서는 폴더나 zip을 화면에 끌어다 놓아도 돼요</li>
   <li>저장: 저장 버튼(또는 메뉴의 "저장")을 누르고 이름을 정해요. iPhone은 공유 메뉴에서 "파일에 저장"</li>
   <li>작업은 자동으로 저장되고, 다음에 열면 이어서 시작해요</li>
@@ -570,7 +572,7 @@ export default {
   <li>프레젠테이션 모드(메뉴): 위아래 바를 숨기고 트랙만 크게 보여 줘요. 오른쪽 위 버튼으로 재생·정지, 왼쪽 위의 ✕로 돌아가요. 재생 중에는 왼쪽 위에 지금 게임이 나와요</li>
 </ul>
 <p><b>설정(톱니바퀴)</b>: 왼쪽 메뉴에서 항목을 골라요. "언어"(화면 언어·게임 이름·미니게임 언어), "외관"(테마 색·배경 이미지), "편집 화면"(메트로놈의 Play-Yan), "플레이얼롱"(타이밍 조정). 트랙 수·튜토리얼·"리믹스 만들어 보기"는 메뉴(≡)에 있어요.</p>
-<p>아직 안 되는 것: 화면 흔들림, 피치 벤드, 줄자(이것이 들어간 리믹스는 열리지만 효과는 없어요), MP3 등으로 내보내기, MIDI 불러오기.</p>
+<p>아직 안 되는 것: 피치 벤드, 줄자(이것이 들어간 리믹스는 열리지만 효과는 없어요), MP3 등으로 내보내기, MIDI 불러오기.</p>
 <p><b>앱처럼 쓰려면</b>: iPhone은 Safari의 공유 버튼 → "홈 화면에 추가". Android는 Chrome의 "앱 설치"나 GitHub에서 배포하는 Android 앱. 홈 화면에 추가한 앱과 Android 앱에서는 한 번 쓴 미니게임을 인터넷 없이도 쓸 수 있어요.</p>
 <p class="note">이 사이트는 GoatCounter로 방문 수를 세요. 쿠키를 쓰지 않고, 개인을 알 수 있는 정보는 모으지 않아요.</p>
 <p class="note">지금 RHRE Web을 열어 둔 사람 수를 세기 위해, 열려 있는 동안 Cloudflare 서버에 연결해요. 보내는 것은 기기마다의 무작위 번호뿐이고, 이름 등은 보내지 않아요.</p>

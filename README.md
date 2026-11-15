@@ -1,4 +1,4 @@
-# RHRE Web v1.13.0
+# RHRE Web v1.14.0
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
@@ -17,7 +17,7 @@
 - 全ミニゲームから置く・選ぶ・動かす・長さを変える・削除・複製・音程・音量、コピー＆ペースト、範囲選択、パターンの分解、元に戻す・やり直す
 - テンポ・拍子・音楽の音量の変更（長押しでドラッグ移動、拍子の数字はタップで直接入力）、トラック数（5〜10）
 - 音楽：端末の曲を一覧に追加して試聴・選択、曲のテンポを入力・タップで測定・自動検出（途中で変わるテンポも見つけて置く）、音楽開始位置の調整
-- 字幕・画像ブロック、DJ School の Music Distortion（その範囲だけ音楽を細い音に）、Extra Sound Effects の一番下の「拡張音源」（RHRE Web だけの効果音。今は「Cleared! (Switch)」。RHRE fresh では MISSING ENTITY になる）、どの効果音でも音程を変えられる、お気に入り・最近使ったゲーム、カスタム効果音（音声ファイルを 1 つずつ、または RHRE fresh の customSounds の中のフォルダをフォルダごと（パソコン・iPhone）・zip で。data.json・icon.png にも対応）
+- 特殊のブロック（RHRE fresh と同じ作り）：End Remix、字幕、曲名・アーティスト名（再生中に左右から帯で出る）、画像（トラックの上にブロックの幅で描く）、画面揺れ（音程で強さが変わる）、DJ School の Music Distortion（その範囲だけ音楽を細い音に）、Extra Sound Effects の一番下の「拡張音源」（RHRE Web だけの効果音。今は「Cleared! (Switch)」。RHRE fresh では MISSING ENTITY になる）、どの効果音でも音程を変えられる、お気に入り・最近使ったゲーム、カスタム効果音（音声ファイルを 1 つずつ、または RHRE fresh の customSounds の中のフォルダをフォルダごと（パソコン・iPhone）・zip で。data.json・icon.png にも対応）
 - 音声のみの書き出し（WAV）、動画（mp4）への書き出し（0 拍目から、最初に 2 秒待って再生。プレゼンテーションモードと同じ見た目。対応する端末では 1 コマずつ計算で作り、ほかの端末では流しながら録画）
 - アップデートのあとに「アップデートしました！」が出て、更新内容を見られる（メニューの「更新内容」からも）
 - ホーム画面に追加したアプリでは、一度使ったミニゲームはオフラインでも使える（効果音などを端末に保存）
@@ -67,4 +67,4 @@ python3 serve.py 8124 .
 
 GPL-3.0（[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) と同じ）。詳しくは [LICENSE](LICENSE) を見てください。
 
-プレイモードの絵と音（`assets/playalong/` の tappoint・tap_flick・perfect・perfect_hit・perfect_failed・perfect_fail）と、Play-Yan の絵（`assets/playyan/`）は RHRE fresh のものをそのまま使っています（GPL-3.0）。
+プレイモードの絵と音（`assets/playalong/` の tappoint・tap_flick・perfect・perfect_hit・perfect_failed・perfect_fail）、プレイアロングのブロックのアイコン（`assets/playalong/playable_entities.png`）、曲名・アーティスト名の帯（`assets/ui/song_title.png`）と、Play-Yan の絵（`assets/playyan/`）は RHRE fresh のものをそのまま使っています（GPL-3.0）。

@@ -134,12 +134,11 @@
   /* エディタ */
   #editor { position: relative; min-height: 0; overflow: hidden; background: #242424; }
   #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* 再生中に画面の中央下に出す：特殊の画像（縦横比そのまま）と字幕 */
+  /* 再生中に画面の中央下に出す字幕（特殊の画像は RHRE fresh と同じくトラックの上に描く） */
   #stageOverlay {
     position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: 92%; z-index: 3;
     display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
   }
-  #stageImg { display: block; width: auto; height: auto; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
   #subtitle {
     max-width: 95%;
     padding: 4px 14px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); font-weight: 700; font-size: 18px;
@@ -936,7 +935,7 @@
 
   <main id="editor">
     <canvas id="view" aria-label="トラック"></canvas>
-    <div id="stageOverlay"><img id="stageImg" alt="" hidden><div id="subtitle" hidden></div></div>
+    <div id="stageOverlay"><div id="subtitle" hidden></div></div>
     <div id="nightCover" aria-live="polite"><div id="nightText">ナイトモード挑戦中！</div></div>
     <div id="navL" class="nav-btns"><button type="button" id="navZero" title="0拍目に戻る（再生位置も 0 拍目に）" aria-label="0拍目に戻る"><svg viewBox="0 0 24 24"><path d="M5 5v14"/><path d="M19 5l-9 7 9 7z"/></svg></button><button type="button" id="navLeft" title="左へ高速移動（押し続けると流れ続ける）" aria-label="左へ高速移動"><svg viewBox="0 0 24 24"><path d="M12 5l-7 7 7 7"/><path d="M20 5l-7 7 7 7"/></svg></button></div>
     <div id="navR" class="nav-btns"><button type="button" id="navRight" title="右へ高速移動（押し続けると流れ続ける）" aria-label="右へ高速移動"><svg viewBox="0 0 24 24"><path d="M12 5l7 7-7 7"/><path d="M4 5l7 7-7 7"/></svg></button></div>
@@ -990,7 +989,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.13.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><span id="version">RHRE Web v1.14.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1332,7 +1331,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.13.0</h2>
+    <h2>RHRE Web v1.14.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1356,7 +1355,7 @@
       <li>長さを変える：伸ばせるブロックは、選ぶと両端に白いつまみが出ます</li>
       <li>削除・複製・音程・音量：選ぶと上のツールバーが青い編集バーに変わります（✕ で戻る）</li>
       <li>テンポ・拍子・音楽の音量：トラックの下（♩=…の段）をタップ。上の切り替えで種類を選びます。テンポは「変化にかける拍数」で徐々に変えたり、スウィングも付けられます。印は長押しでつかんで動かせ、拍子の大きな数字はタップで直接入力できます</li>
-      <li>字幕・画像・プレイアロング：「特殊」タブから置きます。字幕と画像は、選ぶと「文字を編集」「画像を選ぶ」が出ます</li>
+      <li>字幕・画像・画面揺れ・プレイアロング：「特殊」タブから置きます。字幕と画像は、選ぶと「文字を編集」「画像を選ぶ」が出ます。画像はトラックの上に、ブロックと同じ幅で出ます。Song Title・Song Artist は、再生中に左右から帯で出ます。画面揺れは、音程を上げるほど強く揺れます</li>
       <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加。RHRE fresh の customSounds の中のフォルダも、フォルダごと（「＋ フォルダを追加」。iPhone は iOS 18.4 以降。Android などでは zip にして「＋ zip を追加」）追加できます（data.json・icon.png にも対応。パソコンではフォルダや zip を画面に落としても追加できます）</li>
       <li>保存：保存ボタン（またはメニューの「保存」）を押して名前を決めます。iPhone は共有メニューから「ファイルに保存」</li>
       <li>作業中は自動で保存され、次に開くと続きから始まります</li>
@@ -1378,7 +1377,7 @@
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
     <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
-    <p>まだできないこと：画面揺れ、ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
+    <p>まだできないこと：ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
     <p class="note">今 RHRE Web を開いている人数を数えるため、開いている間は Cloudflare のサーバーにつながります。送るのは端末ごとのランダムな番号だけで、名前などは送りません。</p>
@@ -1406,7 +1405,7 @@
       <li>Resize: blocks that can stretch show white handles at both ends when selected.</li>
       <li>Delete, duplicate, pitch, volume: selecting a block turns the top bar into the blue edit bar (✕ to go back).</li>
       <li>Tempo, time signature, music volume: tap the row under the tracks (♩=…) and choose the kind at the top. Tempo can change gradually ("beats to change over") and can have swing. Long-press a marker to drag it, and tap the big time signature numbers to type them.</li>
-      <li>Subtitles, images, Playalong: place them from the "Special" tab. Selecting a subtitle or image shows "Edit text" or "Choose image".</li>
+      <li>Subtitles, images, screen shake, Playalong: place them from the "Special" tab. Selecting a subtitle or image shows "Edit text" or "Choose image". Images are drawn over the tracks, as wide as the block. Song Title and Song Artist slide in as banners from the left and right during playback. Screen shake gets stronger as you raise its pitch.</li>
       <li>Custom sounds: add your own audio files in the "Custom" tab. You can also add whole folders from RHRE fresh's customSounds folder with "+ Add a folder" (iPhone needs iOS 18.4 or later; on Android and others, compress it into a .zip and use "+ Add a .zip"). data.json and icon.png work too. On a computer, you can also drop a folder or .zip onto the page.</li>
       <li>Save: press the save button (or "Save" in the menu) and choose a name. On iPhone, pick "Save to Files" in the share menu.</li>
       <li>Your work is saved automatically and continues next time you open the app.</li>
@@ -1428,7 +1427,7 @@
       <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
     <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
-    <p>Not available yet: screen shake, pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
+    <p>Not available yet: pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
     <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
     <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
     <p class="note">To count how many people have RHRE Web open, the app connects to a Cloudflare server while it is open. It sends only a random number for each device, never your name.</p>
@@ -1446,7 +1445,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=106"></script>
+<script type="module" src="js/app.js?v=107"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

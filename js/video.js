@@ -132,21 +132,14 @@ function drawSignature(deps, st) {
   g.restore();
 }
 
-// 字幕と「特殊」の画像を、画面の中央下に（再生中の画面と同じ並び・大きさ）
+// 字幕を、画面の中央下に（再生中の画面と同じ並び・大きさ）。特殊の画像は RHRE fresh と同じくトラックの上に描く（view.js）
 function drawOverlay(deps, st, remix, beat) {
   const g = st.v.ctx;
   const { W, H } = st;
   g.setTransform(st.scale, 0, 0, st.scale, 0, 0);
   const subs = remix.subtitles.filter((s) => beat >= s.beat && beat < s.beat + s.width);
   const text = subs.map((s) => String(s.subtitle ?? '')).join('\n').trim();
-  let tex = null;
-  for (const e of remix.entities) {
-    if (e.type === 'textureEntity' && e.extra?.texHash && beat >= e.beat && beat < e.beat + e.width) {
-      if (!tex || e.beat >= tex.beat) tex = e;
-    }
-  }
-  const img = tex ? deps.textureImage(tex) : null;
-  let bottom = H - 10;
+  const bottom = H - 10;
   // 字幕：黒い半透明の帯に白い太字（幅は画面の 92% の 95% まで、はみ出す行は折り返す）
   if (text) {
     const fs = 18, lh = 24, padX = 14, padY = 4;
@@ -171,22 +164,6 @@ function drawOverlay(deps, st, remix, beat) {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     lines.forEach((l, i) => g.fillText(l, W / 2, y + padY + lh * (i + 0.5)));
-    bottom = y - 6;
-  }
-  // 画像：縦横比はそのまま、横は画面の半分・縦は 4 割まで（小さい画像はそこまで拡大。ドット絵はぼかさない）
-  if (img) {
-    const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
-    if (nw && nh) {
-      const s = Math.min((W * 0.5) / nw, (H * 0.4) / nh);
-      const dw = nw * s, dh = nh * s;
-      g.save();
-      g.imageSmoothingEnabled = s < 2;
-      g.shadowColor = 'rgba(0,0,0,0.5)';
-      g.shadowBlur = 6;
-      g.shadowOffsetY = 2;
-      g.drawImage(img, (W - dw) / 2, bottom - dh, dw, dh);
-      g.restore();
-    }
   }
 }
 
@@ -222,6 +199,8 @@ async function prepare(deps, main, opts) {
     const beat = remix.tempo.s2b(t);
     st.v.playhead = beat;
     st.v.follow(beat);
+    // 画面揺れ・曲名の帯は、再生が始まってから（RHRE fresh も再生中だけ）
+    if (live) st.v.updateEffects(beat, nowMs);
     st.v.draw(nowMs);
     drawOverlay(deps, st, remix, beat);
     // 今のゲームは、再生が始まってから（最初に待っている間は出さない。RHRE fresh も止まっているときは出さない）
