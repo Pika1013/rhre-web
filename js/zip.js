@@ -102,7 +102,9 @@ export function makeZip(files, comment = '') {
   const end = new DataView(new ArrayBuffer(22));
   end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true); end.setUint16(20, cm.length, true);
-  return new Blob([...parts, ...central, new Uint8Array(end.buffer), cm], { type: 'application/zip' });
+  // 中身は ZIP だが、「zip です」という印（application/zip）は付けない。付けると Android（保存の場所の決まり）や Mac の Safari が
+  // 名前の最後に .zip を足したり（remix.rhref.zip）、勝手に開いてフォルダにしたりして、RHRE fresh で開けなくなる
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer), cm], { type: 'application/octet-stream' });
 }
 
 function decodeName(raw) {
