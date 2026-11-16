@@ -594,7 +594,7 @@ export default {
     "✕ Exit": "✕ 끝내기",
     "Timing offset": "타이밍 조정",
     "Retry": "다시 하기",
-    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J or Space, B = K, D-pad = arrow keys.": "소리가 늦게 들리면(블루투스 이어폰 등) 플러스로 하세요. 키보드: A = J 또는 스페이스, B = K, 십자 = 방향키.",
+    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J, B = K, D-pad = arrow keys.": "소리가 늦게 들리면(블루투스 이어폰 등) 플러스로 하세요. 키보드: A = J, B = K, 십자 = 방향키.",
     "Game list height": "게임 목록 높이",
     "Drag to resize (double-tap to reset)": "드래그해서 높이 바꾸기(두 번 탭하면 원래대로)",
     "Add to your Home Screen to use it": "홈 화면에 추가해서 써 주세요",
@@ -655,6 +655,30 @@ export default {
     "File name": "파일 이름",
     "Loading the database…": "데이터베이스를 불러오는 중…",
     "Loading minigame data {d}/{n} ({g})": "미니게임 데이터를 불러오는 중 {d}/{n}({g})",
+    "Keyboard shortcuts": "키보드 조작",
+    "Move left / right (while held; add Shift or {mod} to go faster)": "왼쪽/오른쪽으로 이동(누르고 있는 동안. Shift나 {mod}도 누르면 빨라요)",
+    "Raise / lower the pitch of the selected blocks (add {mod} for 2 at a time)": "선택한 블록의 음정 올리기/내리기({mod}도 누르면 2씩)",
+    "Play / stop": "재생/정지",
+    "Pause / resume": "일시 정지/이어서 재생",
+    "Go to beat 0 / the last block": "0박으로/마지막 블록으로",
+    "Go to the music start (red flag)": "음악 시작 위치(빨간 깃발)로",
+    "Undo / redo": "실행 취소/다시 실행",
+    "Copy / cut / paste": "복사/잘라내기/붙여넣기",
+    "Delete the selected blocks": "선택한 블록 삭제",
+    "Select all blocks": "블록 모두 선택",
+    "Select every block after / before / between the selected blocks (with nothing selected: from the playback start)": "선택한 블록보다 뒤/앞/사이의 블록을 모두 선택(아무것도 선택하지 않았으면 재생 시작 위치부터)",
+    "New / open / save / export audio only": "새로 만들기/열기/저장/오디오만 내보내기",
+    "Deselect / stop placing / leave presentation mode": "선택 해제/놓기 그만/프레젠테이션 모드 끝내기",
+    "Click": "클릭",
+    "Drag": "드래그",
+    "Wheel": "휠",
+    "Add / remove a block from the selection": "블록을 선택에 더하기/빼기",
+    "Drag over an empty spot to select several blocks": "빈 곳을 드래그하면 여러 블록을 한꺼번에 선택",
+    "Move left / right": "좌우로 이동",
+    "Zoom in / out": "확대/축소",
+    "{mod}+N and {mod}+T may open a new window or tab instead, depending on your browser. {mod}+R selects everything before instead of reloading the page. In play mode, J, K, W A S D and the arrow keys are the buttons.": "{mod}+N, {mod}+T는 브라우저에 따라 브라우저의 동작(새 창·새 탭)이 먼저 실행될 수 있어요. {mod}+R은 페이지 새로고침 대신 \"앞을 모두 선택\"이 돼요. 플레이 모드에서는 J, K, W A S D, 방향키가 버튼이 돼요.",
+    "Cut {n}. Tap where to paste.": "{n}개 잘라냈어요. 붙여넣을 곳을 탭하세요.",
+    "New": "새로 만들기",
   },
   ja: {"軽め":"약하게"},
   help: `
@@ -684,6 +708,7 @@ export default {
   <li>커스텀 효과음: "커스텀" 탭에서 내 오디오 파일을 넣어요. RHRE fresh의 customSounds 안의 폴더도 폴더째 넣을 수 있어요("+ 폴더 추가". iPhone은 iOS 18.4 이상. Android 등에서는 zip으로 압축해서 "+ .zip 추가"). data.json·icon.png도 지원해요. 컴퓨터에서는 폴더나 zip을 화면에 끌어다 놓아도 돼요</li>
   <li>저장: 저장 버튼(또는 메뉴의 "저장")을 누르고 이름을 정해요. iPhone은 공유 메뉴에서 "파일에 저장"</li>
   <li>작업은 자동으로 저장되고, 다음에 열면 이어서 시작해요</li>
+  <li>컴퓨터에서는 RHRE fresh와 같은 키로도 조작할 수 있어요(A/D 또는 ←/→로 이동, W/S 또는 ↑/↓로 음정, 스페이스로 재생/정지, Ctrl+C, Ctrl+V 등). 전체 목록은 메뉴의 "키보드 조작"에서 볼 수 있어요</li>
 </ul>
 <p><b>음악과 내보내기</b></p>
 <ul>
@@ -697,7 +722,7 @@ export default {
 <p><b>플레이·보여 주기</b></p>
 <ul>
   <li>플레이 모드(메뉴): 플레이얼롱 큐에 맞춰 눌러서 플레이해요. ▶로 시작. 터치·튕기기는 아래의 초록색 테두리 안에서("터치 영역을 왼쪽으로/오른쪽으로"로 좌우 전환). "나이트 모드"는 트랙을 숨기고, "퍼펙트 챌린지"로 한 번도 실수하지 않기에 도전할 수 있어요</li>
-  <li>컴퓨터 키보드: A = J 또는 스페이스, B = K, 십자 = W A S D 또는 방향키</li>
+  <li>컴퓨터 키보드: A = J, B = K, 십자 = W A S D 또는 방향키(스페이스는 재생/정지)</li>
   <li>타이밍이 어긋날 때는 설정의 "버튼 타이밍 조정" "터치 타이밍 조정"으로 맞춰요</li>
   <li>프레젠테이션 모드(메뉴): 위아래 바를 숨기고 트랙만 크게 보여 줘요. 오른쪽 위 버튼으로 재생·정지, 왼쪽 위의 ✕로 돌아가요. 재생 중에는 왼쪽 위에 지금 게임이 나와요</li>
 </ul>

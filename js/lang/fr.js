@@ -594,7 +594,7 @@ export default {
     "✕ Exit": "✕ Quitter",
     "Timing offset": "Décalage",
     "Retry": "Réessayer",
-    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J or Space, B = K, D-pad = arrow keys.": "Mettez une valeur positive si le son vous arrive en retard (écouteurs Bluetooth, etc.). Au clavier : A = J ou Espace, B = K, croix = flèches.",
+    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J, B = K, D-pad = arrow keys.": "Mettez une valeur positive si le son vous arrive en retard (écouteurs Bluetooth, etc.). Au clavier : A = J, B = K, croix = flèches.",
     "Game list height": "Hauteur de la liste des jeux",
     "Drag to resize (double-tap to reset)": "Faites glisser pour redimensionner (double toucher pour réinitialiser)",
     "Add to your Home Screen to use it": "Ajoutez-la à votre écran d'accueil pour l'utiliser",
@@ -655,6 +655,30 @@ export default {
     "File name": "Nom du fichier",
     "Loading the database…": "Chargement de la base de données…",
     "Loading minigame data {d}/{n} ({g})": "Chargement des données des mini-jeux {d}/{n} ({g})",
+    "Keyboard shortcuts": "Raccourcis clavier",
+    "Move left / right (while held; add Shift or {mod} to go faster)": "Aller à gauche / à droite (en maintenant ; ajoutez Shift ou {mod} pour aller plus vite)",
+    "Raise / lower the pitch of the selected blocks (add {mod} for 2 at a time)": "Monter / baisser la hauteur des blocs sélectionnés (ajoutez {mod} pour changer de 2 en 2)",
+    "Play / stop": "Lire / arrêter",
+    "Pause / resume": "Pause / reprendre",
+    "Go to beat 0 / the last block": "Aller au temps 0 / au dernier bloc",
+    "Go to the music start (red flag)": "Aller au début de la musique (drapeau rouge)",
+    "Undo / redo": "Annuler / rétablir",
+    "Copy / cut / paste": "Copier / couper / coller",
+    "Delete the selected blocks": "Supprimer les blocs sélectionnés",
+    "Select all blocks": "Sélectionner tous les blocs",
+    "Select every block after / before / between the selected blocks (with nothing selected: from the playback start)": "Sélectionner tous les blocs après / avant / entre les blocs sélectionnés (sans sélection : à partir du début de la lecture)",
+    "New / open / save / export audio only": "Nouveau / ouvrir / enregistrer / exporter l'audio seul",
+    "Deselect / stop placing / leave presentation mode": "Désélectionner / arrêter de placer / quitter le mode présentation",
+    "Click": "Clic",
+    "Drag": "Glisser",
+    "Wheel": "Molette",
+    "Add / remove a block from the selection": "Ajouter ou retirer un bloc de la sélection",
+    "Drag over an empty spot to select several blocks": "Faites glisser sur un endroit vide pour sélectionner plusieurs blocs",
+    "Move left / right": "Aller à gauche / à droite",
+    "Zoom in / out": "Zoomer / dézoomer",
+    "{mod}+N and {mod}+T may open a new window or tab instead, depending on your browser. {mod}+R selects everything before instead of reloading the page. In play mode, J, K, W A S D and the arrow keys are the buttons.": "Selon le navigateur, {mod}+N et {mod}+T peuvent ouvrir une nouvelle fenêtre ou un nouvel onglet. {mod}+R sélectionne tout ce qui est avant au lieu de recharger la page. En mode jeu, J, K, W A S D et les flèches sont les boutons.",
+    "Cut {n}. Tap where to paste.": "{n} coupés. Touchez l'endroit où coller.",
+    "New": "Nouveau",
   },
   ja: {"軽め":"Léger"},
   help: `
@@ -684,6 +708,7 @@ export default {
   <li>Sons personnalisés : ajoutez vos propres fichiers audio dans l'onglet « Perso ». Vous pouvez aussi ajouter des dossiers entiers du dossier customSounds de RHRE fresh avec « + Ajouter un dossier » (sur iPhone, iOS 18.4 ou ultérieur ; sur Android et ailleurs, compressez-le en .zip et utilisez « + Ajouter un .zip »). data.json et icon.png fonctionnent aussi. Sur ordinateur, vous pouvez aussi déposer un dossier ou un .zip sur la page.</li>
   <li>Enregistrer : appuyez sur le bouton d'enregistrement (ou « Enregistrer » dans le menu) et choisissez un nom. Sur iPhone, choisissez « Enregistrer dans Fichiers » dans le menu de partage.</li>
   <li>Votre travail est enregistré automatiquement et reprend à la prochaine ouverture de l'app.</li>
+  <li>Sur ordinateur, vous pouvez aussi utiliser les mêmes touches que dans RHRE fresh (A/D ou ←/→ pour se déplacer, W/S ou ↑/↓ pour la hauteur, Espace pour lancer et arrêter, Ctrl+C, Ctrl+V, etc.). La liste complète se trouve dans « Raccourcis clavier » du menu.</li>
 </ul>
 <p><b>Musique et export</b></p>
 <ul>
@@ -697,7 +722,7 @@ export default {
 <p><b>Jouer et présenter</b></p>
 <ul>
   <li>Mode jeu (menu) : appuyez en rythme sur les cues Playalong. Appuyez sur ▶ pour commencer. Les cues à toucher ou à glisser utilisent la zone verte en bas (« Zone tactile à gauche/à droite » change de côté). « Mode nuit » masque les pistes, et « Défi Parfait » vous met au défi de ne faire aucune erreur.</li>
-  <li>Clavier : A = J ou Espace, B = K, croix = W A S D ou les flèches.</li>
+  <li>Clavier : A = J, B = K, croix = W A S D ou les flèches (Espace lance et arrête la lecture).</li>
   <li>Si le timing vous semble décalé, ajustez les décalages des boutons et du tactile dans les paramètres.</li>
   <li>Mode présentation (menu) : masque les barres du haut et du bas et n'affiche que les pistes. Utilisez les boutons en haut à droite pour lire et arrêter, et le ✕ en haut à gauche pour revenir. Pendant la lecture, le jeu en cours s'affiche en haut à gauche.</li>
 </ul>

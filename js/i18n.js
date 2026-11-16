@@ -331,17 +331,32 @@ const EN = {
     'Go back to the remix you had before joining? Press "Cancel" to keep editing the room\'s remix.',
   '前のリミックスに戻る': 'Go back to my remix', '部屋 {code} に入りますか？': 'Join room {code}?',
   'RHRE Web で一緒にリミックスを作ろう！合言葉：{code}': "Let's make a remix together in RHRE Web! Room code: {code}", 'コピーしました': 'Copied',
+  // キーボードの操作（パソコン）
+  '左・右に動く（押している間。Shift か {mod} も押すと速い）': 'Move left / right (while held; add Shift or {mod} to go faster)',
+  '選んだブロックの音程を上げる・下げる（{mod} も押すと 2 つずつ）': 'Raise / lower the pitch of the selected blocks (add {mod} for 2 at a time)',
+  '再生・停止': 'Play / stop', '一時停止・続きから再生': 'Pause / resume', '0 拍目へ・最後のブロックへ': 'Go to beat 0 / the last block',
+  '音楽の開始位置（赤い旗）へ': 'Go to the music start (red flag)', '元に戻す・やり直す': 'Undo / redo', 'コピー・切り取り・貼り付け': 'Copy / cut / paste',
+  '選んだブロックを削除': 'Delete the selected blocks', 'ブロックを全部選ぶ': 'Select all blocks',
+  '選んだブロックより後ろ・前・間のブロックを全部選ぶ（何も選んでいないときは、再生を始める位置から）':
+    'Select every block after / before / between the selected blocks (with nothing selected: from the playback start)',
+  '新規作成・開く・保存・音声のみ書き出す': 'New / open / save / export audio only',
+  '選ぶのをやめる・置くのをやめる・プレゼンテーションモードを終わる': 'Deselect / stop placing / leave presentation mode',
+  'クリック': 'Click', 'ドラッグ': 'Drag', 'ホイール': 'Wheel', 'ブロックを選び足す・外す': 'Add / remove a block from the selection',
+  '何もない所をドラッグすると、まとめて選ぶ': 'Drag over an empty spot to select several blocks', '左右に動く': 'Move left / right', '拡大・縮小': 'Zoom in / out',
+  '{mod}+N・{mod}+T は、ブラウザによってはブラウザの操作（新しいウィンドウ・タブ）が先に動きます。{mod}+R は、ページの再読み込みの代わりに「前を全部選ぶ」になります。プレイモードの間は、J・K・W A S D・矢印キーがボタンになります。':
+    '{mod}+N and {mod}+T may open a new window or tab instead, depending on your browser. {mod}+R selects everything before instead of reloading the page. In play mode, J, K, W A S D and the arrow keys are the buttons.',
+  '{n} 個を切り取りました。貼り付ける場所をタップしてください': 'Cut {n}. Tap where to paste.',
 };
 
 // 画面の言語。v は js/lang/ の訳を直したら上げる（古い訳を保存したままにしないため）
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 6 },
-  { code: 'ko', name: '한국어', v: 6 },
-  { code: 'es', name: 'Español', v: 6 },
-  { code: 'fr', name: 'Français', v: 6 },
-  { code: 'de', name: 'Deutsch', v: 6 },
+  { code: 'zh-Hant', name: '繁體中文', v: 7 },
+  { code: 'ko', name: '한국어', v: 7 },
+  { code: 'es', name: 'Español', v: 7 },
+  { code: 'fr', name: 'Français', v: 7 },
+  { code: 'de', name: 'Deutsch', v: 7 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);
@@ -464,7 +479,7 @@ const STATIC_EN = {
   '置くとトラックの一番下に入ります。左上のメニューの「プレイモード」で遊べます': 'Inputs go on the bottom track. Start Play mode from the menu at the top left.',
   'プレイモード': 'Play mode', 'プレイモードをやめる': 'Exit play mode', '✕ やめる': '✕ Exit', 'プレイモードをやめる': 'Exit play mode',
 'プレイアロング': 'Playalong', 'タイミング調整': 'Timing offset', 'もう一度': 'Retry',
-  '音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。': 'Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J or Space, B = K, D-pad = arrow keys.',
+  '音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J、B＝K、十字＝矢印キーです。': 'Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J, B = K, D-pad = arrow keys.',
 'ゲーム一覧の高さ': 'Game list height', 'ドラッグで高さを変える（ダブルタップで元に戻す）': 'Drag to resize (double-tap to reset)', '保存': 'Save', 'ホーム画面に追加して使ってください': 'Add to your Home Screen to use it', '全画面で使う': 'Use in full screen',
   '全画面で始める': 'Start in full screen', 'アプリとして追加': 'Install as an app', '作業中のリミックスを .rhref で保存': 'Save the current remix as .rhref',
 '名前を決めて保存します。RHRE fresh でそのまま開けます。': 'Name it and save. It opens as-is in RHRE fresh.', '名前を変える': 'Rename', '保存するときの .rhref の名前です。': 'The name used when saving the .rhref.',
@@ -472,7 +487,7 @@ const STATIC_EN = {
   '音声のみ書き出す': 'Export audio only', '音楽を選ぶ': 'Choose music', '音楽の開始位置': 'Music start position', '音楽を外す': 'Remove music',
   'トラックの数': '☰ Number of tracks', 'プレゼンテーションモード': 'Presentation mode', '使い方': 'Help',
   'テンポ': 'Tempo', '拍子': 'Time signature', '音楽の音量': 'Music volume', 'スウィング': 'Swing', '新規作成': 'New', 'サンプルを開く': 'Open sample', '開く': 'Open', '外す': 'Remove',
-  'みんなで編集': 'Edit together',
+  'みんなで編集': 'Edit together', 'キーボードの操作': 'Keyboard shortcuts',
 };
 
 export function applyStatic(root = document.body) {

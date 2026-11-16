@@ -2,12 +2,12 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=52';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=53';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=39';
+import { CHANGELOG } from './changelog.js?v=40';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=5';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.16.0';
+const VERSION = '1.17.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -1708,6 +1708,7 @@ function frame(now) {
   if (mode !== 'playing' && view.shake) { view.shake = null; view.dirty = true; }
   if (playMode && judge) syncHolding();
   if (room.active) roomTick(now);
+  keyScroll(now);
   view.stepMomentum(now);
   if (guide.on) positionCoachRing();
   if (view.dirty && !videoJob) {
@@ -1741,6 +1742,7 @@ function doAction(act) {
     case 'tapTempo': openTapTempo('menu'); break;
     case 'guide': startGuide(); break;
     case 'musicStart': openMusicStart(); break;
+    case 'editKeys': openEditKeys(); break;
     case 'musicRemove':
       if (!musicFile) { toast(t('音楽は選ばれていません'), 2000, 'info'); break; }
       confirmBox(t('音楽を外す'), t('「{f}」を外しますか？', { f: musicFile.filename }), t('外す'), () => {
@@ -2267,20 +2269,153 @@ $('videoSave').addEventListener('click', () => {
 });
 $('saveClose').addEventListener('click', () => { $('saveModal').hidden = true; });
 
+// キーボード（パソコン）。RHRE fresh の Editor と同じ割り当て（ブラウザが使うキーは、効かないことがある）
+const keyHeld = { left: false, right: false };
+const modalOpen = () => [...document.querySelectorAll('.modal')].some((m) => !m.hidden);
 window.addEventListener('keydown', (e) => {
   const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   const mod = e.ctrlKey || e.metaKey;
-  if (e.code === 'Space') { e.preventDefault(); mode === 'playing' ? stopPlayback() : play(); }
-  else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
-  else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
-  else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); }
-  else if (mod && e.key.toLowerCase() === 'c') { if (view.selection.size) { e.preventDefault(); copySelection(); } }
-  else if (mod && e.key.toLowerCase() === 'v') { if (clipboard) { e.preventDefault(); startPaste(); } }
-  else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); openSave(); }
+  const key = e.key.toLowerCase();
+  const stopped = !playMode && mode !== 'playing';
+  // 押しっぱなしで何度も動くのは、移動・元に戻す・やり直す・削除だけ（ほかは RHRE fresh と同じく 1 回押して 1 回）
+  const once = !e.repeat;
+  // 左右に動く（押している間。A・D・矢印。プレイモードの間はゲームの操作に使う）
+  if (!mod && !e.altKey && !playMode && !modalOpen()) {
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') { e.preventDefault(); keyHeld.left = true; return; }
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') { e.preventDefault(); keyHeld.right = true; return; }
+  }
+  // 選んだブロックの音程（W・↑で上げる、S・↓で下げる。Ctrl で 2 つずつ）
+  if (!e.altKey && !e.shiftKey && !playMode && !modalOpen() && (e.code === 'KeyW' || e.code === 'ArrowUp' || (e.code === 'KeyS' && !mod) || e.code === 'ArrowDown')) {
+    if (view.selection.size) { e.preventDefault(); if (once) changeSemitone((e.code === 'KeyW' || e.code === 'ArrowUp' ? 1 : -1) * (mod ? 2 : 1)); }
+    return;
+  }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!once) return;
+    // Shift+Space は一時停止（もう一度で続きから）
+    if (e.shiftKey) mode === 'playing' ? pause() : play();
+    else mode === 'playing' ? stopPlayback() : play();
+  }
+  else if (!mod && !e.altKey && stopped && remix && !modalOpen() && (e.key === 'Home' || e.key === 'End' || e.code === 'KeyM')) {
+    // 0 拍目・最後のブロック・音楽の開始位置（赤い旗）へ
+    e.preventDefault();
+    const last = Math.max(0, ...remix.entities.map((x) => x.beat + x.width));
+    view.centerOn(e.key === 'Home' ? 0 : e.key === 'End' ? last : remix.tempo.s2b(remix.musicStartSec));
+  }
+  else if (mod && key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (mod && key === 'y') { e.preventDefault(); redo(); }
+  else if (mod && key === 'd') { e.preventDefault(); if (once) duplicateSelection(); }
+  else if (mod && key === 'c' && !e.shiftKey) { if (view.selection.size) { e.preventDefault(); if (once) copySelection(); } }
+  else if (mod && key === 'x') { if (view.selection.size) { e.preventDefault(); if (once) cutSelection(); } }
+  else if (mod && key === 'v') { if (clipboard) { e.preventDefault(); if (once) startPaste(); } }
+  else if (mod && key === 's') { e.preventDefault(); if (once) openSave(); }
+  else if (mod && key === 'o') { e.preventDefault(); if (once) doAction('open'); }
+  else if (mod && key === 'n') { e.preventDefault(); if (once) doAction('new'); }
+  else if (mod && key === 'e') { e.preventDefault(); if (once) doAction('export'); }
+  else if (mod && key === 'a' && stopped && !modalOpen()) { e.preventDefault(); if (once) selectWhere(() => true); }
+  else if (mod && !e.shiftKey && !e.altKey && (key === 'f' || key === 'r' || key === 't') && remix && stopped && !modalOpen()) {
+    // RHRE fresh と同じ：選んだブロックより後ろ（F）・前（R）・間（T）を全部選ぶ。何も選んでいなければ再生開始の位置から
+    e.preventDefault();
+    if (!once) return;
+    const sel = [...view.selection];
+    const minB = sel.length ? Math.min(...sel.map((x) => x.beat)) : (key === 't' ? 0 : remix.playbackStart);
+    const maxB = sel.length ? Math.max(...sel.map((x) => x.beat + x.width)) : (key === 't' ? 0 : remix.playbackStart);
+    if (key === 'f') selectWhere((x) => x.beat >= minB - 1e-6);
+    else if (key === 'r') selectWhere((x) => x.beat + x.width <= maxB + 1e-6);
+    else selectWhere((x) => x.beat >= minB - 1e-6 && x.beat + x.width <= maxB + 1e-6);
+  }
   else if (e.key === 'Delete' || e.key === 'Backspace') { if (view.selection.size) { e.preventDefault(); deleteSelection(); } }
   else if (e.key === 'Escape') { if (presenting) stopPresentation(); else if (pasteArmed) { pasteArmed = false; view.armed = null; updateCtxbar(); setStatus(summaryText()); } else if (armed) setArmed(null); else { multiSelect = false; view.selection.clear(); view.dirty = true; updateCtxbar(); } }
 });
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyA' || e.code === 'ArrowLeft') keyHeld.left = false;
+  if (e.code === 'KeyD' || e.code === 'ArrowRight') keyHeld.right = false;
+});
+window.addEventListener('blur', () => { keyHeld.left = false; keyHeld.right = false; });
+// 押している間、毎コマ動かす：1 秒に 5 拍、Shift か Ctrl（どちらか片方）で 5 倍（RHRE fresh と同じ）
+let keyScrollAt = 0;
+function keyScroll(now) {
+  const dir = (keyHeld.right ? 1 : 0) - (keyHeld.left ? 1 : 0);
+  if (!dir || playMode || !remix || modalOpen()) { keyScrollAt = now; return; }
+  const dt = Math.min(0.1, (now - (keyScrollAt || now)) / 1000);
+  keyScrollAt = now;
+  // Shift と Ctrl を両方押しているときは動かさない（RHRE fresh と同じ）
+  if (keyMods.shift && keyMods.ctrl) { keyScrollAt = now; return; }
+  const fast = keyMods.shift !== keyMods.ctrl;
+  view.scrollBeat += dir * 5 * (fast ? 5 : 1) * dt;
+  view.lastUser = now;
+  view.momentum = null;
+  view.dirty = true;
+}
+const keyMods = { shift: false, ctrl: false };
+for (const ev of ['keydown', 'keyup']) window.addEventListener(ev, (e) => { keyMods.shift = e.shiftKey; keyMods.ctrl = e.ctrlKey || e.metaKey; });
+
+// キーボードの操作の一覧（メニュー。キーボードかマウスがある端末だけ）
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl';
+const EDIT_KEYS = [
+  [['A ←', 'D →'], '左・右に動く（押している間。Shift か {mod} も押すと速い）'],
+  [['W ↑', 'S ↓'], '選んだブロックの音程を上げる・下げる（{mod} も押すと 2 つずつ）'],
+  [['Space'], '再生・停止'],
+  [['Shift+Space'], '一時停止・続きから再生'],
+  [['Home', 'End'], '0 拍目へ・最後のブロックへ'],
+  [['M'], '音楽の開始位置（赤い旗）へ'],
+  [['Mod+Z', 'Mod+Y'], '元に戻す・やり直す'],
+  [['Mod+C', 'Mod+X', 'Mod+V'], 'コピー・切り取り・貼り付け'],
+  [['Mod+D'], '複製'],
+  [['Delete', 'Backspace'], '選んだブロックを削除'],
+  [['Mod+A'], 'ブロックを全部選ぶ'],
+  [['Mod+F', 'Mod+R', 'Mod+T'], '選んだブロックより後ろ・前・間のブロックを全部選ぶ（何も選んでいないときは、再生を始める位置から）'],
+  [['Mod+N', 'Mod+O', 'Mod+S', 'Mod+E'], '新規作成・開く・保存・音声のみ書き出す'],
+  [['Esc'], '選ぶのをやめる・置くのをやめる・プレゼンテーションモードを終わる'],
+  [['Shift+@クリック'], 'ブロックを選び足す・外す'],
+  [['@ドラッグ'], '何もない所をドラッグすると、まとめて選ぶ'],
+  [['@ホイール'], '左右に動く'],
+  [['Mod+@ホイール'], '拡大・縮小'],
+];
+const hasKeyboard = () => !isTouch || matchMedia('(any-pointer: fine)').matches || matchMedia('(any-hover: hover)').matches;
+$('menuEditKeys').hidden = !hasKeyboard();
+function renderEditKeys() {
+  const cap = (k) => kc(k === 'Mod' ? MOD_KEY : k.startsWith('@') ? t(k.slice(1)) : k);
+  const group = (g) => `<span class="kg">${g.split(' ').map((c) => c.split('+').map(cap).join('<span class="plus">+</span>')).join(' ')}</span>`;
+  $('editKeysRows').innerHTML = EDIT_KEYS.map(([keys, what]) => `<div class="keys">${keys.map(group).join('<span class="or">/</span>')}</div><div>${esc(t(what, { mod: MOD_KEY }))}</div>`).join('');
+  $('editKeysNote').textContent = t('{mod}+N・{mod}+T は、ブラウザによってはブラウザの操作（新しいウィンドウ・タブ）が先に動きます。{mod}+R は、ページの再読み込みの代わりに「前を全部選ぶ」になります。プレイモードの間は、J・K・W A S D・矢印キーがボタンになります。', { mod: MOD_KEY });
+}
+function openEditKeys() {
+  renderEditKeys();
+  $('editKeysModal').hidden = false;
+}
+
+// 条件に合うブロックを全部選ぶ（Ctrl+A・F・R・T）
+function selectWhere(fn) {
+  if (!remix) return;
+  view.selection.clear();
+  for (const x of remix.entities) if (fn(x)) view.selection.add(x);
+  view.dirty = true;
+  updateCtxbar();
+  setStatus(view.selection.size ? t('{n} 個を選択中', { n: view.selection.size }) : summaryText());
+}
+// 切り取り（コピーしてから消す。消せないとき＝再生中などは、コピーもしない）
+function cutSelection() {
+  const sel = view.selection;
+  const n = sel.size;
+  if (!n || !remix) return;
+  const before = clipboard;
+  copySelection();
+  if (edit(() => { remix.entities = remix.entities.filter((x) => !sel.has(x)); })) {
+    sel.clear();
+    updateCtxbar();
+    setStatus(t('{n} 個を切り取りました。貼り付ける場所をタップしてください', { n }));
+  } else {
+    clipboard = before;
+    pasteArmed = false;
+    view.armed = null;
+    view.dirty = true;
+    updateCtxbar();
+  }
+}
+
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', async (e) => {
   e.preventDefault();
@@ -4231,7 +4366,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
     saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose', videoModal: '#videoClose', newsModal: '#newsClose',
-    songModal: '#songCancel', roomModal: '#roomClose', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk',
+    songModal: '#songCancel', roomModal: '#roomClose', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk', editKeysModal: '#editKeysClose',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
     const card = $(mid)?.querySelector('.card');

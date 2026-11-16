@@ -4,6 +4,63 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.17.0', date: '2026-11-16',
+    ja: [
+      'パソコンで、RHRE fresh と同じキーで操作できるようになりました。A・D か ←・→ を押している間は左右に動きます（Shift か Ctrl も押すと速い）',
+      'W・S か ↑・↓ で選んだブロックの音程、Shift+スペースで一時停止、Home・End・M で 0 拍目・最後のブロック・音楽の開始位置へ動きます',
+      'Ctrl+X（切り取り）、Ctrl+A（全部選ぶ）、Ctrl+F・R・T（選んだブロックより後ろ・前・間を全部選ぶ）、Ctrl+N・O・E（新規作成・開く・音声のみ書き出す）も使えます',
+      'キーの一覧は、メニューの「キーボードの操作」で見られます（パソコンなど、キーボードかマウスのある端末だけ）',
+      '使い方の「スペースで A ボタン」という古い説明を直しました（スペースは再生・停止です）',
+    ],
+    en: [
+      'On a computer, you can now use the same keys as RHRE fresh. Hold A/D or ←/→ to move left and right (add Shift or Ctrl to go faster).',
+      'W/S or ↑/↓ change the pitch of the selected blocks, Shift+Space pauses, and Home, End and M jump to beat 0, the last block and the music start.',
+      'Ctrl+X (cut), Ctrl+A (select all), Ctrl+F/R/T (select everything after / before / between the selected blocks) and Ctrl+N/O/E (new / open / export audio only) also work.',
+      'See all the keys with "Keyboard shortcuts" in the menu (only on devices with a keyboard or mouse).',
+      'Fixed the old help text saying Space is the A button (Space plays and stops).',
+    ],
+    'zh-Hant': [
+      '在電腦上，現在可以用和 RHRE fresh 相同的按鍵操作。按住 A／D 或 ←／→ 可以左右移動（同時按 Shift 或 Ctrl 會更快）。',
+      'W／S 或 ↑／↓ 改變所選方塊的音高，Shift+空白鍵暫停，Home、End、M 移到第 0 拍、最後的方塊、音樂開始位置。',
+      '也能使用 Ctrl+X（剪下）、Ctrl+A（全選）、Ctrl+F／R／T（選取所選方塊之後／之前／之間的全部）、Ctrl+N／O／E（新建／開啟／僅匯出音訊）。',
+      '按鍵清單可以在選單的「鍵盤操作」查看（只在有鍵盤或滑鼠的裝置上）。',
+      '修正了使用說明中「空白鍵是 A 按鈕」的舊說明（空白鍵是播放／停止）。',
+      '選單的「新建」在繁體中文中顯示為英文的問題已修正。',
+    ],
+    ko: [
+      '컴퓨터에서 RHRE fresh와 같은 키로 조작할 수 있게 되었어요. A/D 또는 ←/→를 누르고 있으면 좌우로 움직여요(Shift나 Ctrl도 누르면 빨라요).',
+      'W/S 또는 ↑/↓로 선택한 블록의 음정, Shift+스페이스로 일시 정지, Home·End·M으로 0박·마지막 블록·음악 시작 위치로 이동해요.',
+      'Ctrl+X(잘라내기), Ctrl+A(모두 선택), Ctrl+F/R/T(선택한 블록보다 뒤/앞/사이를 모두 선택), Ctrl+N/O/E(새로 만들기/열기/오디오만 내보내기)도 쓸 수 있어요.',
+      '키 목록은 메뉴의 "키보드 조작"에서 볼 수 있어요(키보드나 마우스가 있는 기기에서만).',
+      '도움말의 "스페이스가 A 버튼"이라는 옛 설명을 고쳤어요(스페이스는 재생/정지예요).',
+      '메뉴의 "새로 만들기"가 영어로 나오던 것을 고쳤어요.',
+    ],
+    es: [
+      'En un ordenador ya puedes usar las mismas teclas que en RHRE fresh. Mantén A/D o ←/→ para moverte a izquierda y derecha (añade Shift o Ctrl para ir más rápido).',
+      'W/S o ↑/↓ cambian el tono de los bloques seleccionados, Shift+Espacio pausa, y Inicio, Fin y M saltan al pulso 0, al último bloque y al inicio de la música.',
+      'También funcionan Ctrl+X (cortar), Ctrl+A (seleccionar todo), Ctrl+F/R/T (seleccionar todo después / antes / entre los bloques seleccionados) y Ctrl+N/O/E (nuevo / abrir / exportar solo audio).',
+      'Consulta todas las teclas en "Atajos de teclado" del menú (solo en dispositivos con teclado o ratón).',
+      'Se corrigió el texto antiguo de la ayuda que decía que Espacio es el botón A (Espacio reproduce y detiene).',
+      '"Nuevo" en el menú ya no aparece en inglés.',
+    ],
+    fr: [
+      "Sur ordinateur, vous pouvez maintenant utiliser les mêmes touches que dans RHRE fresh. Maintenez A/D ou ←/→ pour aller à gauche et à droite (ajoutez Shift ou Ctrl pour aller plus vite).",
+      "W/S ou ↑/↓ changent la hauteur des blocs sélectionnés, Shift+Espace met en pause, et Début, Fin et M vont au temps 0, au dernier bloc et au début de la musique.",
+      "Ctrl+X (couper), Ctrl+A (tout sélectionner), Ctrl+F/R/T (sélectionner tout après / avant / entre les blocs sélectionnés) et Ctrl+N/O/E (nouveau / ouvrir / exporter l'audio seul) fonctionnent aussi.",
+      "Retrouvez toutes les touches dans « Raccourcis clavier » du menu (seulement sur les appareils avec clavier ou souris).",
+      "Correction de l'ancien texte de l'aide qui disait qu'Espace est le bouton A (Espace lance et arrête la lecture).",
+      "« Nouveau » dans le menu ne s'affiche plus en anglais.",
+    ],
+    de: [
+      'Am Computer kannst du jetzt dieselben Tasten wie in RHRE fresh benutzen. Halte A/D oder ←/→, um dich nach links und rechts zu bewegen (mit Shift oder Strg schneller).',
+      'W/S oder ↑/↓ ändern die Tonhöhe der ausgewählten Blöcke, Shift+Leertaste pausiert, und Pos1, Ende und M springen zu Schlag 0, zum letzten Block und zum Musikstart.',
+      'Außerdem gehen Strg+X (ausschneiden), Strg+A (alles auswählen), Strg+F/R/T (alles nach / vor / zwischen den ausgewählten Blöcken auswählen) und Strg+N/O/E (neu / öffnen / nur Audio exportieren).',
+      'Alle Tasten findest du im Menü unter „Tastenkürzel“ (nur auf Geräten mit Tastatur oder Maus).',
+      'Den alten Hilfetext, nach dem die Leertaste der A-Knopf ist, korrigiert (die Leertaste spielt ab und stoppt).',
+      '„Neu“ im Menü wird nicht mehr auf Englisch angezeigt.',
+    ],
+  },
+  {
     v: '1.16.0', date: '2026-11-15',
     ja: [
       '「みんなで編集」の部屋では、開く・サンプル・新規作成、部屋の曲を決める、トラックの数・上下反転は、部屋を作った人だけができるようになりました',

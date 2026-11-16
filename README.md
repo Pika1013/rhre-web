@@ -1,4 +1,4 @@
-# RHRE Web v1.16.0
+# RHRE Web v1.17.0
 
 [RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
 
@@ -26,6 +26,7 @@
 - 再生速度、テーマ（15 色＋カスタム）、背景画像、画面の言語（日本語・English・繁體中文・한국어・Español・Français・Deutsch。日本語・英語以外では、ゲーム名とパターン名は英語のまま）
 - ゲーム名の日本語表示（設定の「ゲーム名」で切り替え。画面の言語とは別。検索は日本語名・英語名のどちらでも）
 - RHRE fresh と同じメトロノーム（カウベル）と Play-Yan（設定で消せる）、トラックの左右の端の高速移動・0 拍目に戻るボタン
+- パソコンでは RHRE fresh と同じキーでも操作できる（A・D か ←・→ で左右に動く、W・S か ↑・↓ で音程、スペースで再生・停止、Shift+スペースで一時停止、Home・End・M で 0 拍目・最後・音楽の開始位置へ、Ctrl+C・X・V・D・Z・Y・A・F・R・T・N・O・S・E。一覧はメニューの「キーボードの操作」）
 
 ## Android アプリ
 

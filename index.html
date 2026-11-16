@@ -663,6 +663,15 @@
   #keysRows .keys { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
   #keysRows .or { color: #9a9a9a; font-size: 13px; }
   #keysNote { font-size: 13px !important; color: #ffd27a !important; }
+  /* 編集のキーボードの操作の一覧（メニュー） */
+  #editKeysModal .card { width: min(640px, calc(100% - 40px)); }
+  #editKeysRows { display: grid; grid-template-columns: fit-content(48%) 1fr; gap: 7px 14px; align-items: center; margin: 8px 0 10px; font-size: 14px; }
+  #editKeysRows .keys { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  #editKeysRows .kg { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  #editKeysRows .kc { font-size: 13px; min-width: 1.7em; }
+  #editKeysRows .plus { color: #9a9a9a; font-size: 12px; margin: 0 1px; }
+  #editKeysRows .or { color: #9a9a9a; font-size: 12px; margin: 0 2px; }
+  #editKeysNote { font-size: 12px !important; }
   #psDpad { width: clamp(108px, 22vh, 150px); aspect-ratio: 1; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
   #psAB { position: relative; width: clamp(118px, 25vh, 170px); aspect-ratio: 1.2; }
   #psDpad.off, #psAB .off { visibility: hidden; }
@@ -1059,7 +1068,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.16.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.17.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1150,6 +1159,7 @@
       <button class="btn" data-act="tour">チュートリアル</button>
       <button class="btn" data-act="guide">リミックスを作ってみる</button>
       <button class="btn" data-act="help">使い方</button>
+      <button class="btn" data-act="editKeys" id="menuEditKeys" hidden>キーボードの操作</button>
       <button class="btn" data-act="news">更新内容</button>
       <button class="btn" data-act="close">閉じる</button>
     </div>
@@ -1312,6 +1322,14 @@
     <div class="row"><button class="btn primary" id="keysOk">閉じる</button></div>
   </div>
 </div>
+<div class="modal" id="editKeysModal" hidden role="dialog" aria-labelledby="editKeysTitle">
+  <div class="card">
+    <h2 id="editKeysTitle">キーボードの操作</h2>
+    <div id="editKeysRows"></div>
+    <p class="hint" id="editKeysNote"></p>
+    <div class="row"><button class="btn" id="editKeysClose">閉じる</button></div>
+  </div>
+</div>
 <div class="modal" id="errModal" hidden role="alertdialog" aria-labelledby="errTitle">
   <div class="card">
     <h2 id="errTitle"></h2>
@@ -1405,7 +1423,7 @@
             <div class="set-text"><label for="paTouchOffset">タッチのタイミング調整</label></div>
             <div class="set-range"><input type="range" id="paTouchOffset" min="-300" max="300" step="10" value="0"><span id="paTouchOffsetVal" class="range-val">0ms</span></div>
           </div>
-          <p class="set-note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J かスペース、B＝K、十字＝矢印キーです。</p>
+          <p class="set-note">音が遅れて聞こえる（Bluetooth イヤホンなど）ときはプラスにします。パソコンのキーボードでは A＝J、B＝K、十字＝矢印キーです。</p>
         </section>
       </div>
     </div>
@@ -1415,7 +1433,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.16.0</h2>
+    <h2>RHRE Web v1.17.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p><b>見る</b></p>
@@ -1443,6 +1461,7 @@
       <li>カスタム効果音：「カスタム」タブで自分の音声ファイルを追加。RHRE fresh の customSounds の中のフォルダも、フォルダごと（「＋ フォルダを追加」。iPhone は iOS 18.4 以降。Android などでは zip にして「＋ zip を追加」）追加できます（data.json・icon.png にも対応。パソコンではフォルダや zip を画面に落としても追加できます）</li>
       <li>保存：保存ボタン（またはメニューの「保存」）を押して名前を決めます。iPhone は共有メニューから「ファイルに保存」</li>
       <li>作業中は自動で保存され、次に開くと続きから始まります</li>
+      <li>パソコンでは、RHRE fresh と同じキーでも操作できます（A・D か ←・→ で左右に動く、W・S か ↑・↓ で音程、スペースで再生・停止、Ctrl+C・Ctrl+V など）。一覧はメニューの「キーボードの操作」で見られます</li>
     </ul>
     <p><b>音楽と書き出し</b></p>
     <ul>
@@ -1456,7 +1475,7 @@
     <p><b>遊ぶ・見せる</b></p>
     <ul>
       <li>プレイモード（メニュー）：プレイアロングのキューに合わせて押して遊びます。▶ で再生。タッチ・はじくは下の緑の枠で（「タッチの枠を左へ／右へ」で左右を切り替え）。「ナイトモード」でトラックを隠し、「パーフェクトチャレンジ」で 1 回もミスしない挑戦ができます</li>
-      <li>パソコンのキーボード：A＝J かスペース、B＝K、十字＝W A S D か矢印キー</li>
+      <li>パソコンのキーボード：A＝J、B＝K、十字＝W A S D か矢印キー（スペースは再生・停止）</li>
       <li>タイミングがずれるときは、設定の「ボタンのタイミング調整」「タッチのタイミング調整」で合わせます</li>
       <li>プレゼンテーションモード（メニュー）：上下のバーを隠して、トラックだけを大きく見せます。右上のボタンで再生・停止、左上の ✕ で戻ります。再生中は左上に今のゲームが出ます</li>
     </ul>
@@ -1505,6 +1524,7 @@
       <li>Custom sounds: add your own audio files in the "Custom" tab. You can also add whole folders from RHRE fresh's customSounds folder with "+ Add a folder" (iPhone needs iOS 18.4 or later; on Android and others, compress it into a .zip and use "+ Add a .zip"). data.json and icon.png work too. On a computer, you can also drop a folder or .zip onto the page.</li>
       <li>Save: press the save button (or "Save" in the menu) and choose a name. On iPhone, pick "Save to Files" in the share menu.</li>
       <li>Your work is saved automatically and continues next time you open the app.</li>
+      <li>On a computer you can also use the same keys as RHRE fresh (A/D or ←/→ to move, W/S or ↑/↓ for pitch, Space to play and stop, Ctrl+C, Ctrl+V and more). See the full list with "Keyboard shortcuts" in the menu.</li>
     </ul>
     <p><b>Music and export</b></p>
     <ul>
@@ -1518,7 +1538,7 @@
     <p><b>Playing and showing</b></p>
     <ul>
       <li>Play mode (menu): press along with the Playalong cues. Press ▶ to start. Touch and flick cues use the green area at the bottom ("Touch area to the left/right" switches sides). "Night Mode" hides the tracks, and "Perfect Challenge" lets you try for no misses.</li>
-      <li>Keyboard: A = J or Space, B = K, D-pad = W A S D or the arrow keys.</li>
+      <li>Keyboard: A = J, B = K, D-pad = W A S D or the arrow keys (Space plays and stops).</li>
       <li>If your timing feels off, adjust the button and touch timing offsets in Settings.</li>
       <li>Presentation mode (menu): hides the top and bottom bars and shows only the tracks. Use the buttons at the top right to play and stop, and the ✕ at the top left to go back. While playing, the current game shows at the top left.</li>
     </ul>
@@ -1553,7 +1573,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=114"></script>
+<script type="module" src="js/app.js?v=115"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

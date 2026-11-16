@@ -594,7 +594,7 @@ export default {
     "✕ Exit": "✕ 結束",
     "Timing offset": "時機調整",
     "Retry": "再來一次",
-    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J or Space, B = K, D-pad = arrow keys.": "聲音聽起來延遲時（例如藍牙耳機）請調成正數。鍵盤操作：A = J 或空白鍵，B = K，十字鍵 = 方向鍵。",
+    "Use a plus value if the sound reaches you late (Bluetooth earphones etc.). On a keyboard: A = J, B = K, D-pad = arrow keys.": "聲音聽起來延遲時（例如藍牙耳機）請調成正數。鍵盤操作：A = J，B = K，十字鍵 = 方向鍵。",
     "Game list height": "遊戲清單高度",
     "Drag to resize (double-tap to reset)": "拖曳調整高度（點兩下恢復原狀）",
     "Add to your Home Screen to use it": "請加到主畫面後使用",
@@ -655,6 +655,30 @@ export default {
     "File name": "檔案名稱",
     "Loading the database…": "正在載入資料庫…",
     "Loading minigame data {d}/{n} ({g})": "正在載入小遊戲資料 {d}/{n}（{g}）",
+    "Keyboard shortcuts": "鍵盤操作",
+    "Move left / right (while held; add Shift or {mod} to go faster)": "向左／向右移動（按住時。同時按 Shift 或 {mod} 會更快）",
+    "Raise / lower the pitch of the selected blocks (add {mod} for 2 at a time)": "提高／降低所選方塊的音高（同時按 {mod} 則一次 2 個）",
+    "Play / stop": "播放／停止",
+    "Pause / resume": "暫停／繼續播放",
+    "Go to beat 0 / the last block": "移到第 0 拍／最後的方塊",
+    "Go to the music start (red flag)": "移到音樂開始位置（紅旗）",
+    "Undo / redo": "復原／重做",
+    "Copy / cut / paste": "拷貝／剪下／貼上",
+    "Delete the selected blocks": "刪除所選方塊",
+    "Select all blocks": "選取全部方塊",
+    "Select every block after / before / between the selected blocks (with nothing selected: from the playback start)": "選取所選方塊之後／之前／之間的全部方塊（沒有選取時，從開始播放的位置算起）",
+    "New / open / save / export audio only": "新建／開啟／儲存／僅匯出音訊",
+    "Deselect / stop placing / leave presentation mode": "取消選取／停止放置／結束展示模式",
+    "Click": "點擊",
+    "Drag": "拖曳",
+    "Wheel": "滾輪",
+    "Add / remove a block from the selection": "加入或移除選取的方塊",
+    "Drag over an empty spot to select several blocks": "在空白處拖曳，可以一次選取多個方塊",
+    "Move left / right": "左右移動",
+    "Zoom in / out": "放大／縮小",
+    "{mod}+N and {mod}+T may open a new window or tab instead, depending on your browser. {mod}+R selects everything before instead of reloading the page. In play mode, J, K, W A S D and the arrow keys are the buttons.": "{mod}+N、{mod}+T 在某些瀏覽器會先執行瀏覽器的操作（開新視窗／分頁）。{mod}+R 會變成「選取之前的全部」，而不是重新載入頁面。遊玩模式中，J、K、W A S D、方向鍵是按鈕。",
+    "Cut {n}. Tap where to paste.": "已剪下 {n} 個。請點要貼上的位置。",
+    "New": "新建",
   },
   ja: {"軽め":"輕"},
   help: `
@@ -684,6 +708,7 @@ export default {
   <li>自訂音效：在「自訂」分頁加入自己的音訊檔。RHRE fresh 的 customSounds 裡的資料夾也能整個加入（「+ 新增資料夾」。iPhone 需要 iOS 18.4 以上。Android 等請壓縮成 zip，用「+ 新增 .zip」）。也支援 data.json、icon.png。電腦上也可以把資料夾或 zip 拖進畫面</li>
   <li>儲存：按儲存按鈕（或選單的「儲存」）並取名。iPhone 請在分享選單選「儲存到檔案」</li>
   <li>作業中會自動儲存，下次開啟時會從上次的地方繼續</li>
+  <li>在電腦上，也能用和 RHRE fresh 相同的按鍵操作（A／D 或 ←／→ 移動、W／S 或 ↑／↓ 改音高、空白鍵播放／停止、Ctrl+C、Ctrl+V 等）。完整清單請看選單的「鍵盤操作」</li>
 </ul>
 <p><b>音樂與匯出</b></p>
 <ul>
@@ -697,7 +722,7 @@ export default {
 <p><b>遊玩、展示</b></p>
 <ul>
   <li>遊玩模式（選單）：跟著 Playalong 的提示按按鍵來玩。按 ▶ 開始。觸碰／滑動在下方的綠色框內操作（用「觸控區移到左邊／右邊」切換左右）。「夜間模式」會隱藏音軌，「完美挑戰」可以挑戰一次都不失誤</li>
-  <li>電腦鍵盤：A = J 或空白鍵，B = K，十字鍵 = W A S D 或方向鍵</li>
+  <li>電腦鍵盤：A = J，B = K，十字鍵 = W A S D 或方向鍵（空白鍵是播放／停止）</li>
   <li>覺得時機有落差時，可以在設定的「按鍵時機調整」「觸控時機調整」調整</li>
   <li>展示模式（選單）：隱藏上下的工具列，只把音軌大大地顯示出來。用右上的按鈕播放、停止，用左上的 ✕ 返回。播放中左上會顯示目前的遊戲</li>
 </ul>
