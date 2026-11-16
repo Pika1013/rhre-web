@@ -2,7 +2,7 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=53';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=54';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=5';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
@@ -524,7 +524,7 @@ function placeAt(o, beat, track) {
   if (remix.collides(ent.beat, ent.track, ent.width, ent.height)) { toast(t('ほかのブロックと重なるので置けません'), 2200); return false; }
   // 拡張音源は、初めて置くときだけ注意を出す（PC 版の RHRE fresh には無い音なので）
   if (o.ext && !settings.extWarned) {
-    confirmBox(t('拡張音源'), t('拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを PC 版の RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。'), t('置く'), () => {
+    confirmBox(t('拡張音源'), t('拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。'), t('置く'), () => {
       settings.extWarned = true;
       saveSettings();
       placeAt(o, beat, track);
@@ -2738,7 +2738,7 @@ async function importCustomEntries(entries, fallback) {
     ? t('「{name}」を追加しました（効果音 {n} 個）。', { name: done[0].folder, n: sounds })
     : t('フォルダを {k} 個追加しました（効果音 {n} 個）。', { k: done.length, n: sounds });
   const skip = bad.length ? t('読めなかったフォルダ：{list}。', { list: bad.join('、') }) : '';
-  toast(`${head}${skip}${t('保存した .rhref を PC 版の RHRE fresh で開くときは、同じフォルダを RHRE fresh の customSounds フォルダに入れてください。')}`, 7000, 'info');
+  toast(`${head}${skip}${t('保存した .rhref を RHRE fresh で開くときは、同じフォルダを RHRE fresh の customSounds フォルダに入れてください。')}`, 7000, 'info');
 }
 
 async function importCustomZip(file) {
@@ -2840,7 +2840,7 @@ $('customInput').addEventListener('change', async (e) => {
   if (!audio.length) return;
   const added = await addCustomSoundFiles(await Promise.all(audio.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
   renderGrid();
-  toast(added ? t('{n} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。', { n: added }) : t('この音声ファイルは読み込めませんでした'), 6000, added ? 'info' : '');
+  toast(added ? t('{n} 個の音声を追加しました。保存した .rhref を RHRE fresh で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。', { n: added }) : t('この音声ファイルは読み込めませんでした'), 6000, added ? 'info' : '');
 });
 $('customZipInput').addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])];

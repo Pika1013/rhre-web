@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="RHRE Web">
 <title>RHRE Web</title>
 <!-- 検索（Google）と、SNS にリンクを貼ったときの説明 -->
-<meta name="description" content="RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh（PC版）とも互換性あり。">
+<meta name="description" content="RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh のリミックス（.rhref）も開けます。">
 <link rel="canonical" href="https://pika1013.github.io/rhre-web/">
 <link rel="alternate" hreflang="ja" href="https://pika1013.github.io/rhre-web/">
 <link rel="alternate" hreflang="en" href="https://pika1013.github.io/rhre-web/en/">
@@ -17,7 +17,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="RHRE Web">
 <meta property="og:title" content="RHRE Web">
-<meta property="og:description" content="RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh（PC版）とも互換性あり。">
+<meta property="og:description" content="RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh のリミックス（.rhref）も開けます。">
 <meta property="og:url" content="https://pika1013.github.io/rhre-web/">
 <meta property="og:image" content="https://pika1013.github.io/rhre-web/assets/og/og-ja.jpg?v=3">
 <meta property="og:image:width" content="1200">
@@ -27,7 +27,7 @@
 <meta property="og:locale:alternate" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebApplication","name":"RHRE Web","url":"https://pika1013.github.io/rhre-web/","applicationCategory":"MultimediaApplication","operatingSystem":"iOS, Android, Windows, macOS","inLanguage":["ja","en"],"offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh（PC版）とも互換性あり。"}
+{"@context":"https://schema.org","@type":"WebApplication","name":"RHRE Web","url":"https://pika1013.github.io/rhre-web/","applicationCategory":"MultimediaApplication","operatingSystem":"iOS, Android, Windows, macOS","inLanguage":["ja","en"],"offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"RHRE Web へようこそ！好きな曲に、リズム天国の効果音をのせて、自分だけのリミックスが作れちゃう！スマホやPCのブラウザですぐ遊べる、ファンメイドの無料エディタです。RHRE fresh のリミックス（.rhref）も開けます。"}
 </script>
 <link rel="manifest" href="manifest.webmanifest?v=7">
 <script>
@@ -1435,7 +1435,8 @@
   <div class="card">
     <h2>RHRE Web v1.17.0</h2>
     <div id="helpJa">
-    <p>RHRE fresh の .rhref を開いて、デスクトップ版と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
+    <p>RHRE fresh の .rhref を開いて、RHRE fresh と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
+    <p class="note">RHRE Web は、RHRE fresh を元にしたファンメイドです。RHRE fresh を作った人たちとは関係ありません。RHRE Web のことは、RHRE fresh の人たちに聞かないでください。</p>
     <p><b>見る</b></p>
     <ul>
       <li>1本指で左右にドラッグ：スクロール ／ 2本指でつまむ：拡大・縮小</li>
@@ -1498,7 +1499,8 @@
     <p class="note">「みんなで編集」では、部屋のリミックスの中身と、決めた名前を Cloudflare のサーバーに送ります。全員が抜けると 2 分で消えます。曲はサーバーを通さず、部屋の人の端末どうしで直接送ります。そのため、相手にだいたいの地域や回線の会社が分かることがあります。</p>
     </div>
     <div id="helpEn" hidden>
-    <p>RHRE Web opens RHRE fresh .rhref files and plays and edits them with the same rules as the desktop version. Sound effects are loaded from the same database as RHRE fresh, only the ones you use.</p>
+    <p>RHRE Web opens RHRE fresh .rhref files and plays and edits them with the same rules as RHRE fresh. Sound effects are loaded from the same database as RHRE fresh, only the ones you use.</p>
+    <p class="note">RHRE Web is a fan-made project based on RHRE fresh. It is not made by or affiliated with the RHRE fresh team, so please don't ask them about RHRE Web.</p>
     <p><b>Viewing</b></p>
     <ul>
       <li>Drag left/right with one finger to scroll. Pinch with two fingers to zoom.</li>
@@ -1573,7 +1575,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=115"></script>
+<script type="module" src="js/app.js?v=116"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

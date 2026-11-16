@@ -6,7 +6,7 @@ export default {
     "Expansion sounds": "Sons d'extension",
     "Place": "Placer",
     "Button": "Bouton",
-    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Les sons d'extension n'existent que dans RHRE Web. Si vous ouvrez un remix qui les utilise dans RHRE fresh (PC), ces sons ne seront pas joués et apparaîtront à la place sous forme de texte rouge « MISSING ENTITY ».",
+    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Les sons d'extension n'existent que dans RHRE Web. Si vous ouvrez un remix qui les utilise dans RHRE fresh, ces sons ne seront pas joués et apparaîtront à la place sous forme de texte rouge « MISSING ENTITY ».",
     "Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).": "Crée une vidéo du remix du temps 0 jusqu'à la fin, avec le même aspect que le mode présentation (2 secondes d'attente avant le début de la lecture ; {d} au total).",
     "Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.": "Les images sont calculées une par une, donc c'est généralement plus rapide que la lecture. Gardez l'app ouverte pendant l'export.",
     "On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.": "Sur cet appareil, la vidéo est enregistrée pendant la lecture (cela prend la durée du remix, et vous l'entendrez). Les navigateurs plus récents (iOS 26 ou ultérieur sur iPhone) peuvent la créer plus vite par calcul. Gardez l'app ouverte pendant l'enregistrement.",
@@ -430,7 +430,7 @@ export default {
     "Added \"{name}\" ({n} sounds). ": "« {name} » ajouté ({n} sons). ",
     "Added {k} folders ({n} sounds). ": "{k} dossiers ajoutés ({n} sons). ",
     "Couldn't read: {list}. ": "Illisibles : {list}. ",
-    "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.": "Pour ouvrir le .rhref enregistré dans RHRE fresh sur PC, mettez le même dossier dans le dossier customSounds de RHRE fresh.",
+    "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.": "Pour ouvrir le .rhref enregistré dans RHRE fresh, mettez le même dossier dans le dossier customSounds de RHRE fresh.",
     "Remove these custom sounds from this device": "Retirer ces sons personnalisés de cet appareil",
     "Remove custom sounds": "Retirer les sons personnalisés",
     "Removes \"{name}\" from this device. Placed blocks stay, but they won't make a sound.": "Retire « {name} » de cet appareil. Les blocs placés restent, mais ne feront plus de son.",
@@ -535,7 +535,7 @@ export default {
     "Playback speed": "Vitesse",
     "Theme": "Thème",
     "Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.": "Les mini-jeux dont les voix varient selon la langue sont regroupés sous une seule icône qui affiche la langue choisie ici (ou la version par défaut). Changez de langue avec les boutons au-dessus de la liste des motifs.",
-    "Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.": "La vitesse de lecture change à la fois le tempo et la hauteur (comme dans la version de bureau). L'export WAV utilise toujours 1.0×.",
+    "Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.": "La vitesse de lecture change à la fois le tempo et la hauteur (comme dans RHRE fresh). L'export WAV utilise toujours 1.0×.",
     "Choose game": "Choisir un jeu",
     "Align song start to beat 0": "Aligner le début de la chanson sur le temps 0",
     "Align to the green flag": "Aligner sur le drapeau vert",
@@ -645,7 +645,7 @@ export default {
     "Exporting {len} from the playback start ({from}) to the end…": "Export de {len}, du début de lecture ({from}) jusqu'à la fin…",
     "Done ({mb} MB). Save it with the button below.": "Terminé ({mb} Mo). Enregistrez-le avec le bouton ci-dessous.",
     "Export failed: {e}": "Échec de l'export : {e}",
-    "Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh's custom sounds folder \"web\".": "{n} fichier(s) audio ajouté(s). Pour ouvrir le .rhref enregistré dans la version de bureau, mettez les mêmes fichiers dans le dossier de sons personnalisés « web » de RHRE fresh.",
+    "Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh's custom sounds folder \"web\".": "{n} fichier(s) audio ajouté(s). Pour ouvrir le .rhref enregistré dans RHRE fresh, mettez les mêmes fichiers dans le dossier de sons personnalisés « web » de RHRE fresh.",
     "This audio file couldn't be loaded": "Impossible de charger ce fichier audio",
     "D-pad up": "Croix : haut",
     "D-pad down": "Croix : bas",
@@ -682,7 +682,8 @@ export default {
   },
   ja: {"軽め":"Léger"},
   help: `
-<p>RHRE Web ouvre les fichiers .rhref de RHRE fresh et les lit et modifie avec les mêmes règles que la version de bureau. Les effets sonores sont chargés depuis la même base de données que RHRE fresh, uniquement ceux que vous utilisez.</p>
+<p>RHRE Web ouvre les fichiers .rhref de RHRE fresh et les lit et modifie avec les mêmes règles que RHRE fresh. Les effets sonores sont chargés depuis la même base de données que RHRE fresh, uniquement ceux que vous utilisez.</p>
+<p class="note">RHRE Web est un projet de fan basé sur RHRE fresh. Il n'est ni créé par l'équipe de RHRE fresh ni lié à elle : merci de ne pas les contacter au sujet de RHRE Web.</p>
 <p><b>Affichage</b></p>
 <ul>
   <li>Faites glisser à gauche ou à droite avec un doigt pour défiler. Pincez à deux doigts pour zoomer.</li>

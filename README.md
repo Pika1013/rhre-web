@@ -1,6 +1,8 @@
 # RHRE Web v1.17.0
 
-[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）を、スマホやPCのブラウザで作って再生できるエディタです。
+リズム天国のリミックスを、スマホやPCのブラウザで作って再生できる、ファンメイドのエディタです。[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）も開けます。
+
+RHRE fresh を作った人たちとは関係ありません。RHRE Web のことは、RHRE fresh の人たちに聞かないでください。
 
 **使う：** https://pika1013.github.io/rhre-web/
 
@@ -37,7 +39,7 @@
 - 入れるときに「提供元不明のアプリ」の許可が必要です
 - アドレスバーを出さないための確認ファイルは [pika1013.github.io](https://github.com/Pika1013/pika1013.github.io) の `.well-known/assetlinks.json` にあります
 
-RHRE Web は、RHRE fresh を元にした非公式のファンメイドです。任天堂とは関係ありません。
+RHRE Web は、RHRE fresh を元にした非公式のファンメイドです。RHRE fresh を作った人たちとも、任天堂とも関係ありません。
 
 ## 効果音と曲について
 
@@ -79,5 +81,7 @@ python3 serve.py 8124 .
 ## ライセンス
 
 GPL-3.0（[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) と同じ）。詳しくは [LICENSE](LICENSE) を見てください。
+
+RHRE Web は、RHRE fresh（TheAlternateDoctor さんほか。元は chrislo27 さんの [RHRE3](https://github.com/chrislo27/RhythmHeavenRemixEditor)）の作りを元に、2026 年 11 月から JavaScript で書き直したものです。RHRE fresh を作った人たちが作ったり、確かめたりしたものではありません。
 
 プレイモードの絵と音（`assets/playalong/` の tappoint・tap_flick・perfect・perfect_hit・perfect_failed・perfect_fail）、プレイアロングのブロックのアイコン（`assets/playalong/playable_entities.png`）、曲名・アーティスト名の帯（`assets/ui/song_title.png`）と、Play-Yan の絵（`assets/playyan/`）は RHRE fresh のものをそのまま使っています（GPL-3.0）。

@@ -6,7 +6,7 @@ export default {
     "Expansion sounds": "Sonidos de expansión",
     "Place": "Colocar",
     "Button": "Botón",
-    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Los sonidos de expansión solo existen en RHRE Web. Si abres un remix que los usa en RHRE fresh (PC), esos sonidos no sonarán y aparecerá en su lugar el texto rojo \"MISSING ENTITY\".",
+    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Los sonidos de expansión solo existen en RHRE Web. Si abres un remix que los usa en RHRE fresh, esos sonidos no sonarán y aparecerá en su lugar el texto rojo \"MISSING ENTITY\".",
     "Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).": "Crea un vídeo del remix desde el pulso 0 hasta el final, con el mismo aspecto que el modo presentación (espera 2 segundos antes de empezar; {d} en total).",
     "Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.": "Los fotogramas se calculan uno a uno, así que normalmente termina antes que la reproducción. Mantén la app abierta mientras se exporta.",
     "On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.": "En este dispositivo el vídeo se graba mientras suena (tarda lo mismo que el remix y lo oirás). Los navegadores más nuevos (iOS 26 o posterior en iPhone) pueden hacerlo más rápido calculándolo. Mantén la app abierta mientras se graba.",
@@ -430,7 +430,7 @@ export default {
     "Added \"{name}\" ({n} sounds). ": "Se ha añadido \"{name}\" ({n} sonidos). ",
     "Added {k} folders ({n} sounds). ": "Se han añadido {k} carpetas ({n} sonidos). ",
     "Couldn't read: {list}. ": "No se pudo leer: {list}. ",
-    "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.": "Para abrir el .rhref guardado en RHRE fresh en PC, pon la misma carpeta en la carpeta customSounds de RHRE fresh.",
+    "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.": "Para abrir el .rhref guardado en RHRE fresh, pon la misma carpeta en la carpeta customSounds de RHRE fresh.",
     "Remove these custom sounds from this device": "Quitar estos sonidos personalizados de este dispositivo",
     "Remove custom sounds": "Quitar sonidos personalizados",
     "Removes \"{name}\" from this device. Placed blocks stay, but they won't make a sound.": "Quita \"{name}\" de este dispositivo. Los bloques colocados se quedan, pero no sonarán.",
@@ -535,7 +535,7 @@ export default {
     "Playback speed": "Velocidad",
     "Theme": "Tema",
     "Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.": "Los minijuegos con voces distintas según el idioma se agrupan en un solo icono que muestra el idioma elegido aquí (o la versión por defecto). Cambia de idioma con los botones encima de la lista de patrones.",
-    "Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.": "La velocidad de reproducción cambia tanto el tempo como el tono (igual que en la versión de escritorio). La exportación WAV siempre usa 1.0×.",
+    "Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.": "La velocidad de reproducción cambia tanto el tempo como el tono (igual que en RHRE fresh). La exportación WAV siempre usa 1.0×.",
     "Choose game": "Elegir juego",
     "Align song start to beat 0": "Alinear el inicio de la canción con el pulso 0",
     "Align to the green flag": "Alinear con la bandera verde",
@@ -645,7 +645,7 @@ export default {
     "Exporting {len} from the playback start ({from}) to the end…": "Exportando {len} desde el inicio de reproducción ({from}) hasta el final…",
     "Done ({mb} MB). Save it with the button below.": "Listo ({mb} MB). Guárdalo con el botón de abajo.",
     "Export failed: {e}": "Falló la exportación: {e}",
-    "Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh's custom sounds folder \"web\".": "Se han añadido {n} archivo(s) de audio. Para abrir el .rhref guardado en la versión de escritorio, pon los mismos archivos en la carpeta de sonidos personalizados \"web\" de RHRE fresh.",
+    "Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh's custom sounds folder \"web\".": "Se han añadido {n} archivo(s) de audio. Para abrir el .rhref guardado en RHRE fresh, pon los mismos archivos en la carpeta de sonidos personalizados \"web\" de RHRE fresh.",
     "This audio file couldn't be loaded": "No se pudo cargar este archivo de audio",
     "D-pad up": "Cruceta arriba",
     "D-pad down": "Cruceta abajo",
@@ -682,7 +682,8 @@ export default {
   },
   ja: {"軽め":"Suave"},
   help: `
-<p>RHRE Web abre archivos .rhref de RHRE fresh y los reproduce y edita con las mismas reglas que la versión de escritorio. Los efectos de sonido se cargan de la misma base de datos que RHRE fresh, solo los que usas.</p>
+<p>RHRE Web abre archivos .rhref de RHRE fresh y los reproduce y edita con las mismas reglas que RHRE fresh. Los efectos de sonido se cargan de la misma base de datos que RHRE fresh, solo los que usas.</p>
+<p class="note">RHRE Web es un proyecto hecho por fans basado en RHRE fresh. No lo ha hecho el equipo de RHRE fresh ni tiene relación con él, así que no les preguntes por RHRE Web.</p>
 <p><b>Ver</b></p>
 <ul>
   <li>Arrastra a izquierda o derecha con un dedo para desplazarte. Pellizca con dos dedos para hacer zoom.</li>

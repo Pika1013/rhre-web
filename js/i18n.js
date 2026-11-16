@@ -7,7 +7,7 @@ const EN = {
   // 拡張音源（RHRE Web だけの効果音）
   '拡張音源': 'Expansion sounds', '置く': 'Place',
   'ボタン': 'Button', // プレイアロングの項目の札
-  '拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを PC 版の RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。': 'Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red "MISSING ENTITY" text instead.',
+  '拡張音源は、RHRE Web だけにある効果音です。これを使ったリミックスを RHRE fresh で開くと、この音は鳴らず、赤い「MISSING ENTITY」の文字に置きかわります。': 'Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red "MISSING ENTITY" text instead.',
   // 動画で書き出す・更新内容
   '0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。': 'Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).',
   '計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。': 'Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.',
@@ -203,7 +203,7 @@ const EN = {
   'フォルダの中の data.json を読めませんでした。': "Couldn't read data.json in the folder.", 'zip ファイルを読めませんでした。': "Couldn't read the .zip file.",
   '「{name}」を追加しました（効果音 {n} 個）。': 'Added "{name}" ({n} sounds). ', 'フォルダを {k} 個追加しました（効果音 {n} 個）。': 'Added {k} folders ({n} sounds). ',
   '読めなかったフォルダ：{list}。': "Couldn't read: {list}. ",
-  '保存した .rhref を PC 版の RHRE fresh で開くときは、同じフォルダを RHRE fresh の customSounds フォルダに入れてください。': "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.",
+  '保存した .rhref を RHRE fresh で開くときは、同じフォルダを RHRE fresh の customSounds フォルダに入れてください。': "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.",
   'このカスタム効果音を端末から消す': 'Remove these custom sounds from this device', 'カスタム効果音を消す': 'Remove custom sounds',
   '「{name}」をこの端末から消します。置いてあるブロックは残りますが、音は鳴らなくなります。': 'Removes "{name}" from this device. Placed blocks stay, but they won\'t make a sound.',
   '「{name}」を消しました': 'Removed "{name}"',
@@ -256,8 +256,8 @@ const EN = {
   '音楽は選ばれていません': 'No music is selected', '「{f}」を外しますか？': 'Remove "{f}"?',
   '再生開始位置（{from}）から最後まで、{len} を書き出しています…': 'Exporting {len} from the playback start ({from}) to the end…',
   '書き出しました（{mb} MB）。下のボタンで保存できます。': 'Done ({mb} MB). Save it with the button below.', '書き出しに失敗しました: {e}': 'Export failed: {e}',
-  '{n} 個の音声を追加しました。保存した .rhref をデスクトップ版で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。':
-    'Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh\'s custom sounds folder "web".',
+  '{n} 個の音声を追加しました。保存した .rhref を RHRE fresh で開くときは、同じファイルを RHRE fresh のカスタム効果音フォルダ「web」に入れてください。':
+    'Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh\'s custom sounds folder "web".',
   'この音声ファイルは読み込めませんでした': "This audio file couldn't be loaded",
   'データベースを読み込み中…': 'Loading the database…', 'ミニゲームの定義を読み込み中 {d}/{n}（{g}）': 'Loading minigame data {d}/{n} ({g})',
   // 特殊
@@ -352,11 +352,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 7 },
-  { code: 'ko', name: '한국어', v: 7 },
-  { code: 'es', name: 'Español', v: 7 },
-  { code: 'fr', name: 'Français', v: 7 },
-  { code: 'de', name: 'Deutsch', v: 7 },
+  { code: 'zh-Hant', name: '繁體中文', v: 8 },
+  { code: 'ko', name: '한국어', v: 8 },
+  { code: 'es', name: 'Español', v: 8 },
+  { code: 'fr', name: 'Français', v: 8 },
+  { code: 'de', name: 'Deutsch', v: 8 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);
@@ -456,8 +456,8 @@ const STATIC_EN = {
   'ダーク': 'Dark', 'ブラック': 'Black', 'ライト': 'Light',
   '同じミニゲームで言語ごとに声が違うものは、1つのアイコンにまとめて、ここで選んだ言語を出します。その言語が無いゲームは標準の版を出します。パターン一覧の上のボタンで、ほかの言語にも切り替えられます。':
     'Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.',
-  '再生速度は、テンポと音程の両方が変わります（デスクトップ版と同じ）。WAV の書き出しは常に 1.0 倍です。':
-    'Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.',
+  '再生速度は、テンポと音程の両方が変わります（RHRE fresh と同じ）。WAV の書き出しは常に 1.0 倍です。':
+    'Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.',
   'ゲームを選ぶ': 'Choose game', '音楽の開始位置': 'Music start position',
   '曲の始まりを 0 拍目に合わせる': 'Align song start to beat 0', '緑の旗（再生開始位置）に合わせる': 'Align to the green flag',
   '音楽が鳴り始める時刻（秒）です。赤い旗をドラッグしても動かせます。': 'When the music starts (seconds). You can also drag the red flag.',

@@ -6,7 +6,7 @@ export default {
     "Expansion sounds": "擴充音效",
     "Place": "放置",
     "Button": "按鈕",
-    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "擴充音效是只有 RHRE Web 才有的音效。在電腦版 RHRE fresh 開啟使用了這些音效的混音時，這些聲音不會播放，而是顯示成紅色的「MISSING ENTITY」文字。",
+    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "擴充音效是只有 RHRE Web 才有的音效。在 RHRE fresh 開啟使用了這些音效的混音時，這些聲音不會播放，而是顯示成紅色的「MISSING ENTITY」文字。",
     "Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).": "把混音從第 0 拍到最後做成影片，畫面和展示模式相同（先等 2 秒再開始播放，總長 {d}）。",
     "Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.": "會一格一格計算畫面，所以通常比實際播放還快完成。匯出時請不要關閉 App。",
     "On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.": "在這台裝置上，會一邊播放一邊錄影（需要和混音一樣長的時間，也會發出聲音）。較新的瀏覽器（iPhone 為 iOS 26 以上）可以用計算的方式更快完成。錄影時請不要關閉 App。",
@@ -430,7 +430,7 @@ export default {
     "Added \"{name}\" ({n} sounds). ": "已加入「{name}」（{n} 個音效）。",
     "Added {k} folders ({n} sounds). ": "已加入 {k} 個資料夾（{n} 個音效）。",
     "Couldn't read: {list}. ": "無法讀取：{list}。",
-    "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.": "要在電腦版 RHRE fresh 開啟儲存的 .rhref，請把同一個資料夾放進 RHRE fresh 的 customSounds 資料夾。",
+    "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.": "要在 RHRE fresh 開啟儲存的 .rhref，請把同一個資料夾放進 RHRE fresh 的 customSounds 資料夾。",
     "Remove these custom sounds from this device": "從這台裝置移除這些自訂音效",
     "Remove custom sounds": "移除自訂音效",
     "Removes \"{name}\" from this device. Placed blocks stay, but they won't make a sound.": "會從這台裝置移除「{name}」。已放置的方塊會留下，但不會發出聲音。",
@@ -535,7 +535,7 @@ export default {
     "Playback speed": "播放速度",
     "Theme": "主題",
     "Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.": "同一個小遊戲有不同語言語音時，會整合成一個圖示，顯示這裡選的語言（沒有的話顯示預設版本）。可以用片段清單上方的按鈕切換語言。",
-    "Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.": "播放速度會同時改變速度和音高（和電腦版相同）。WAV 匯出永遠是 1.0×。",
+    "Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.": "播放速度會同時改變速度和音高（和 RHRE fresh 相同）。WAV 匯出永遠是 1.0×。",
     "Choose game": "選擇遊戲",
     "Align song start to beat 0": "將歌曲開頭對齊第 0 拍",
     "Align to the green flag": "對齊綠旗",
@@ -645,7 +645,7 @@ export default {
     "Exporting {len} from the playback start ({from}) to the end…": "正在匯出從播放開始位置（{from}）到最後的 {len}…",
     "Done ({mb} MB). Save it with the button below.": "完成了（{mb} MB）。可以用下方的按鈕儲存。",
     "Export failed: {e}": "匯出失敗：{e}",
-    "Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh's custom sounds folder \"web\".": "已加入 {n} 個音訊檔。要在電腦版開啟儲存的 .rhref 時，請把同樣的檔案放進 RHRE fresh 的自訂音效資料夾「web」。",
+    "Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh's custom sounds folder \"web\".": "已加入 {n} 個音訊檔。要在 RHRE fresh 開啟儲存的 .rhref 時，請把同樣的檔案放進 RHRE fresh 的自訂音效資料夾「web」。",
     "This audio file couldn't be loaded": "無法載入這個音訊檔",
     "D-pad up": "十字鍵的上",
     "D-pad down": "十字鍵的下",
@@ -682,7 +682,8 @@ export default {
   },
   ja: {"軽め":"輕"},
   help: `
-<p>RHRE Web 可以開啟 RHRE fresh 的 .rhref 檔，並用和電腦版相同的規則播放與編輯。音效和 RHRE fresh 來自同一個資料庫，只會載入用到的部分。</p>
+<p>RHRE Web 可以開啟 RHRE fresh 的 .rhref 檔，並用和 RHRE fresh 相同的規則播放與編輯。音效和 RHRE fresh 來自同一個資料庫，只會載入用到的部分。</p>
+<p class="note">RHRE Web 是以 RHRE fresh 為基礎的粉絲自製作品，與 RHRE fresh 的製作團隊無關。有關 RHRE Web 的問題，請不要詢問 RHRE fresh 的團隊。</p>
 <p><b>瀏覽</b></p>
 <ul>
   <li>單指左右拖曳：捲動 ／ 雙指捏合：放大、縮小</li>

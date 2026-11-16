@@ -6,7 +6,7 @@ export default {
     "Expansion sounds": "Erweiterungssounds",
     "Place": "Platzieren",
     "Button": "Knopf",
-    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Erweiterungssounds gibt es nur in RHRE Web. Wenn du einen Remix, der sie verwendet, in RHRE fresh (PC) öffnest, sind diese Sounds nicht zu hören und erscheinen stattdessen als roter Text „MISSING ENTITY“.",
+    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "Erweiterungssounds gibt es nur in RHRE Web. Wenn du einen Remix, der sie verwendet, in RHRE fresh öffnest, sind diese Sounds nicht zu hören und erscheinen stattdessen als roter Text „MISSING ENTITY“.",
     "Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).": "Erstellt ein Video des Remixes von Schlag 0 bis zum Ende, im Stil des Präsentationsmodus (die Wiedergabe startet nach 2 Sekunden; insgesamt {d}).",
     "Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.": "Die Bilder werden einzeln berechnet, daher ist es meist schneller fertig als die Wiedergabe. Lass die App während des Exports geöffnet.",
     "On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.": "Auf diesem Gerät wird das Video während der Wiedergabe aufgenommen (es dauert so lange wie der Remix, und du hörst ihn). Neuere Browser (auf dem iPhone ab iOS 26) können es schneller berechnen. Lass die App während der Aufnahme geöffnet.",
@@ -430,7 +430,7 @@ export default {
     "Added \"{name}\" ({n} sounds). ": "„{name}“ hinzugefügt ({n} Sounds). ",
     "Added {k} folders ({n} sounds). ": "{k} Ordner hinzugefügt ({n} Sounds). ",
     "Couldn't read: {list}. ": "Nicht lesbar: {list}. ",
-    "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.": "Um die gespeicherte .rhref in RHRE fresh auf dem PC zu öffnen, lege denselben Ordner in den customSounds-Ordner von RHRE fresh.",
+    "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.": "Um die gespeicherte .rhref in RHRE fresh zu öffnen, lege denselben Ordner in den customSounds-Ordner von RHRE fresh.",
     "Remove these custom sounds from this device": "Diese eigenen Sounds von diesem Gerät entfernen",
     "Remove custom sounds": "Eigene Sounds entfernen",
     "Removes \"{name}\" from this device. Placed blocks stay, but they won't make a sound.": "Entfernt „{name}“ von diesem Gerät. Platzierte Blöcke bleiben, machen aber keinen Ton.",
@@ -535,7 +535,7 @@ export default {
     "Playback speed": "Geschwindigkeit",
     "Theme": "Design",
     "Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.": "Minispiele mit Stimmen in verschiedenen Sprachen werden unter einem Symbol zusammengefasst, das die hier gewählte Sprache (oder die Standardversion) zeigt. Mit den Knöpfen über der Musterliste wechselst du die Sprache.",
-    "Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.": "Die Wiedergabegeschwindigkeit ändert Tempo und Tonhöhe gleichzeitig (wie in der Desktop-Version). Der WAV-Export verwendet immer 1.0×.",
+    "Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.": "Die Wiedergabegeschwindigkeit ändert Tempo und Tonhöhe gleichzeitig (wie in RHRE fresh). Der WAV-Export verwendet immer 1.0×.",
     "Choose game": "Spiel wählen",
     "Align song start to beat 0": "Liedanfang auf Schlag 0 setzen",
     "Align to the green flag": "An der grünen Flagge ausrichten",
@@ -645,7 +645,7 @@ export default {
     "Exporting {len} from the playback start ({from}) to the end…": "{len} werden vom Wiedergabestart ({from}) bis zum Ende exportiert…",
     "Done ({mb} MB). Save it with the button below.": "Fertig ({mb} MB). Speichere es mit dem Knopf unten.",
     "Export failed: {e}": "Export fehlgeschlagen: {e}",
-    "Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh's custom sounds folder \"web\".": "{n} Audiodatei(en) hinzugefügt. Um die gespeicherte .rhref in der Desktop-Version zu öffnen, lege dieselben Dateien in den Ordner für eigene Sounds „web“ von RHRE fresh.",
+    "Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh's custom sounds folder \"web\".": "{n} Audiodatei(en) hinzugefügt. Um die gespeicherte .rhref in RHRE fresh zu öffnen, lege dieselben Dateien in den Ordner für eigene Sounds „web“ von RHRE fresh.",
     "This audio file couldn't be loaded": "Diese Audiodatei konnte nicht geladen werden",
     "D-pad up": "Steuerkreuz oben",
     "D-pad down": "Steuerkreuz unten",
@@ -682,7 +682,8 @@ export default {
   },
   ja: {"軽め":"Leicht"},
   help: `
-<p>RHRE Web öffnet .rhref-Dateien aus RHRE fresh und spielt und bearbeitet sie nach denselben Regeln wie die Desktop-Version. Soundeffekte werden aus derselben Datenbank wie in RHRE fresh geladen – nur die, die du verwendest.</p>
+<p>RHRE Web öffnet .rhref-Dateien aus RHRE fresh und spielt und bearbeitet sie nach denselben Regeln wie RHRE fresh. Soundeffekte werden aus derselben Datenbank wie in RHRE fresh geladen – nur die, die du verwendest.</p>
+<p class="note">RHRE Web ist ein Fanprojekt, das auf RHRE fresh basiert. Es stammt nicht vom Team von RHRE fresh und hat nichts mit ihm zu tun. Bitte frag das Team deshalb nicht zu RHRE Web.</p>
 <p><b>Ansicht</b></p>
 <ul>
   <li>Mit einem Finger nach links/rechts ziehen zum Scrollen. Mit zwei Fingern zusammenziehen zum Zoomen.</li>

@@ -6,7 +6,7 @@ export default {
     "Expansion sounds": "확장 효과음",
     "Place": "놓기",
     "Button": "버튼",
-    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh (PC), these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "확장 효과음은 RHRE Web에만 있는 효과음이에요. 이 효과음을 쓴 리믹스를 PC판 RHRE fresh에서 열면 소리가 나지 않고, 빨간 \"MISSING ENTITY\" 글자로 바뀌어요.",
+    "Expansion sounds exist only in RHRE Web. If you open a remix that uses them in RHRE fresh, these sounds will not play and show up as red \"MISSING ENTITY\" text instead.": "확장 효과음은 RHRE Web에만 있는 효과음이에요. 이 효과음을 쓴 리믹스를 RHRE fresh에서 열면 소리가 나지 않고, 빨간 \"MISSING ENTITY\" 글자로 바뀌어요.",
     "Makes a video of the remix from beat 0 to the end, looking like presentation mode (it waits 2 seconds before playback starts; {d} in total).": "리믹스를 0박부터 끝까지 프레젠테이션 모드와 같은 화면의 동영상으로 만들어요(2초 기다린 뒤 재생 시작, 전체 {d}).",
     "Frames are calculated one by one, so it usually finishes faster than playing. Keep the app open while exporting.": "한 프레임씩 계산해서 만들기 때문에 보통 재생보다 빨리 끝나요. 내보내는 동안 앱을 열어 두세요.",
     "On this device the video is recorded while it plays (it takes as long as the remix, and you will hear it). Newer browsers (iOS 26 or later on iPhone) can make it faster by calculation. Keep the app open while recording.": "이 기기에서는 재생하면서 녹화해요(리믹스 길이만큼 시간이 걸리고 소리도 나요). 최신 브라우저(iPhone은 iOS 26 이상)에서는 계산으로 더 빨리 만들 수 있어요. 녹화하는 동안 앱을 열어 두세요.",
@@ -430,7 +430,7 @@ export default {
     "Added \"{name}\" ({n} sounds). ": "\"{name}\"을(를) 넣었어요(효과음 {n}개). ",
     "Added {k} folders ({n} sounds). ": "폴더 {k}개를 넣었어요(효과음 {n}개). ",
     "Couldn't read: {list}. ": "읽지 못함: {list}. ",
-    "To open the saved .rhref in RHRE fresh on PC, put the same folder in RHRE fresh's customSounds folder.": "저장한 .rhref를 PC판 RHRE fresh에서 열려면, 같은 폴더를 RHRE fresh의 customSounds 폴더에 넣으세요.",
+    "To open the saved .rhref in RHRE fresh, put the same folder in RHRE fresh's customSounds folder.": "저장한 .rhref를 RHRE fresh에서 열려면, 같은 폴더를 RHRE fresh의 customSounds 폴더에 넣으세요.",
     "Remove these custom sounds from this device": "이 커스텀 효과음을 이 기기에서 지우기",
     "Remove custom sounds": "커스텀 효과음 지우기",
     "Removes \"{name}\" from this device. Placed blocks stay, but they won't make a sound.": "\"{name}\"을(를) 이 기기에서 지워요. 놓은 블록은 남지만 소리는 나지 않아요.",
@@ -535,7 +535,7 @@ export default {
     "Playback speed": "재생 속도",
     "Theme": "테마",
     "Minigames with per-language voices are grouped into one icon showing the language chosen here (or the default version). Switch languages with the buttons above the pattern list.": "같은 미니게임이 언어마다 음성이 다르면 아이콘 하나로 묶고, 여기서 고른 언어(없으면 기본판)를 보여 줘요. 패턴 목록 위의 버튼으로 다른 언어로도 바꿀 수 있어요.",
-    "Playback speed changes both tempo and pitch (as in the desktop version). WAV export always uses 1.0×.": "재생 속도를 바꾸면 템포와 음정이 함께 바뀌어요(데스크톱판과 같아요). WAV 내보내기는 항상 1.0배예요.",
+    "Playback speed changes both tempo and pitch (as in RHRE fresh). WAV export always uses 1.0×.": "재생 속도를 바꾸면 템포와 음정이 함께 바뀌어요(RHRE fresh와 같아요). WAV 내보내기는 항상 1.0배예요.",
     "Choose game": "게임 선택",
     "Align song start to beat 0": "곡의 시작을 0박에 맞추기",
     "Align to the green flag": "초록 깃발에 맞추기",
@@ -645,7 +645,7 @@ export default {
     "Exporting {len} from the playback start ({from}) to the end…": "재생 시작 위치({from})부터 끝까지 {len}을(를) 내보내는 중…",
     "Done ({mb} MB). Save it with the button below.": "완료했어요({mb} MB). 아래 버튼으로 저장할 수 있어요.",
     "Export failed: {e}": "내보내기에 실패했어요: {e}",
-    "Added {n} audio file(s). To open the saved .rhref in the desktop version, put the same files in RHRE fresh's custom sounds folder \"web\".": "오디오 파일 {n}개를 넣었어요. 저장한 .rhref를 데스크톱판에서 열 때는 같은 파일을 RHRE fresh의 커스텀 효과음 폴더 \"web\"에 넣으세요.",
+    "Added {n} audio file(s). To open the saved .rhref in RHRE fresh, put the same files in RHRE fresh's custom sounds folder \"web\".": "오디오 파일 {n}개를 넣었어요. 저장한 .rhref를 RHRE fresh에서 열 때는 같은 파일을 RHRE fresh의 커스텀 효과음 폴더 \"web\"에 넣으세요.",
     "This audio file couldn't be loaded": "이 오디오 파일을 불러올 수 없었어요",
     "D-pad up": "십자 버튼 위",
     "D-pad down": "십자 버튼 아래",
@@ -682,7 +682,8 @@ export default {
   },
   ja: {"軽め":"약하게"},
   help: `
-<p>RHRE Web은 RHRE fresh의 .rhref 파일을 열어, 데스크톱판과 같은 규칙으로 재생하고 편집해요. 효과음은 RHRE fresh와 같은 데이터베이스에서 쓰는 것만 불러와요.</p>
+<p>RHRE Web은 RHRE fresh의 .rhref 파일을 열어, RHRE fresh와 같은 규칙으로 재생하고 편집해요. 효과음은 RHRE fresh와 같은 데이터베이스에서 쓰는 것만 불러와요.</p>
+<p class="note">RHRE Web은 RHRE fresh를 바탕으로 한 팬메이드예요. RHRE fresh를 만든 사람들과는 관계가 없으니, RHRE Web에 대해서는 RHRE fresh 쪽에 묻지 말아 주세요.</p>
 <p><b>보기</b></p>
 <ul>
   <li>한 손가락으로 좌우 드래그: 스크롤 / 두 손가락으로 집기: 확대·축소</li>
