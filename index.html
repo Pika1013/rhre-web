@@ -391,6 +391,8 @@
 
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
   .modal .card { max-height: 84vh; max-height: 84dvh; overflow-y: auto; }
+  /* キーボードが出ている間：ウィンドウを見えている所に収める（top・height は app.js でキーボードの上の高さに合わせる） */
+  .modal.kb-up .card { max-height: calc(100% - 8px); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .row.tight { margin-top: 4px; }
   /* 設定：テーマの見本と背景の画像 */
@@ -1575,7 +1577,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=117"></script>
+<script type="module" src="js/app.js?v=119"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -1,4 +1,4 @@
-# RHRE Web v1.17.0
+# RHRE Web v1.17.1
 
 リズム天国のリミックスを、スマホやPCのブラウザで作って再生できる、ファンメイドのエディタです。[RHRE fresh](https://github.com/RHREfresh/RhythmHeavenRemixEditorRefresh) のリミックス（`.rhref`）も開けます。
 

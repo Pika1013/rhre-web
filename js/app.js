@@ -7,7 +7,7 @@ import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon 
 import { makeZip, readZip } from './zip.js?v=6';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=40';
+import { CHANGELOG } from './changelog.js?v=41';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=5';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.17.0';
+const VERSION = '1.17.1';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -4387,6 +4387,86 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
     const row = closer.parentElement;
     if (row?.classList.contains('row') && ![...row.children].some((c) => c !== closer)) row.hidden = true;
   }
+}
+
+// ---------------------------------------------------------------- キーボードが出ているときのウィンドウ
+// iPhone などでは、キーボードが出ても画面の大きさは変わらず、ウィンドウの下のほう（決定のボタン）がキーボードに隠れる。
+// 数字のキーボードには「完了」も無いので、決定も、キーボードを閉じることもできなくなっていた。
+// ・キーボードが出ている間は、ウィンドウを見えている所（visualViewport）に収め、入力欄と決定のボタンが見えるようにスクロールする
+// ・ウィンドウの何もない所や外をタップすると、キーボードを閉じる。ボタンを押したときも閉じる（iPhone はボタンを押しても閉じないため）
+// ・数字の欄で Enter（改行・完了のキー）を押すと、決定のボタンを押したのと同じ
+{
+  const TYPING = 'input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]), textarea';
+  const typingEl = () => {
+    const a = document.activeElement;
+    return a?.matches?.(TYPING) ? a : null;
+  };
+  const shown = (el) => el.getClientRects().length > 0;
+  let fitted = null; // 見えている所に収めているウィンドウ（.modal）
+  const keyboardUp = () => {
+    const vv = window.visualViewport;
+    if (!vv) return false;
+    const full = Math.max(window.innerHeight, document.documentElement.clientHeight);
+    return vv.height < full - 80;
+  };
+  const release = () => {
+    if (!fitted) return;
+    fitted.classList.remove('kb-up');
+    fitted.style.top = fitted.style.height = fitted.style.bottom = '';
+    fitted = null;
+  };
+  // 入力欄の上と、決定のボタンの下の両方が見えるように、ウィンドウの中をスクロールする（両方は入らないときは入力欄を優先）
+  const reveal = (m, input) => {
+    const card = input.closest('.card') || m.querySelector('.card');
+    if (!card || card.scrollHeight <= card.clientHeight + 1) return;
+    const cr = card.getBoundingClientRect();
+    const at = (y) => y - cr.top + card.scrollTop; // ウィンドウの中での高さ
+    const inTop = at(input.getBoundingClientRect().top) - 8;
+    const ok = [...card.querySelectorAll('.btn.primary')].filter(shown).pop();
+    const want = ok ? at(ok.getBoundingClientRect().bottom) + 8 - card.clientHeight : inTop;
+    card.scrollTop = Math.max(0, Math.min(want, inTop));
+  };
+  const fit = (moved) => {
+    const input = typingEl();
+    const m = input?.closest('.modal') || fitted;
+    if (!m || m.hidden || !keyboardUp()) { release(); return; }
+    if (fitted !== m) release();
+    fitted = m;
+    const vv = window.visualViewport;
+    m.classList.add('kb-up');
+    m.style.top = `${Math.round(vv.offsetTop)}px`;
+    m.style.height = `${Math.round(vv.height)}px`;
+    m.style.bottom = 'auto';
+    if (moved && input && m.contains(input)) reveal(m, input);
+  };
+  window.visualViewport?.addEventListener('resize', () => fit(true));
+  window.visualViewport?.addEventListener('scroll', () => fit(false));
+  document.addEventListener('focusin', () => fit(true));
+  document.addEventListener('focusout', () => setTimeout(() => fit(false), 0));
+  // 何もない所をタップしたらキーボードを閉じる（ボタン・入力欄・選ぶ欄などは除く）
+  document.addEventListener('pointerdown', (e) => {
+    const input = typingEl();
+    if (!input || !input.closest('.modal')) return;
+    if (e.target.closest?.('input, textarea, select, button, label, a, [contenteditable]')) return;
+    input.blur();
+  }, true);
+  // ボタンを押したらキーボードを閉じる（押したあとにウィンドウが動いて押し損ねないよう、押し終わった click で）
+  document.addEventListener('click', (e) => {
+    const input = typingEl();
+    if (!input || !input.closest('.modal')) return;
+    if (e.target.closest?.('button')?.closest('.modal')) input.blur();
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented) return;
+    const input = e.target;
+    if (!input?.matches?.('input[type=number]')) return;
+    const card = input.closest('.modal')?.querySelector('.card');
+    if (!card) return;
+    const ok = [...card.querySelectorAll('.btn.primary')].filter((b) => shown(b) && !b.disabled);
+    e.preventDefault();
+    input.blur();
+    if (ok.length === 1) ok[0].click();
+  });
 }
 
 // ---------------------------------------------------------------- 設定（言語・再生速度・テーマ・画面の言語）

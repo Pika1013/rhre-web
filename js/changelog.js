@@ -4,6 +4,37 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.17.1', date: '2026-11-18',
+    ja: [
+      'iPhone などで数字を入れるとき（曲のテンポ・テンポの変更・トラックの数など）、決定のボタンがキーボードに隠れて押せず、キーボードも閉じられなかったのを直しました。キーボードが出ている間は、ウィンドウがキーボードの上に収まります',
+      'キーボードは、ウィンドウの何もない所をタップすると閉じます。パソコンなどでは、数字の欄で Enter を押しても決定できます',
+    ],
+    en: [
+      'Fixed a problem on iPhone and other phones where, when typing a number (song tempo, tempo change, number of tracks and so on), the OK button was hidden behind the keyboard and the keyboard could not be closed. While the keyboard is open, the window now fits above it.',
+      'Tap an empty part of the window to close the keyboard. On a computer, you can also press Enter in a number box to confirm.',
+    ],
+    'zh-Hant': [
+      '修正了在 iPhone 等裝置上輸入數字時（歌曲的速度、速度變化、音軌數量等），「確定」按鈕被鍵盤擋住無法按下、鍵盤也無法關閉的問題。鍵盤顯示時，視窗會移到鍵盤上方。',
+      '點一下視窗中的空白處就能關閉鍵盤。在電腦上，也可以在數字欄按 Enter 確定。',
+    ],
+    ko: [
+      'iPhone 등에서 숫자를 입력할 때(곡의 템포, 템포 변경, 트랙 수 등) 확인 버튼이 키보드에 가려져 누를 수 없고, 키보드도 닫을 수 없던 문제를 고쳤어요. 키보드가 나와 있는 동안에는 창이 키보드 위에 들어가요.',
+      '창의 빈 곳을 탭하면 키보드가 닫혀요. 컴퓨터에서는 숫자 칸에서 Enter를 눌러도 확인돼요.',
+    ],
+    es: [
+      'Se corrigió un problema en iPhone y otros móviles: al escribir un número (tempo de la canción, cambio de tempo, número de pistas, etc.), el botón de aceptar quedaba oculto tras el teclado y no se podía cerrar el teclado. Ahora, mientras el teclado está abierto, la ventana se coloca encima de él.',
+      'Toca una parte vacía de la ventana para cerrar el teclado. En un ordenador, también puedes pulsar Intro en una casilla de número para aceptar.',
+    ],
+    fr: [
+      "Correction d'un problème sur iPhone et d'autres téléphones : en saisissant un nombre (tempo du morceau, changement de tempo, nombre de pistes, etc.), le bouton de validation était caché par le clavier et le clavier ne pouvait pas être fermé. Quand le clavier est ouvert, la fenêtre se place maintenant au-dessus.",
+      "Touchez une zone vide de la fenêtre pour fermer le clavier. Sur ordinateur, vous pouvez aussi appuyer sur Entrée dans un champ numérique pour valider.",
+    ],
+    de: [
+      'Problem auf dem iPhone und anderen Handys behoben: Beim Eingeben einer Zahl (Songtempo, Tempowechsel, Anzahl der Spuren usw.) war der OK-Knopf von der Tastatur verdeckt, und die Tastatur ließ sich nicht schließen. Solange die Tastatur offen ist, passt das Fenster jetzt über sie.',
+      'Tippe auf eine leere Stelle im Fenster, um die Tastatur zu schließen. Am Computer kannst du in einem Zahlenfeld auch mit Enter bestätigen.',
+    ],
+  },
+  {
     v: '1.17.0', date: '2026-11-16',
     ja: [
       'パソコンで、RHRE fresh と同じキーで操作できるようになりました。A・D か ←・→ を押している間は左右に動きます（Shift か Ctrl も押すと速い）',
