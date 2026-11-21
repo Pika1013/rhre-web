@@ -560,6 +560,28 @@ export default {
     "Loading the remix.": "리믹스를 불러오는 중이에요.",
     "Couldn't open": "열 수 없었어요",
     "■ Exit": "■ 끝내기",
+    "Options": "옵션",
+    "Video options": "동영상 옵션",
+    "Preview position": "미리 보기 위치",
+    "Drag the preview sideways to move through the video. Pinch with two fingers or use the mouse wheel to zoom in or out.": "미리 보기를 옆으로 드래그하면 동영상 안을 움직일 수 있어요. 두 손가락으로 오므리거나 펴기, 또는 마우스 휠로 확대·축소할 수 있어요.",
+    "Start from": "시작 위치",
+    "Beat 0": "0박",
+    "Playback start flag": "재생 시작 깃발",
+    "Zoom": "화면 확대·축소",
+    "Match the editor": "지금 화면에 맞추기",
+    "Wait before playback": "시작 전에 기다리는 시간",
+    "Show on screen": "화면에 표시할 것",
+    "Current game (top left)": "지금 게임(왼쪽 위)",
+    "Tempo, beat and time at the playhead": "재생 위치의 템포·박·시간",
+    "Block names": "블록 이름",
+    "Reset to default": "처음으로 되돌리기",
+    "{s} s": "{s}초",
+    "{n} beats": "{n}박",
+    "(same as the editor)": "(지금 화면과 같음)",
+    "The playback start flag is past the end, so a video can't be made. Choose \"Beat 0\" in Options, or move the flag.": "재생 시작 깃발이 끝보다 뒤에 있어서 동영상을 만들 수 없어요. 옵션에서 \"0박\"으로 바꾸거나 깃발을 옮겨 주세요.",
+    "Makes a video from beat 0 to the end, looking like presentation mode ({d} in total).": "0박부터 끝까지를 프레젠테이션 모드와 같은 화면의 동영상으로 만들어요(모두 {d}).",
+    "Makes a video from the playback start flag to the end, looking like presentation mode ({d} in total).": "재생 시작 깃발부터 끝까지를 프레젠테이션 모드와 같은 화면의 동영상으로 만들어요(모두 {d}).",
+    "It waits {s} seconds before playback starts.": "{s}초 기다린 뒤 재생해요.",
     "Font": "글꼴",
     "Your language's own characters stay the same; letters and numbers change.": "한글은 지금 그대로이고, 영문자와 숫자의 모양이 바뀌어요.",
     "Background image": "배경 이미지",
@@ -719,7 +741,7 @@ export default {
   <li>템포를 모를 때는 곡을 고를 때 "자동 감지"로 템포와 그 변화를 자동으로 찾거나, 메뉴의 "템포 재기"로 곡에 맞춰 탭해서 잴 수 있어요</li>
   <li>메뉴의 "음악 시작 위치": 초를 입력하거나 "곡의 시작을 0박에 맞추기"</li>
   <li>메뉴의 "오디오만 내보내기": 리믹스를 소리만 있는 파일(WAV)로 만들어요</li>
-  <li>메뉴의 "동영상 내보내기": 0박부터 끝까지를 프레젠테이션 모드와 같은 화면의 mp4로 만들어요. 2초 기다린 뒤 재생해요(크기와 부드러움을 고를 수 있어요)</li>
+  <li>메뉴의 "동영상 내보내기": 0박부터 끝까지를 프레젠테이션 모드와 같은 화면의 mp4로 만들어요. 2초 기다린 뒤 재생해요(크기와 부드러움을 고를 수 있어요). "옵션"에서는 미리 보기를 보면서 재생 시작 깃발부터 시작하기, 화면 확대·축소, 시작 전에 기다리는 시간, 화면에 표시할 것(지금 게임·템포 등·자막·블록 이름)을 바꿀 수 있어요</li>
   <li>메뉴의 "업데이트 내용": 업데이트로 무엇이 바뀌었는지 볼 수 있어요</li>
 </ul>
 <p><b>플레이·보여 주기</b></p>

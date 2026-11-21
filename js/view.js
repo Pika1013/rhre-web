@@ -1452,8 +1452,8 @@ export class EditorView {
       g.drawImage(icon, x + 4, y + (Math.min(h, L.rowH) - iconSize) / 2, iconSize, iconSize);
       tx += iconSize + 3;
     }
-    // プレゼンテーション中は文字を出さない（アイコンだけ）
-    if (this.h.iconsOnly?.()) { g.restore(); return; }
+    // プレゼンテーション中は文字を出さない（アイコンだけ）。動画のオプションで「ブロックの名前」を入れたときだけ出す
+    if (this.h.iconsOnly?.() && !this.showLabels) { g.restore(); return; }
     const fs = clamp(L.rowH * 0.36, 10, 14);
     g.font = `700 ${fs}px ${FONT}`;
     g.fillStyle = '#121212';

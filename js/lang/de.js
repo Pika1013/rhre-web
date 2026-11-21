@@ -560,6 +560,28 @@ export default {
     "Loading the remix.": "Der Remix wird geladen.",
     "Couldn't open": "Öffnen fehlgeschlagen",
     "■ Exit": "■ Beenden",
+    "Options": "Optionen",
+    "Video options": "Videooptionen",
+    "Preview position": "Vorschauposition",
+    "Drag the preview sideways to move through the video. Pinch with two fingers or use the mouse wheel to zoom in or out.": "Ziehe die Vorschau zur Seite, um dich im Video zu bewegen. Mit zwei Fingern zusammenziehen oder mit dem Mausrad zoomen.",
+    "Start from": "Beginnen bei",
+    "Beat 0": "Schlag 0",
+    "Playback start flag": "Wiedergabestart-Flagge",
+    "Zoom": "Zoom",
+    "Match the editor": "Wie im Editor",
+    "Wait before playback": "Warten vor der Wiedergabe",
+    "Show on screen": "Anzeigen",
+    "Current game (top left)": "Aktuelles Spiel (oben links)",
+    "Tempo, beat and time at the playhead": "Tempo, Schlag und Zeit am Abspielkopf",
+    "Block names": "Blocknamen",
+    "Reset to default": "Zurücksetzen",
+    "{s} s": "{s} s",
+    "{n} beats": "{n} Schläge",
+    "(same as the editor)": "(wie im Editor)",
+    "The playback start flag is past the end, so a video can't be made. Choose \"Beat 0\" in Options, or move the flag.": "Die Wiedergabestart-Flagge liegt hinter dem Ende, daher kann kein Video erstellt werden. Wähle in den Optionen „Schlag 0“ oder verschiebe die Flagge.",
+    "Makes a video from beat 0 to the end, looking like presentation mode ({d} in total).": "Erstellt ein Video von Schlag 0 bis zum Ende im Stil des Präsentationsmodus (insgesamt {d}).",
+    "Makes a video from the playback start flag to the end, looking like presentation mode ({d} in total).": "Erstellt ein Video von der Wiedergabestart-Flagge bis zum Ende im Stil des Präsentationsmodus (insgesamt {d}).",
+    "It waits {s} seconds before playback starts.": "Die Wiedergabe startet nach {s} Sekunden.",
     "Font": "Schriftart",
     "Your language's own characters stay the same; letters and numbers change.": "Buchstaben und Zahlen ändern ihre Form.",
     "Background image": "Hintergrundbild",
@@ -719,7 +741,7 @@ export default {
   <li>Wenn du das Tempo nicht kennst, nutze beim Wählen eines Lieds „Automatisch erkennen“, um Tempo und Tempowechsel automatisch zu finden, oder „Tempo messen“ im Menü und tippe im Takt mit.</li>
   <li>„Musikstartposition“ im Menü: gib die Sekunden ein oder nutze „Liedanfang auf Schlag 0 setzen“.</li>
   <li>„Nur Audio exportieren“ im Menü macht aus deinem Remix eine reine Audiodatei (WAV).</li>
-  <li>„Video exportieren“ im Menü macht aus dem Remix von Schlag 0 bis zum Ende ein mp4 im Stil des Präsentationsmodus. Die Wiedergabe startet nach 2 Sekunden (Größe und Flüssigkeit sind wählbar).</li>
+  <li>„Video exportieren“ im Menü macht aus dem Remix von Schlag 0 bis zum Ende ein mp4 im Stil des Präsentationsmodus. Die Wiedergabe startet nach 2 Sekunden (Größe und Flüssigkeit sind wählbar). Unter „Optionen“ kannst du mit Vorschau ab der Wiedergabestart-Flagge beginnen, zoomen, die Wartezeit vor der Wiedergabe ändern und auswählen, was angezeigt wird (aktuelles Spiel, Tempo usw., Untertitel, Blocknamen).</li>
   <li>„Neuigkeiten“ im Menü zeigt, was sich mit jedem Update geändert hat.</li>
 </ul>
 <p><b>Spielen und vorführen</b></p>

@@ -1,5 +1,6 @@
-// 動画の書き出し：0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にする。
-// 最初の lead 秒（2 秒）は 0 拍目で止まった画面のまま音もなく、そのあと再生が始まる。
+// 動画の書き出し：0 拍目（オプションで再生開始の旗）から最後までを、プレゼンテーションモードと同じ見た目の動画にする。
+// 最初の lead 秒（はじめは 2 秒）は始める所で止まった画面のまま音もなく、そのあと再生が始まる。
+// オプション（v1.19.0）：fromSec 始める所・lead 待つ秒・beats 見える拍の数・game 今のゲーム・info テンポなど・subs 字幕・labels ブロックの名前
 //  ・計算で作る（WebCodecs）：音は WAV と同じく計算で一気に作り、映像は 1 コマずつ決まった時刻の絵を描いて固める。
 //    コマ落ちせず、たいてい再生するより速く終わる。mp4（H.264 + AAC）
 //  ・録画で作る（MediaRecorder）：音を mp4 用に固める部品（AudioEncoder）がない端末（iOS 26 より前の iPhone など）では、
@@ -21,8 +22,8 @@ export function canRecord() {
   return typeof MediaRecorder === 'function' && typeof HTMLCanvasElement.prototype.captureStream === 'function';
 }
 
-// 動画用の画面を作る。今の画面と同じ拡大率（見えている拍の数）・背景の画像で、文字は出さずアイコンだけ
-function makeStage(deps, main, w, h, fromSec) {
+// 動画用の画面を作る。見えている拍の数（はじめは今の画面と同じ）・今の背景の画像で、文字は出さずアイコンだけ
+function makeStage(deps, main, w, h, fromSec, opts = {}) {
   const scale = h / LOGICAL_H;
   const W = Math.round(w / scale), H = LOGICAL_H;
   const cv = document.createElement('canvas');
@@ -33,10 +34,11 @@ function makeStage(deps, main, w, h, fromSec) {
   }, { W, H, scale });
   v.remix = main.remix;
   v.snap = main.snap;
-  v.ppb = clamp(W / clamp(main.visibleBeats, 4, 64), 6, 600);
+  v.ppb = clamp(W / clamp(opts.beats || main.visibleBeats, 4, 64), 6, 600);
   v.scrollBeat = main.remix.tempo.s2b(fromSec) - (W * 0.3) / v.ppb;
-  v.noFlags = true; // 動画は 0 拍目から始まるので、赤と緑の旗は出さない
-  v.playheadInfo = true; // 再生位置の線の上に、テンポ・拍・時間
+  v.noFlags = true; // 動画には、赤と緑の旗は出さない
+  v.playheadInfo = opts.info !== false; // 再生位置の線の上に、テンポ・拍・時間
+  v.showLabels = !!opts.labels; // ブロックの名前（はじめは出さない。プレゼンテーションと同じ）
   // 背景の画像は、縮めた絵の取り置きが今の画面とぶつからないように別の入れ物にする
   v.bgImage = main.bgImage?.img ? { img: main.bgImage.img, fit: main.bgImage.fit, alpha: main.bgImage.alpha } : null;
   v.metronome = false;
@@ -167,17 +169,16 @@ function drawOverlay(deps, st, remix, beat) {
   }
 }
 
-// 書き出しの準備：音を計算で作り、動画用の画面を用意する
-async function prepare(deps, main, opts) {
+// 動画の絵を描く準備（音は作らない）。flash：発音したブロックを光らせるか（オプションの見本では光らせない）
+async function buildFrames(deps, main, opts, flash) {
   const remix = main.remix;
   const fromSec = opts.fromSec;
   const toSec = deps.mixEndSec(remix); // End Remix があればそこで再生が止まる
   // End Remix があるときは、そこでバーを止めて 1 秒待ってから動画を終える（音楽は止め、鳴っている効果音の余韻は残す）
   const hold = remix.hasEndEntity ? 1 : 0;
-  const audio = await deps.renderMix(fromSec, opts.sampleRate || 48000, { tail: hold, stopMusicAt: remix.hasEndEntity ? toSec : null });
   const [w, h] = VIDEO_SIZES[opts.size] || VIDEO_SIZES[720];
-  const st = makeStage(deps, main, w, h, fromSec);
-  const vis = visualEvents(remix, fromSec, toSec);
+  const st = makeStage(deps, main, w, h, fromSec, opts);
+  const vis = flash ? visualEvents(remix, fromSec, toSec) : [];
   // アイコンは最初のコマから出るように、全部読み終わってから描き始める
   const iconUrls = [...new Set(remix.entities.filter((e) => e.game?.icon && e.type !== 'playalongEntity').map((e) => e.game.icon))];
   const icons = new Map();
@@ -185,7 +186,7 @@ async function prepare(deps, main, opts) {
   const sections = gameSections(remix, deps.gameInfo);
   const lead = opts.lead ?? 0;
   let k = 0;
-  // 動画の時刻 vt（秒）の絵を描く。最初の lead 秒は 0 拍目で止まったまま（光らせない）。
+  // 動画の時刻 vt（秒）の絵を描く。最初の lead 秒は始める所で止まったまま（光らせない）。
   // 光り方の時計は、本物の時計の代わりに vt から作る（0 だと「光っていない」なので大きな数を足す）
   const renderAt = (vt) => {
     const nowMs = 1e7 + vt * 1000;
@@ -202,17 +203,30 @@ async function prepare(deps, main, opts) {
     // 画面揺れ・曲名の帯は、再生が始まってから（RHRE fresh も再生中だけ）
     if (live) st.v.updateEffects(beat, nowMs);
     st.v.draw(nowMs);
-    drawOverlay(deps, st, remix, beat);
+    if (opts.subs !== false) drawOverlay(deps, st, remix, beat);
     // 今のゲームは、再生が始まってから（最初に待っている間は出さない。RHRE fresh も止まっているときは出さない）
-    if (live) drawGameDisplay(deps, st, sectionAt(sections, beat), icons);
+    if (live && opts.game !== false) drawGameDisplay(deps, st, sectionAt(sections, beat), icons);
     drawSignature(deps, st);
   };
   // 書き出しのあと、今の画面の光り方の記録を空にする（動画用の時計の値が残らないように）
   const cleanup = () => {
     for (const e of remix.entities) { e.flashAt = 0; e.leafFlash = []; }
   };
-  // 動画の長さ：待つ時間 ＋ 0 拍目から最後まで ＋ End Remix のあと待つ 1 秒
-  return { remix, fromSec, toSec, lead, length: lead + (toSec - fromSec) + hold, audio, st, w, h, renderAt, cleanup };
+  // 動画の長さ：待つ時間 ＋ 始める所から最後まで ＋ End Remix のあと待つ 1 秒
+  return { remix, fromSec, toSec, lead, hold, length: lead + Math.max(0, toSec - fromSec) + hold, st, w, h, renderAt, cleanup };
+}
+
+// 書き出しの準備：動画用の画面を用意し、音を計算で作る
+async function prepare(deps, main, opts) {
+  const F = await buildFrames(deps, main, opts, true);
+  const audio = await deps.renderMix(F.fromSec, opts.sampleRate || 48000, { tail: F.hold, stopMusicAt: F.remix.hasEndEntity ? F.toSec : null });
+  return { ...F, audio };
+}
+
+// オプションの見本：音は作らず、動画の vt 秒の絵を 1 枚ずつ描く（ブロックは光らせない）
+export async function makeVideoPreview(deps, main, opts) {
+  const F = await buildFrames(deps, main, { ...opts, size: 720 }, false);
+  return { cv: F.st.cv, length: F.length, lead: F.lead, draw: (vt) => F.renderAt(Math.max(0, Math.min(F.length, vt))) };
 }
 
 // H.264 の設定を選ぶ（大きさとなめらかさに合うレベル。High → Main → Baseline の順に試す）

@@ -560,6 +560,28 @@ export default {
     "Loading the remix.": "Cargando el remix.",
     "Couldn't open": "No se pudo abrir",
     "■ Exit": "■ Salir",
+    "Options": "Opciones",
+    "Video options": "Opciones de vídeo",
+    "Preview position": "Posición de la vista previa",
+    "Drag the preview sideways to move through the video. Pinch with two fingers or use the mouse wheel to zoom in or out.": "Arrastra la vista previa hacia los lados para moverte por el vídeo. Pellizca con dos dedos o usa la rueda del ratón para acercar o alejar.",
+    "Start from": "Empezar desde",
+    "Beat 0": "Pulso 0",
+    "Playback start flag": "Bandera de inicio de reproducción",
+    "Zoom": "Zoom",
+    "Match the editor": "Igual que el editor",
+    "Wait before playback": "Espera antes de reproducir",
+    "Show on screen": "Mostrar en pantalla",
+    "Current game (top left)": "Juego actual (arriba a la izquierda)",
+    "Tempo, beat and time at the playhead": "Tempo, pulso y tiempo en el cursor de reproducción",
+    "Block names": "Nombres de los bloques",
+    "Reset to default": "Restablecer",
+    "{s} s": "{s} s",
+    "{n} beats": "{n} pulsos",
+    "(same as the editor)": "(igual que el editor)",
+    "The playback start flag is past the end, so a video can't be made. Choose \"Beat 0\" in Options, or move the flag.": "La bandera de inicio de reproducción está después del final, así que no se puede hacer el vídeo. Elige \"Pulso 0\" en Opciones o mueve la bandera.",
+    "Makes a video from beat 0 to the end, looking like presentation mode ({d} in total).": "Crea un vídeo desde el pulso 0 hasta el final, con el aspecto del modo presentación ({d} en total).",
+    "Makes a video from the playback start flag to the end, looking like presentation mode ({d} in total).": "Crea un vídeo desde la bandera de inicio de reproducción hasta el final, con el aspecto del modo presentación ({d} en total).",
+    "It waits {s} seconds before playback starts.": "Espera {s} segundos antes de empezar.",
     "Font": "Fuente",
     "Your language's own characters stay the same; letters and numbers change.": "Las letras y los números cambian de forma.",
     "Background image": "Imagen de fondo",
@@ -719,7 +741,7 @@ export default {
   <li>Si no sabes el tempo, usa "Detección automática" al elegir una canción para encontrar el tempo y sus cambios, o usa "Medir el tempo" en el menú y toca al ritmo de la canción.</li>
   <li>"Posición de inicio de la música" en el menú: escribe los segundos o usa "Alinear el inicio de la canción con el pulso 0".</li>
   <li>"Exportar solo audio" en el menú convierte tu remix en un archivo solo de audio (WAV).</li>
-  <li>"Exportar vídeo" en el menú convierte el remix, del pulso 0 al final, en un mp4 con el aspecto del modo presentación. Espera 2 segundos antes de empezar (puedes elegir el tamaño y la fluidez).</li>
+  <li>"Exportar vídeo" en el menú convierte el remix, del pulso 0 al final, en un mp4 con el aspecto del modo presentación. Espera 2 segundos antes de empezar (puedes elegir el tamaño y la fluidez). En "Opciones" puedes, viendo una vista previa, empezar desde la bandera de inicio de reproducción, acercar o alejar, cambiar la espera antes de reproducir y elegir qué se muestra (juego actual, tempo, etc., subtítulos, nombres de los bloques).</li>
   <li>"Novedades" en el menú muestra qué ha cambiado en cada actualización.</li>
 </ul>
 <p><b>Jugar y presentar</b></p>

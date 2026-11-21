@@ -346,17 +346,26 @@ const EN = {
   '{mod}+N・{mod}+T は、ブラウザによってはブラウザの操作（新しいウィンドウ・タブ）が先に動きます。{mod}+R は、ページの再読み込みの代わりに「前を全部選ぶ」になります。プレイモードの間は、J・K・W A S D・矢印キーがボタンになります。':
     '{mod}+N and {mod}+T may open a new window or tab instead, depending on your browser. {mod}+R selects everything before instead of reloading the page. In play mode, J, K, W A S D and the arrow keys are the buttons.',
   '{n} 個を切り取りました。貼り付ける場所をタップしてください': 'Cut {n}. Tap where to paste.',
+  // 動画のオプション（v1.19.0）
+  "なし": "None",
+  "{s} 秒": "{s} s",
+  "{n} 拍": "{n} beats",
+  "（今の画面と同じ）": "(same as the editor)",
+  "再生開始の旗が最後より後ろにあるので、動画を作れません。オプションで「0 拍目」にするか、旗を動かしてください。": "The playback start flag is past the end, so a video can't be made. Choose \"Beat 0\" in Options, or move the flag.",
+  "0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（全部で {d}）。": "Makes a video from beat 0 to the end, looking like presentation mode ({d} in total).",
+  "再生開始の旗から最後までを、プレゼンテーションモードと同じ見た目の動画にします（全部で {d}）。": "Makes a video from the playback start flag to the end, looking like presentation mode ({d} in total).",
+  "最初に {s} 秒待ってから再生します。": "It waits {s} seconds before playback starts.",
 };
 
 // 画面の言語。v は js/lang/ の訳を直したら上げる（古い訳を保存したままにしないため）
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 9 },
-  { code: 'ko', name: '한국어', v: 9 },
-  { code: 'es', name: 'Español', v: 9 },
-  { code: 'fr', name: 'Français', v: 9 },
-  { code: 'de', name: 'Deutsch', v: 9 },
+  { code: 'zh-Hant', name: '繁體中文', v: 10 },
+  { code: 'ko', name: '한국어', v: 10 },
+  { code: 'es', name: 'Español', v: 10 },
+  { code: 'fr', name: 'Français', v: 10 },
+  { code: 'de', name: 'Deutsch', v: 10 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);
@@ -467,6 +476,22 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '▶ 再生': '▶ Play',
+  "オプション": "Options",
+  "字幕": "Subtitle",
+  "動画のオプション": "Video options",
+  "見本の位置": "Preview position",
+  "見本を横にドラッグすると動画の中を動けます。2 本指でつまむか、マウスのホイールで拡大・縮小できます。": "Drag the preview sideways to move through the video. Pinch with two fingers or use the mouse wheel to zoom in or out.",
+  "始める所": "Start from",
+  "0 拍目": "Beat 0",
+  "再生開始の旗": "Playback start flag",
+  "画面の拡大・縮小": "Zoom",
+  "今の画面に合わせる": "Match the editor",
+  "最初に待つ時間": "Wait before playback",
+  "画面に出すもの": "Show on screen",
+  "今のゲーム（左上）": "Current game (top left)",
+  "再生位置のテンポ・拍・時間": "Tempo, beat and time at the playhead",
+  "ブロックの名前": "Block names",
+  "はじめに戻す": "Reset to default",
   'フォント': 'Font', 'この言語の文字は今のままで、英字と数字の形が変わります。': "Your language's own characters stay the same; letters and numbers change.",
   '背景の画像': 'Background image', '画像を選ぶ': 'Choose image', '外す': 'Remove', '表示': 'Fit', '濃さ': 'Strength',
   '画面いっぱい': 'Fill the screen', '全体が見えるように': 'Show the whole image', '背景': 'Background', '線': 'Lines', 'アクセント': 'Accent',

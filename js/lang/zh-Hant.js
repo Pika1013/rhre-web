@@ -560,6 +560,28 @@ export default {
     "Loading the remix.": "正在載入混音。",
     "Couldn't open": "無法開啟",
     "■ Exit": "■ 結束",
+    "Options": "選項",
+    "Video options": "影片選項",
+    "Preview position": "預覽位置",
+    "Drag the preview sideways to move through the video. Pinch with two fingers or use the mouse wheel to zoom in or out.": "左右拖曳預覽，就能在影片中移動。用兩指縮放或滑鼠滾輪，可以放大／縮小。",
+    "Start from": "開始位置",
+    "Beat 0": "第 0 拍",
+    "Playback start flag": "播放開始的旗子",
+    "Zoom": "畫面放大／縮小",
+    "Match the editor": "配合目前的畫面",
+    "Wait before playback": "開始前等待的時間",
+    "Show on screen": "畫面上顯示的內容",
+    "Current game (top left)": "目前的遊戲（左上）",
+    "Tempo, beat and time at the playhead": "播放位置的速度・拍・時間",
+    "Block names": "方塊的名稱",
+    "Reset to default": "恢復預設",
+    "{s} s": "{s} 秒",
+    "{n} beats": "{n} 拍",
+    "(same as the editor)": "（與目前的畫面相同）",
+    "The playback start flag is past the end, so a video can't be made. Choose \"Beat 0\" in Options, or move the flag.": "播放開始的旗子在最後面之後，所以無法製作影片。請在選項中改為「第 0 拍」，或移動旗子。",
+    "Makes a video from beat 0 to the end, looking like presentation mode ({d} in total).": "把第 0 拍到最後做成和展示模式同樣畫面的影片（共 {d}）。",
+    "Makes a video from the playback start flag to the end, looking like presentation mode ({d} in total).": "把播放開始的旗子到最後做成和展示模式同樣畫面的影片（共 {d}）。",
+    "It waits {s} seconds before playback starts.": "會先等 {s} 秒再開始播放。",
     "Font": "字型",
     "Your language's own characters stay the same; letters and numbers change.": "介面語言本身的文字維持原樣，只有英文字母和數字的字形會改變。",
     "Background image": "背景圖片",
@@ -719,7 +741,7 @@ export default {
   <li>不知道速度時，可以在選歌時用「自動偵測」自動找出速度和它的變化，或用選單的「測量速度」跟著歌曲點擊來測量</li>
   <li>選單的「音樂開始位置」：輸入秒數，或用「將歌曲開頭對齊第 0 拍」</li>
   <li>選單的「僅匯出音訊」：把混音存成只有聲音的檔案（WAV）</li>
-  <li>選單的「匯出影片」：把第 0 拍到最後做成和展示模式同樣畫面的 mp4。會先等 2 秒再開始播放（可以選擇大小和流暢度）</li>
+  <li>選單的「匯出影片」：把第 0 拍到最後做成和展示模式同樣畫面的 mp4。會先等 2 秒再開始播放（可以選擇大小和流暢度）。在「選項」中可以一邊看預覽，一邊設定從播放開始的旗子開始、畫面放大／縮小、開始前等待的時間，以及畫面上顯示的內容（目前的遊戲、速度等、字幕、方塊的名稱）</li>
   <li>選單的「更新內容」：可以看到每次更新改了什麼</li>
 </ul>
 <p><b>遊玩、展示</b></p>

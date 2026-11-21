@@ -255,6 +255,35 @@
   #videoPreview { display: grid; place-items: center; margin-top: 8px; }
   #videoPreview:empty { display: none; }
   #videoPreview canvas { width: auto; height: auto; max-width: min(420px, 100%); max-height: 32vh; border-radius: 6px; background: #000; }
+  /* 動画のオプション：左に見本（横にドラッグで位置、つまむ・ホイールで拡大・縮小）、右に項目（項目だけスクロール） */
+  .modal .card.vo-card {
+    width: min(860px, calc(100% - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    max-height: calc(100dvh - 28px); overflow: hidden; display: flex; flex-direction: column;
+  }
+  .vo-body { flex: 1; min-height: 0; display: flex; gap: 16px; }
+  .vo-left { flex: 1 1 56%; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .vo-right { flex: 1 1 44%; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  #voPreview { display: grid; place-items: center; touch-action: none; cursor: ew-resize; user-select: none; -webkit-user-select: none; }
+  #voPreview canvas { display: block; width: 100%; height: auto; max-height: calc(100dvh - 200px); object-fit: contain; border-radius: 6px; background: #000; }
+  .vo-seek { display: flex; align-items: center; gap: 8px; }
+  .vo-seek input[type=range], .vo-zoom input[type=range] { flex: 1; min-width: 0; height: 30px; margin: 0; accent-color: var(--accent); }
+  .vo-seek .range-val { min-width: 64px; }
+  .vo-card .note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .vo-sub { margin: 12px 0 6px; font-weight: 800; font-size: 14px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .vo-sub:first-child { margin-top: 2px; }
+  .vo-sub small { font-weight: 700; font-size: 13px; color: var(--muted); }
+  .vo-card .seg { margin-bottom: 0; }
+  .vo-card .seg button { height: 32px; font-size: 13px; padding: 0 4px; }
+  .vo-zoom { display: flex; align-items: center; gap: 8px; }
+  .vo-zoom > span { flex: none; width: 18px; text-align: center; font-weight: 800; font-size: 18px; color: var(--muted); }
+  .vo-zoom .btn { flex: none; min-height: 32px; padding: 0 10px; font-size: 13px; }
+  .vo-card .set-item { padding: 6px 0; gap: 10px; }
+  .vo-card .set-text label { font-weight: 700; font-size: 14px; }
+  .vo-card .row { flex: none; }
+  @media (max-width: 600px) {
+    .vo-body { flex-direction: column; overflow-y: auto; }
+    .vo-right { overflow: visible; }
+  }
   /* 書き終わったら、進み具合のバーの場所に保存ボタン（下のほうは小さい画面で隠れやすいので） */
   #videoSave { display: block; width: 100%; margin-top: 10px; }
   #videoInfo { margin-top: 6px !important; }
@@ -1084,7 +1113,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.18.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.19.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1307,6 +1336,7 @@
     <div id="videoOpts">
       <div class="field"><label for="videoSize">大きさ</label><select id="videoSize"><option value="720">1280×720</option><option value="1080">1920×1080</option></select></div>
       <div class="field"><label for="videoFps">なめらかさ</label><select id="videoFps"><option value="30">30 コマ／秒</option><option value="60">60 コマ／秒</option></select></div>
+      <div class="row tight"><button class="btn" id="videoOptBtn" type="button">オプション</button></div>
       <p class="note" id="videoNote"></p>
     </div>
     <div id="videoPreview"></div>
@@ -1318,6 +1348,33 @@
       <button class="btn" id="videoStop" hidden>やめる</button>
       <button class="btn" id="videoClose">閉じる</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="videoOptModal" hidden>
+  <div class="card vo-card">
+    <h2>動画のオプション</h2>
+    <div class="vo-body">
+      <div class="vo-left">
+        <div id="voPreview"></div>
+        <div class="vo-seek"><input type="range" id="voSeek" min="0" max="1000" step="1" value="0" aria-label="見本の位置"><span id="voTime" class="range-val"></span></div>
+        <p class="note">見本を横にドラッグすると動画の中を動けます。2 本指でつまむか、マウスのホイールで拡大・縮小できます。</p>
+      </div>
+      <div class="vo-right">
+        <div class="vo-sub">始める所</div>
+        <div class="seg" id="voFrom" role="group" aria-label="始める所"><button type="button" data-v="zero">0 拍目</button><button type="button" data-v="flag">再生開始の旗</button></div>
+        <div class="vo-sub">画面の拡大・縮小<small id="voBeatsVal"></small></div>
+        <div class="vo-zoom"><span aria-hidden="true">−</span><input type="range" id="voZoom" min="0" max="100" step="1" aria-label="画面の拡大・縮小"><span aria-hidden="true">＋</span><button class="btn" id="voFit" type="button">今の画面に合わせる</button></div>
+        <div class="vo-sub">最初に待つ時間</div>
+        <div class="seg" id="voLead" role="group" aria-label="最初に待つ時間"></div>
+        <div class="vo-sub">画面に出すもの</div>
+        <div class="set-item"><div class="set-text"><label for="voGame">今のゲーム（左上）</label></div><label class="switch"><input type="checkbox" id="voGame" role="switch"><span aria-hidden="true"></span></label></div>
+        <div class="set-item"><div class="set-text"><label for="voInfo">再生位置のテンポ・拍・時間</label></div><label class="switch"><input type="checkbox" id="voInfo" role="switch"><span aria-hidden="true"></span></label></div>
+        <div class="set-item"><div class="set-text"><label for="voSubs">字幕</label></div><label class="switch"><input type="checkbox" id="voSubs" role="switch"><span aria-hidden="true"></span></label></div>
+        <div class="set-item"><div class="set-text"><label for="voLabels">ブロックの名前</label></div><label class="switch"><input type="checkbox" id="voLabels" role="switch"><span aria-hidden="true"></span></label></div>
+      </div>
+    </div>
+    <div class="row"><button class="btn" id="voReset" type="button">はじめに戻す</button><button class="btn" id="voClose" type="button">閉じる</button></div>
   </div>
 </div>
 
@@ -1452,7 +1509,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.18.0</h2>
+    <h2>RHRE Web v1.19.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、RHRE fresh と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">RHRE Web は、RHRE fresh を元にしたファンメイドです。RHRE fresh を作った人たちとは関係ありません。RHRE Web のことは、RHRE fresh の人たちに聞かないでください。</p>
@@ -1489,7 +1546,7 @@
       <li>テンポがわからないときは、曲を選んだときの「自動検出」でテンポとその変化を自動で見つけるか、メニューの「テンポを測る」で曲に合わせてタップして測れます</li>
       <li>メニューの「音楽の開始位置」：秒の数字を入れるか、「曲の始まりを 0 拍目に合わせる」</li>
       <li>メニューの「音声のみ書き出す」：リミックスを音だけのファイル（WAV）にします</li>
-      <li>メニューの「動画で書き出す」：0 拍目から最後までを、プレゼンテーションモードと同じ見た目の mp4 にします。最初に 2 秒待ってから再生します（大きさとなめらかさを選べます）</li>
+      <li>メニューの「動画で書き出す」：0 拍目から最後までを、プレゼンテーションモードと同じ見た目の mp4 にします。最初に 2 秒待ってから再生します（大きさとなめらかさを選べます）。「オプション」では、見本を見ながら、再生開始の旗から始める・画面の拡大・縮小・最初に待つ時間・画面に出すもの（今のゲーム・テンポなど・字幕・ブロックの名前）を変えられます</li>
       <li>メニューの「更新内容」：アップデートで何が変わったかを見られます</li>
     </ul>
     <p><b>遊ぶ・見せる</b></p>
@@ -1553,7 +1610,7 @@
       <li>If you don't know the tempo, use "Auto-detect" when choosing a song to find the tempo and its changes automatically, or use "Measure tempo" in the menu and tap along with the song.</li>
       <li>"Music start position" in the menu: type the seconds, or use "Align song start to beat 0".</li>
       <li>"Export audio only" in the menu turns your remix into an audio-only file (WAV).</li>
-      <li>"Export video" in the menu turns the remix, from beat 0 to the end, into an mp4 that looks like presentation mode. It waits 2 seconds before playback starts (you can choose the size and smoothness).</li>
+      <li>"Export video" in the menu turns the remix, from beat 0 to the end, into an mp4 that looks like presentation mode. It waits 2 seconds before playback starts (you can choose the size and smoothness). In "Options" you can, while watching a preview, start from the playback start flag, zoom in or out, change the wait before playback, and choose what is shown (current game, tempo and so on, subtitles, block names).</li>
       <li>"What's new" in the menu shows what changed in each update.</li>
     </ul>
     <p><b>Playing and showing</b></p>
@@ -1594,7 +1651,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=120"></script>
+<script type="module" src="js/app.js?v=121"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

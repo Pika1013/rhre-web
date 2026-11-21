@@ -4,6 +4,37 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.19.0', date: '2026-11-21',
+    ja: [
+      '「動画で書き出す」に「オプション」を足しました。再生開始の旗（緑）から始める、画面の拡大・縮小（見える拍の数）、最初に待つ時間（なし〜5 秒）、画面に出すもの（今のゲーム・テンポなど・字幕・ブロックの名前）を変えられます。はじめは今までと同じです',
+      'オプションの画面では、動画の見本を見ながら変えられます。見本を横にドラッグすると動画の中を動けて、2 本指でつまむかマウスのホイールで拡大・縮小できます',
+    ],
+    en: [
+      'Added "Options" to "Export video". You can start from the playback start flag (green), zoom in or out (how many beats are visible), change the wait before playback (none to 5 seconds), and choose what is shown (current game, tempo and so on, subtitles, block names). The defaults are the same as before.',
+      'The options window shows a preview of the video as you change things. Drag the preview sideways to move through the video, and pinch with two fingers or use the mouse wheel to zoom.',
+    ],
+    'zh-Hant': [
+      '在「匯出影片」中加入了「選項」。可以從播放開始的旗子（綠色）開始、放大／縮小畫面（看得到的拍數）、更改開始前等待的時間（無～5 秒），以及選擇畫面上顯示的內容（目前的遊戲、速度等、字幕、方塊的名稱）。預設和以前相同。',
+      '在選項畫面中，可以一邊看影片的預覽一邊更改。左右拖曳預覽就能在影片中移動，用兩指縮放或滑鼠滾輪可以放大／縮小。',
+    ],
+    ko: [
+      '"동영상 내보내기"에 "옵션"을 추가했어요. 재생 시작 깃발(초록)부터 시작하기, 화면 확대·축소(보이는 박 수), 시작 전에 기다리는 시간(없음~5초), 화면에 표시할 것(지금 게임·템포 등·자막·블록 이름)을 바꿀 수 있어요. 처음에는 지금까지와 같아요.',
+      '옵션 화면에서는 동영상 미리 보기를 보면서 바꿀 수 있어요. 미리 보기를 옆으로 드래그하면 동영상 안을 움직이고, 두 손가락으로 오므리거나 펴기, 또는 마우스 휠로 확대·축소할 수 있어요.',
+    ],
+    es: [
+      'Se añadieron "Opciones" a "Exportar vídeo". Puedes empezar desde la bandera de inicio de reproducción (verde), acercar o alejar (cuántos pulsos se ven), cambiar la espera antes de reproducir (de nada a 5 segundos) y elegir qué se muestra (juego actual, tempo, etc., subtítulos, nombres de los bloques). Por defecto, todo queda como antes.',
+      'La ventana de opciones muestra una vista previa del vídeo mientras cambias cosas. Arrastra la vista previa hacia los lados para moverte por el vídeo, y pellizca con dos dedos o usa la rueda del ratón para acercar o alejar.',
+    ],
+    fr: [
+      "Ajout d'« Options » dans « Exporter une vidéo ». Vous pouvez commencer au drapeau de début de lecture (vert), zoomer ou dézoomer (nombre de temps visibles), changer l'attente avant la lecture (aucune à 5 secondes) et choisir ce qui s'affiche (jeu en cours, tempo, etc., sous-titres, noms des blocs). Par défaut, rien ne change.",
+      "La fenêtre des options affiche un aperçu de la vidéo pendant les réglages. Faites glisser l'aperçu sur le côté pour vous déplacer dans la vidéo, et pincez avec deux doigts ou utilisez la molette de la souris pour zoomer.",
+    ],
+    de: [
+      '„Video exportieren“ hat jetzt „Optionen“. Du kannst ab der Wiedergabestart-Flagge (grün) beginnen, zoomen (wie viele Schläge sichtbar sind), die Wartezeit vor der Wiedergabe ändern (keine bis 5 Sekunden) und auswählen, was angezeigt wird (aktuelles Spiel, Tempo usw., Untertitel, Blocknamen). Standardmäßig bleibt alles wie bisher.',
+      'Das Optionsfenster zeigt beim Ändern eine Vorschau des Videos. Ziehe die Vorschau zur Seite, um dich im Video zu bewegen, und zoome mit zwei Fingern oder dem Mausrad.',
+    ],
+  },
+  {
     v: '1.18.0', date: '2026-11-21',
     ja: [
       '設定の「見た目」で、画面の文字のフォントを選べるようにしました（標準・BIZ UDPGothic・Noto Sans JP・M PLUS 1p・Zen Kaku Gothic New・IBM Plex Sans JP・M PLUS 2）。それぞれのフォントの見本が並んでいて、押すとすぐに変わります。トラックのブロックの文字や動画の文字も同じフォントになります',

@@ -2,12 +2,12 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=55';
-import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=56';
+import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=47';
 import { makeZip, readZip } from './zip.js?v=6';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
-import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=42';
+import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime, makeVideoPreview } from './video.js?v=11';
+import { CHANGELOG } from './changelog.js?v=43';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=5';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.18.0';
+const VERSION = '1.19.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2128,8 +2128,71 @@ $('exportClose').addEventListener('click', () => { $('exportModal').hidden = tru
 // 計算で作れる端末（WebCodecs の映像と音の部品がある）では 1 コマずつ計算で、ない端末では流しながら録画で
 let videoJob = null; // 書き出し中 { ctrl }
 let videoBlob = null, videoName = '', videoDiag = null;
-const VIDEO_LEAD = 2; // 動画は 0 拍目から。最初に 2 秒、止まった画面のまま待ってから再生する
 const videoMethod = () => (canRenderFast() ? 'fast' : canRecord() ? 'record' : null);
+
+// 動画のオプション（v1.19.0。YouTube のコメント「再生開始の旗から始めたい」から）。はじめは今までと同じ：
+// 0 拍目から・最初に 2 秒止まった画面のまま待つ・今の編集画面と同じ拡大率・今のゲームとテンポなどと字幕を出す・ブロックの名前は出さない
+const VIDEO_DEFAULTS = { from: 'zero', lead: 2, beats: null, game: true, info: true, subs: true, labels: false };
+const VIDEO_LEADS = [0, 1, 2, 3, 5];
+const VIDEO_BEATS_MIN = 4, VIDEO_BEATS_MAX = 64;
+function videoOptions() {
+  const s = settings.videoOpts || {};
+  const o = { ...VIDEO_DEFAULTS };
+  if (s.from === 'flag') o.from = 'flag';
+  if (VIDEO_LEADS.includes(s.lead)) o.lead = s.lead;
+  if (Number.isFinite(s.beats)) o.beats = clamp(s.beats, VIDEO_BEATS_MIN, VIDEO_BEATS_MAX);
+  for (const k of ['game', 'info', 'subs', 'labels']) if (typeof s[k] === 'boolean') o[k] = s[k];
+  return o;
+}
+// はじめと同じ値は保存しない（はじめの値を変えたときに、そのまま新しい値になるように）
+function setVideoOption(k, v) {
+  const o = { ...(settings.videoOpts || {}) };
+  if (v == null || v === VIDEO_DEFAULTS[k]) delete o[k]; else o[k] = v;
+  settings.videoOpts = o;
+  saveSettings();
+}
+const videoBeatsNow = () => clamp(view.visibleBeats, VIDEO_BEATS_MIN, VIDEO_BEATS_MAX);
+// video.js に渡す形（始める所は秒、拍の数は数字に）
+function videoRenderOpts(o = videoOptions()) {
+  return {
+    fromSec: remix.tempo.b2s(o.from === 'flag' ? remix.playbackStart : 0),
+    lead: o.lead, beats: o.beats ?? videoBeatsNow(), game: o.game, info: o.info, subs: o.subs, labels: o.labels,
+  };
+}
+const videoCanStart = (ro) => ro.fromSec < mixEndSec(remix) - 1e-6;
+// 動画の長さ：待つ時間 ＋ 始める所から最後まで ＋ End Remix のあと 1 秒
+const videoLengthSec = (ro) => ro.lead + Math.max(0, mixEndSec(remix) - ro.fromSec) + (remix.hasEndEntity ? 1 : 0);
+function videoMessage() {
+  const o = videoOptions();
+  const ro = videoRenderOpts(o);
+  if (!videoCanStart(ro)) return t('再生開始の旗が最後より後ろにあるので、動画を作れません。オプションで「0 拍目」にするか、旗を動かしてください。');
+  const d = fmtTime(videoLengthSec(ro));
+  const a = o.from === 'flag'
+    ? t('再生開始の旗から最後までを、プレゼンテーションモードと同じ見た目の動画にします（全部で {d}）。', { d })
+    : t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（全部で {d}）。', { d });
+  if (!ro.lead) return a;
+  const sep = ['ja', 'zh-Hant'].includes(getLang()) ? '' : ' ';
+  return a + sep + t('最初に {s} 秒待ってから再生します。', { s: ro.lead });
+}
+// 動画を描くのに使う部品（app.js の部品を渡して、同じプログラムを 2 回読み込まないように）
+function videoDeps() {
+  return {
+    EditorView, FONT,
+    renderMix: (fromSec, sr, o) => renderMix(engine, remix, musicBuf, fromSec, sr, o),
+    mixEndSec,
+    textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
+    audioContext: () => engine.context,
+    loadIcon,
+    version: VERSION,
+    // 左上に出すゲームの名前（言語違いはまとめた名前）と、出さないゲーム（特殊・カウントなど）か
+    gameInfo,
+  };
+}
+function refreshVideoMsg() {
+  if (videoJob || !remix) return;
+  $('videoMsg').textContent = videoMessage();
+  $('videoStart').hidden = !videoMethod() || !videoCanStart(videoRenderOpts());
+}
 function openVideoExport() {
   if (!remix) return;
   if (mode === 'playing') pause();
@@ -2145,9 +2208,7 @@ function openVideoExport() {
   $('videoInfo').textContent = '';
   $('videoSave').hidden = true;
   $('videoStop').hidden = true;
-  $('videoStart').hidden = !m;
-  const from = remix.tempo.b2s(0);
-  $('videoMsg').textContent = t('0 拍目から最後までを、プレゼンテーションモードと同じ見た目の動画にします（最初に 2 秒待ってから再生。全部で {d}）。', { d: fmtTime(VIDEO_LEAD + Math.max(0, mixEndSec(remix) - from) + (remix.hasEndEntity ? 1 : 0)) });
+  refreshVideoMsg();
   $('videoNote').textContent = m === 'fast'
     ? t('計算で 1 コマずつ作るので、たいてい再生するより速く終わります。書き出しのあいだは、アプリを開いたままにしてください。')
     : m === 'record'
@@ -2158,7 +2219,7 @@ function openVideoExport() {
 $('videoStart').addEventListener('click', async () => {
   if (!remix || videoJob) return;
   const m = videoMethod();
-  if (!m) return;
+  if (!m || !videoCanStart(videoRenderOpts())) return;
   if (m === 'record') engine.unlock(); // 録画は音を実際に流すので、タップの中で音を有効にする（await より前）
   if (mode !== 'stopped') stopPlayback();
   settings.videoSize = $('videoSize').value;
@@ -2182,18 +2243,8 @@ $('videoStart').addEventListener('click', async () => {
   try {
     await engine.loadSounds([...remix.allSoundCues().keys()], remix.db);
     $('videoMsg').textContent = t('音を作っています…');
-    const deps = {
-      EditorView, FONT,
-      renderMix: (fromSec, sr, o) => renderMix(engine, remix, musicBuf, fromSec, sr, o),
-      mixEndSec,
-      textureImage: (e) => textureImages.get(e.extra?.texHash) || null,
-      audioContext: () => engine.context,
-      loadIcon,
-      version: VERSION,
-      // 左上に出すゲームの名前（言語違いはまとめた名前）と、出さないゲーム（特殊・カウントなど）か
-      gameInfo,
-    };
-    const opts = { fromSec: remix.tempo.b2s(0), lead: VIDEO_LEAD, size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
+    const deps = videoDeps();
+    const opts = { ...videoRenderOpts(), size: settings.videoSize, fps: settings.videoFps, host: $('videoPreview') };
     const onProgress = (f, phase) => {
       const p = Math.floor(f * 100);
       $('videoBar').style.width = `${Math.max(1, p)}%`;
@@ -2238,6 +2289,153 @@ $('videoStart').addEventListener('click', async () => {
   }
 });
 $('videoStop').addEventListener('click', () => videoJob?.ctrl.abort());
+
+// ---- 動画のオプションのウィンドウ：変えるとすぐ見本に出る。見本は横にドラッグで動画の中を動き、つまむ・ホイールで拡大・縮小
+let voPrev = null; // { cv, length, lead, draw(vt) }
+let voTime = null; // 見本の位置（動画の秒）
+let voBuild = 0, voRaf = 0;
+// 拡大・縮小のつまみ：右ほど大きく（見える拍が少ない）。拍の数とは対数で対応させる
+const zoomToBeats = (z) => VIDEO_BEATS_MAX * (VIDEO_BEATS_MIN / VIDEO_BEATS_MAX) ** (z / 100);
+const beatsToZoom = (b) => (100 * Math.log(b / VIDEO_BEATS_MAX)) / Math.log(VIDEO_BEATS_MIN / VIDEO_BEATS_MAX);
+const fmtBeats = (b) => (b < 10 ? (Math.round(b * 10) / 10).toFixed(1) : String(Math.round(b)));
+function renderVideoOpts() {
+  const o = videoOptions();
+  for (const b of $('voFrom').children) b.classList.toggle('on', b.dataset.v === o.from);
+  $('voLead').innerHTML = VIDEO_LEADS.map((s) => `<button type="button" data-v="${s}" class="${s === o.lead ? 'on' : ''}">${esc(s ? t('{s} 秒', { s }) : t('なし'))}</button>`).join('');
+  const beats = o.beats ?? videoBeatsNow();
+  $('voZoom').value = String(Math.round(beatsToZoom(beats)));
+  const sep = ['ja', 'zh-Hant'].includes(getLang()) ? '' : ' ';
+  $('voBeatsVal').textContent = t('{n} 拍', { n: fmtBeats(beats) }) + (o.beats == null ? sep + t('（今の画面と同じ）') : '');
+  $('voFit').disabled = o.beats == null;
+  $('voGame').checked = o.game;
+  $('voInfo').checked = o.info;
+  $('voSubs').checked = o.subs;
+  $('voLabels').checked = o.labels;
+}
+// 見本を作り直す（続けて変えたときは、1 コマに 1 回だけ）
+function scheduleVideoPreview() {
+  cancelAnimationFrame(voRaf);
+  voRaf = requestAnimationFrame(async () => {
+    const id = ++voBuild;
+    let p;
+    try { p = await makeVideoPreview(videoDeps(), view, videoRenderOpts()); } catch (e) { console.error(e); return; }
+    if (id !== voBuild || $('videoOptModal').hidden) return;
+    voPrev = p;
+    $('voPreview').replaceChildren(p.cv);
+    // はじめは、再生が始まって少しした所（今のゲームなどが見えるように）
+    if (voTime == null) voTime = Math.min(p.length, p.lead + 3);
+    drawVideoPreview();
+  });
+}
+function drawVideoPreview() {
+  if (!voPrev) return;
+  voTime = clamp(voTime ?? 0, 0, voPrev.length);
+  voPrev.draw(voTime);
+  $('voSeek').value = String(Math.round((voTime / Math.max(1e-3, voPrev.length)) * 1000));
+  $('voTime').textContent = fmtTime(voTime);
+}
+function videoOptChanged() {
+  renderVideoOpts();
+  scheduleVideoPreview();
+}
+function setVideoBeats(b) {
+  setVideoOption('beats', Math.round(clamp(b, VIDEO_BEATS_MIN, VIDEO_BEATS_MAX) * 10) / 10);
+  videoOptChanged();
+}
+$('videoOptBtn').addEventListener('click', () => {
+  if (!remix) return;
+  voTime = null;
+  voPrev = null;
+  $('voPreview').replaceChildren();
+  renderVideoOpts();
+  $('videoOptModal').hidden = false;
+  scheduleVideoPreview();
+});
+$('voClose').addEventListener('click', () => {
+  $('videoOptModal').hidden = true;
+  voBuild++;
+  voPrev = null;
+  $('voPreview').replaceChildren();
+  refreshVideoMsg();
+});
+$('voReset').addEventListener('click', () => {
+  settings.videoOpts = {};
+  saveSettings();
+  voTime = null;
+  videoOptChanged();
+});
+$('voFrom').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-v]');
+  if (!b) return;
+  setVideoOption('from', b.dataset.v);
+  voTime = null; // 始める所が変わったら、見本も始めの所へ
+  videoOptChanged();
+});
+$('voLead').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-v]');
+  if (!b) return;
+  const before = videoOptions().lead;
+  setVideoOption('lead', Number(b.dataset.v));
+  if (voTime != null) voTime = Math.max(0, voTime + Number(b.dataset.v) - before); // 同じ場面を見たままに
+  videoOptChanged();
+});
+$('voZoom').addEventListener('input', () => setVideoBeats(zoomToBeats(Number($('voZoom').value))));
+$('voFit').addEventListener('click', () => { setVideoOption('beats', null); videoOptChanged(); });
+for (const [id, k] of [['voGame', 'game'], ['voInfo', 'info'], ['voSubs', 'subs'], ['voLabels', 'labels']]) {
+  $(id).addEventListener('change', () => { setVideoOption(k, $(id).checked); videoOptChanged(); });
+}
+$('voSeek').addEventListener('input', () => {
+  if (!voPrev) return;
+  voTime = (Number($('voSeek').value) / 1000) * voPrev.length;
+  drawVideoPreview();
+});
+{
+  // 見本の上：1 本指（マウス）で横にドラッグ → 動画の中を動く（見本の幅で 1 画面分の拍）。2 本指でつまむ → 拡大・縮小
+  const box = $('voPreview');
+  const pts = new Map();
+  let drag = null, pinch = null;
+  const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  box.addEventListener('pointerdown', (e) => {
+    if (!voPrev) return;
+    try { box.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { pinch = { d: dist(), beats: videoRenderOpts().beats }; drag = null; }
+    else if (pts.size === 1) drag = { x: e.clientX, t: voTime ?? 0 };
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId) || !voPrev) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size >= 2) {
+      const d = dist();
+      if (d > 8 && pinch.d > 8) setVideoBeats((pinch.beats * pinch.d) / d);
+    } else if (drag) {
+      // 左へドラッグで先へ（編集画面と同じく、絵を指で動かす向き）。見本の幅 ＝ 見えている拍の数
+      // 見本の絵の幅（縦が足りないときは左右に余白が出るので、絵の部分だけ）
+      const r = voPrev.cv.getBoundingClientRect();
+      const w = Math.min(r.width, (r.height * voPrev.cv.width) / voPrev.cv.height) || 1;
+      const ro = videoRenderOpts();
+      const beatsMoved = (-(e.clientX - drag.x) / w) * ro.beats;
+      const startBeat = remix.tempo.s2b(ro.fromSec + Math.max(0, drag.t - ro.lead));
+      const sec = remix.tempo.b2s(Math.max(0, startBeat + beatsMoved));
+      voTime = drag.t <= ro.lead && beatsMoved <= 0 ? drag.t : ro.lead + Math.max(0, sec - ro.fromSec);
+      drawVideoPreview();
+    }
+  });
+  const end = (e) => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 1) { const p = [...pts.values()][0]; drag = { x: p.x, t: voTime ?? 0 }; }
+    if (!pts.size) drag = null;
+  };
+  box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', end);
+  box.addEventListener('wheel', (e) => {
+    if (!voPrev) return;
+    e.preventDefault();
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    setVideoBeats(videoRenderOpts().beats * Math.exp(dy * 0.0025));
+  }, { passive: false });
+}
 $('videoClose').addEventListener('click', () => {
   videoJob?.ctrl.abort();
   $('videoModal').hidden = true;
@@ -4366,7 +4564,7 @@ window.addEventListener('resize', () => { if (guide.on) requestAnimationFrame(po
   const CLOSERS = {
     menuModal: '[data-act="close"]', markerModal: '#markerCancel', textModal: '#textCancel', saveNameModal: '#saveNameCancel',
     tracksModal: '#tracksCancel', musicModal: '#musicCancel', confirmModal: '#confirmCancel', exportModal: '#exportClose',
-    saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose', videoModal: '#videoClose', newsModal: '#newsClose',
+    saveModal: '#saveClose', settingsModal: '#settingsClose', helpModal: '#helpClose', videoModal: '#videoClose', videoOptModal: '#voClose', newsModal: '#newsClose',
     songModal: '#songCancel', roomModal: '#roomClose', tempoAskModal: '#tempoAskSkip', tapTempoModal: '#tapClose', errModal: '#errOk', keysModal: '#keysOk', editKeysModal: '#editKeysClose',
   };
   for (const [mid, sel] of Object.entries(CLOSERS)) {
