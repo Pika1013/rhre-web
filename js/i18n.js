@@ -352,11 +352,11 @@ const EN = {
 export const LANGS = [
   { code: 'ja', name: '日本語' },
   { code: 'en', name: 'English' },
-  { code: 'zh-Hant', name: '繁體中文', v: 8 },
-  { code: 'ko', name: '한국어', v: 8 },
-  { code: 'es', name: 'Español', v: 8 },
-  { code: 'fr', name: 'Français', v: 8 },
-  { code: 'de', name: 'Deutsch', v: 8 },
+  { code: 'zh-Hant', name: '繁體中文', v: 9 },
+  { code: 'ko', name: '한국어', v: 9 },
+  { code: 'es', name: 'Español', v: 9 },
+  { code: 'fr', name: 'Français', v: 9 },
+  { code: 'de', name: 'Deutsch', v: 9 },
 ];
 const CODES = LANGS.map((l) => l.code);
 export const validLang = (l) => (CODES.includes(l) ? l : null);
@@ -467,6 +467,7 @@ const STATIC_EN = {
   '準備中…': 'Loading…', 'リミックスを読み込んでいます。': 'Loading the remix.', '開けませんでした': "Couldn't open",
   'カスタム効果音': 'Custom sounds', '＋ 音声ファイルを追加': '+ Add audio files',
   '■ 終わる': '■ Exit', '▶ 再生': '▶ Play',
+  'フォント': 'Font', 'この言語の文字は今のままで、英字と数字の形が変わります。': "Your language's own characters stay the same; letters and numbers change.",
   '背景の画像': 'Background image', '画像を選ぶ': 'Choose image', '外す': 'Remove', '表示': 'Fit', '濃さ': 'Strength',
   '画面いっぱい': 'Fill the screen', '全体が見えるように': 'Show the whole image', '背景': 'Background', '線': 'Lines', 'アクセント': 'Accent',
   '終わる': 'Exit', 'このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。': 'This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.', '曲を選ぶ': 'Choose a song', 'リミックスに使う曲を選んでください。「＋ 曲を追加」で端末の曲を入れられます。': 'Choose a song for your remix. Add songs from this device with "+ Add songs".',

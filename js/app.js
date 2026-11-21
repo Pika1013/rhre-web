@@ -2,12 +2,12 @@ import { loadRemix, loadRemixJSON, emptyRemixJSON, cleanName, isMulti, DEFAULT_D
 import { analyzeTempo } from './tempo.js?v=2';
 import { AudioEngine, Player, Previewer, renderWav, renderMix, mixEndSec, detectOnset, rhreMusicLeadIn } from './audio.js?v=24';
 import { customRegistry, gameFromJSON, parseLenientJSON } from './db.js?v=12';
-import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=54';
+import { t, setLang, applyStatic, getLang, loadLang, langReady, langPack, tEn, validLang, detectLang, PICK_TEXT, LANGS } from './i18n.js?v=55';
 import { EditorView, fmtTime, LABELS, applyTheme, FONT, setCanvasFont, loadIcon } from './view.js?v=46';
 import { makeZip, readZip } from './zip.js?v=6';
 import { PLAYALONG_GAME_ID, PlayalongJudge, WINDOW } from './playalong.js?v=4';
 import { canRenderFast, canRecord, renderVideoFast, recordVideoRealtime } from './video.js?v=10';
-import { CHANGELOG } from './changelog.js?v=41';
+import { CHANGELOG } from './changelog.js?v=42';
 import { GAME_NAMES_JA } from './gamenames.js?v=2';
 import { RoomClient, newRoomCode, cleanRoomCode, isRoomCode, PEER_COLORS } from './room.js?v=5';
 import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
@@ -15,7 +15,7 @@ import { SongShare, songHash, canShareSongs } from './songshare.js?v=1';
 // みんなで編集のリンク（?room=合言葉）で開いたときの合言葉。iPhone の「ホーム画面に追加」の案内にも出す
 const LINK_ROOM = (() => { const c = cleanRoomCode(new URLSearchParams(location.search).get('room')); return isRoomCode(c) ? c : ''; })();
 
-const VERSION = '1.17.1';
+const VERSION = '1.18.0';
 const t2 = t; // ループの変数名 t と重ならないように
 const CUSTOM_GAME_ID = 'custom_web';
 const $ = (id) => document.getElementById(id);
@@ -2025,6 +2025,7 @@ $('helpBtn').addEventListener('click', openHelp);
 $('settingsBtn').addEventListener('click', () => {
   $('langSelect').value = settings.lang;
   renderThemeGrid();
+  renderFontList();
   applyBackgroundOptions();
   $('paOffset').value = String(Number(settings.paOffset) || 0);
   $('paOffsetVal').textContent = `${Number(settings.paOffset) || 0}ms`;
@@ -4537,6 +4538,74 @@ function applyThemeSettings() {
   view.dirty = true;
 }
 
+// 画面の文字（設定の「フォント」。v1.18.0）。標準は index.html の --font-base（M PLUS Rounded 1c。中国語は台湾の字体、
+// 韓国語はハングルの字体を足したもの）。ほかのフォントは、選んだときと設定の見本を出すときだけ Google Fonts から読む。
+// 太さは 700 まで読む（800 の所は 700 で出る）。並びは本人が選んだ順
+const FONT_CHOICES = [
+  { id: '' },
+  { id: 'biz-udp', family: 'BIZ UDPGothic', w: '400;700' },
+  { id: 'noto-jp', family: 'Noto Sans JP', w: '500;700' },
+  { id: 'mplus-1p', family: 'M PLUS 1p', w: '500;700' },
+  { id: 'zen-kaku', family: 'Zen Kaku Gothic New', w: '500;700' },
+  { id: 'plex-jp', family: 'IBM Plex Sans JP', w: '500;700' },
+  { id: 'mplus-2', family: 'M PLUS 2', w: '500;700' },
+];
+const fontChoice = () => FONT_CHOICES.find((f) => f.family && f.id === settings.font) || null;
+// 中国語の画面では、漢字が日本の字形にならないよう、英字・数字・記号だけを読む（漢字は台湾の字体のまま）
+const FONT_LATIN = (() => { let s = ''; for (let c = 0x20; c < 0x7f; c++) s += String.fromCharCode(c); return `${s}×·…–—‘’“”←→`; })();
+function fontCssUrl(list) {
+  const fams = list.map((f) => `family=${f.family.replace(/ /g, '+')}:wght@${f.w}`).join('&');
+  const latin = getLang() === 'zh-Hant' ? `&text=${encodeURIComponent(FONT_LATIN)}` : '';
+  return `https://fonts.googleapis.com/css2?${fams}${latin}&display=swap`;
+}
+function setFontLink(id, href) {
+  let el = document.getElementById(id);
+  if (!href) { el?.remove(); return; }
+  if (el?.getAttribute('href') === href) return;
+  if (!el) { el = document.createElement('link'); el.id = id; el.rel = 'stylesheet'; document.head.appendChild(el); }
+  el.href = href;
+}
+// 選んだフォントに無い字（ハングル・台湾の字体など）は、言語ごとの字体で出す
+function fontStack(family) {
+  const l = getLang();
+  const rest = l === 'zh-Hant' ? '"PingFang TC", "Noto Sans TC", "Microsoft JhengHei"'
+    : l === 'ko' ? '"Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic"'
+      : '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo"';
+  return `"${family}", ${rest}, system-ui, sans-serif`;
+}
+function applyFont() {
+  const c = fontChoice();
+  const root = document.documentElement;
+  setFontLink('fontCss', c ? fontCssUrl([c]) : null);
+  if (c) root.style.setProperty('--font', fontStack(c.family)); else root.style.removeProperty('--font');
+  setCanvasFont(getComputedStyle(root).getPropertyValue('--font').trim() || null);
+  // キャンバスの文字は、フォントが届いたら描き直す
+  if (c) document.fonts?.load(`700 16px "${c.family}"`, 'Karate Man 0123').then(() => { view.dirty = true; }, () => {});
+  view.dirty = true;
+}
+// 設定画面のフォントの見本。ボタンごとにそのフォントで書く（押すとすぐ変わる）
+function renderFontList() {
+  setFontLink('fontPreviewCss', fontCssUrl(FONT_CHOICES.filter((f) => f.family)));
+  const cur = fontChoice()?.id || '';
+  const sample = `Karate Man  ${t('テンポ')} 120.0  ${t('設定')}`;
+  $('fontList').innerHTML = FONT_CHOICES.map((f) => {
+    const on = f.id === cur;
+    const fam = f.family ? fontStack(f.family) : 'var(--font-base)';
+    return `<button type="button" class="font-opt${on ? ' on' : ''}" data-font="${f.id}" aria-pressed="${on}" style="font-family:${esc(fam)}">`
+      + `<span class="fo-name">${esc(f.family || t('標準'))}</span>`
+      + `<span class="fo-line"><span class="fo-blk">Punch (Pot)</span><span class="fo-sample">${esc(sample)}</span></span></button>`;
+  }).join('');
+  $('fontNote').hidden = !['zh-Hant', 'ko'].includes(getLang());
+}
+$('fontList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-font]');
+  if (!b) return;
+  if (b.dataset.font) settings.font = b.dataset.font; else delete settings.font;
+  saveSettings();
+  applyFont();
+  renderFontList();
+});
+
 // 設定画面のテーマの見本（押すとすぐ変わる）
 function renderThemeGrid() {
   const grid = $('themeGrid');
@@ -4621,8 +4690,8 @@ function applySettings() {
   applyThemeSettings();
   setLang(uiLang());
   document.documentElement.lang = getLang();
-  // 中国語は日本の字形にならないように、台湾の字体を使う（CSS の --font を :lang で変えている）。キャンバスの文字も同じに
-  setCanvasFont(getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || null);
+  // 文字（設定の「フォント」）。キャンバスの文字も同じに
+  applyFont();
   LABELS.music = t('音楽開始');
   LABELS.playback = t('再生開始');
   LABELS.volume = t('音量');
@@ -4687,6 +4756,7 @@ $('uiLangSelect').addEventListener('change', async () => {
 // 画面の言語を変えたあと、言葉を出し直す
 function refreshLanguage() {
   applySettings();
+  if (!$('settingsModal').hidden) renderFontList();
   if (!$('featureTip').hidden) showFeatureTip();
   renderGate();
   if (newsSince) $('newsText').textContent = t('アップデートしました！（v{v}）', { v: VERSION });
@@ -4794,6 +4864,8 @@ $('newsClose').addEventListener('click', () => { $('newsModal').hidden = true; }
 buildTabs();
 updateButtons();
 document.fonts?.ready.then(() => { view.dirty = true; });
+// あとから届いた文字（フォントの残りの字など）でも、キャンバスを描き直す
+document.fonts?.addEventListener?.('loadingdone', () => { view.dirty = true; });
 fetch(`data/games-${DEFAULT_DB_COMMIT}.json`).then((r) => r.json()).then((d) => { gamesIndex = d.games || []; renderGrid(); }).catch(() => {});
 // ---------------------------------------------------------------- みんなで編集（メニューの「みんなで編集」。v1.15.0）
 // 部屋のサーバー（server/room）を通して、ブロック・テンポなどの変更を部屋の全員に配る（js/room.js）。

@@ -63,7 +63,8 @@ async function staleWhileRevalidate(event, cacheName, allowOpaque) {
   const fresh = fetch(req).then(async (res) => {
     if (res && (res.ok || (allowOpaque && res.type === 'opaque'))) {
       await cache.put(req, res.clone());
-      await pruneOldVersions(cache, req);
+      // フォントの CSS（fonts.googleapis.com）は ?family= ごとに別のものなので消さない（設定の「フォント」で何種類も使う）
+      if (cacheName === APP_CACHE) await pruneOldVersions(cache, req);
     }
     return res;
   }).catch(() => null);

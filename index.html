@@ -57,7 +57,9 @@
   /* デスクトップ版 RHRE fresh の配置：上にツールバー、中央にトラック、下にピッカー、最下段にステータス */
   :root {
     color-scheme: dark;
-    --font: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+    /* 標準の文字。設定の「フォント」でほかを選ぶと、app.js が --font を上書きする */
+    --font-base: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+    --font: var(--font-base);
     --chrome: #3b3b3b;
     --chrome-edge: #262626;
     --btn: #4c4c4c;
@@ -410,6 +412,18 @@
   .custom-colors { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
   .custom-colors label { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; }
   .custom-colors input[type=color] { width: 56px; height: 36px; padding: 0; border: 1px solid #555; border-radius: 6px; background: none; }
+  /* 設定：フォントの見本（押すとすぐ変わる）。ボタンごとにそのフォントで書く */
+  .font-list { display: flex; flex-direction: column; gap: 6px; }
+  .font-opt {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; padding: 7px 12px 9px; box-sizing: border-box; text-align: left;
+    border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 8px; background: rgba(128, 128, 128, 0.08); color: var(--text);
+  }
+  .font-opt .fo-name { font-weight: 700; font-size: 13px; color: var(--muted); }
+  .font-opt .fo-line { display: flex; align-items: center; gap: 10px; max-width: 100%; }
+  .font-opt .fo-blk { flex: none; padding: 2px 8px; border-radius: 3px; background: #8fb3ff; color: #000; font-weight: 700; font-size: 14px; }
+  .font-opt .fo-sample { min-width: 0; font-weight: 700; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .font-opt.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .font-opt.on .fo-name { color: var(--text); }
   .range-val { min-width: 42px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   /* 設定の画面：左に項目のメニュー、右に中身（中身だけスクロール） */
   .modal .card.settings-card {
@@ -764,8 +778,8 @@
   .rh-text { font-size: 14px; color: #bbb; }
   /* 初めて開いたときの言語選択 */
   /* 中国語は日本の字形にならないよう台湾の字体、韓国語はハングルの字体を先に */
-  :root:lang(zh-Hant) { --font: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; }
-  :root:lang(ko) { --font: "M PLUS Rounded 1c", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
+  :root:lang(zh-Hant) { --font-base: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; }
+  :root:lang(ko) { --font-base: "M PLUS Rounded 1c", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
   #langPick { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #1b1b1b; }
   #langPick[hidden] { display: none; }
   .lp-card { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: var(--text); }
@@ -1070,7 +1084,7 @@
     </div>
     <div id="psTouch" aria-label="タッチの枠（タッチ・はじく・スライド）"><canvas></canvas></div>
   </section>
-  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.17.0</span></footer>
+  <footer id="status"><span id="statusText">読み込み中…</span><span id="onlineCount" hidden></span><button id="roomBadge" type="button" hidden></button><span id="version">RHRE Web v1.18.0</span></footer>
 </div>
 
 <div class="popover" id="snapMenu" hidden role="menu" aria-label="スナップ"></div>
@@ -1396,6 +1410,9 @@
             <label>線<input type="color" id="ccGrid"></label>
             <label>アクセント<input type="color" id="ccAccent"></label>
           </div>
+          <div class="set-sub">フォント</div>
+          <div id="fontList" class="font-list" role="group" aria-label="フォント"></div>
+          <p class="set-note" id="fontNote" hidden>この言語の文字は今のままで、英字と数字の形が変わります。</p>
           <div class="set-sub">背景の画像</div>
           <div class="row tight"><button class="btn" id="bgPick">画像を選ぶ</button><button class="btn" id="bgClear" disabled>外す</button></div>
           <div class="set-item">
@@ -1435,7 +1452,7 @@
 
 <div class="modal" id="helpModal" hidden>
   <div class="card">
-    <h2>RHRE Web v1.17.0</h2>
+    <h2>RHRE Web v1.18.0</h2>
     <div id="helpJa">
     <p>RHRE fresh の .rhref を開いて、RHRE fresh と同じ規則で再生・編集します。効果音は RHRE fresh と同じデータベースから、使う分だけ読み込みます。</p>
     <p class="note">RHRE Web は、RHRE fresh を元にしたファンメイドです。RHRE fresh を作った人たちとは関係ありません。RHRE Web のことは、RHRE fresh の人たちに聞かないでください。</p>
@@ -1493,7 +1510,7 @@
       <li>開く・サンプル・新規作成（部屋のリミックスが全員の分入れ替わります）、部屋の曲を決める、トラックの数・上下反転は、部屋を作った人だけができます。ほかの人が押すと、部屋を作った人に許可をお願いできます</li>
       <li>全員が抜けると 2 分で、だれも何もしない時間が 2 時間続くと、部屋はなくなります</li>
     </ul>
-    <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
+    <p><b>設定（歯車）</b>：左のメニューで項目を選びます。「言語」（画面の言語・ゲーム名・ミニゲームの言語）、「見た目」（テーマの色・フォント・背景の画像）、「編集画面」（メトロノームのプレイやん）、「プレイアロング」（タイミング調整）。トラックの数・チュートリアル・「リミックスを作ってみる」はメニュー（≡）から。</p>
     <p>まだできないこと：ピッチベンド、メジャー（入ったリミックスは開けますが、効果はありません）、MP3 などでの書き出し、MIDI の読み込み。</p>
     <p><b>アプリのように使うには</b>：iPhone は Safari の共有ボタン →「ホーム画面に追加」。Android は Chrome の「アプリをインストール」か、GitHub で配っている Android アプリ。ホーム画面に追加したアプリと Android アプリでは、一度使ったミニゲームはネットにつながっていなくても使えます。</p>
     <p class="note">このサイトは GoatCounter でアクセス数を数えています。Cookie は使わず、個人を特定する情報は集めません。</p>
@@ -1557,7 +1574,7 @@
       <li>Open, open sample and new (these replace the room's remix for everyone), choosing the room's song, the number of tracks and flipping tracks can only be done by the host. If someone else tries, they can ask the host for permission.</li>
       <li>A room disappears 2 minutes after everyone leaves, or after 2 hours with no activity.</li>
     </ul>
-    <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
+    <p><b>Settings (gear)</b>: pick a section from the menu on the left: Language (screen language, game names, minigame language), Appearance (theme colors, font, background image), Editor (Play-Yan with the metronome) and Playalong (timing offsets). Number of tracks, Tutorial and "Make a remix" are in the menu (≡).</p>
     <p>Not available yet: pitch bend, tape measure (remixes that contain them open, but they have no effect), MP3 and other export formats, MIDI import.</p>
     <p><b>Use it like an app</b>: on iPhone, tap Share in Safari → "Add to Home Screen". On Android, use "Install app" in Chrome, or the Android app on GitHub. In the Home Screen app and the Android app, minigames you have used once also work offline.</p>
     <p class="note">This site counts visits with GoatCounter. It uses no cookies and collects nothing that identifies you.</p>
@@ -1577,7 +1594,7 @@
 <input type="file" id="customInput" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac" multiple hidden>
 <input type="file" id="customZipInput" accept=".zip,application/zip" multiple hidden>
 <input type="file" id="customDirInput" webkitdirectory hidden>
-<script type="module" src="js/app.js?v=119"></script>
+<script type="module" src="js/app.js?v=120"></script>
 <!-- アクセス数（GoatCounter：Cookie なし・個人を特定する情報は集めない）。
      更新したときの ?u=… などで別のページに分かれないように、ページ名は場所だけにする -->
 <script>window.goatcounter = { path: function () { return location.pathname || '/'; } };</script>

@@ -560,6 +560,8 @@ export default {
     "Loading the remix.": "Der Remix wird geladen.",
     "Couldn't open": "Öffnen fehlgeschlagen",
     "■ Exit": "■ Beenden",
+    "Font": "Schriftart",
+    "Your language's own characters stay the same; letters and numbers change.": "Buchstaben und Zahlen ändern ihre Form.",
     "Background image": "Hintergrundbild",
     "Fit": "Anzeige",
     "Strength": "Stärke",
@@ -738,7 +740,7 @@ export default {
   <li>Öffnen, Beispiel öffnen und Neu (ersetzen den Remix des Raums für alle), das Lied des Raums wählen, die Anzahl der Spuren und das Umdrehen der Spuren kann nur der Gastgeber. Wenn jemand anderes es versucht, kann er den Gastgeber um Erlaubnis bitten.</li>
   <li>Ein Raum verschwindet 2 Minuten, nachdem alle gegangen sind, oder nach 2 Stunden ohne Aktivität.</li>
 </ul>
-<p><b>Einstellungen (Zahnrad)</b>: wähle links im Menü einen Bereich: Sprache (Sprache der Oberfläche, Spielnamen, Sprache der Minispiele), Darstellung (Designfarben, Hintergrundbild), Editor (Play-Yan mit dem Metronom) und Playalong (Timing-Ausgleich). Spuranzahl, Tutorial und „Einen Remix machen“ findest du im Menü (≡).</p>
+<p><b>Einstellungen (Zahnrad)</b>: wähle links im Menü einen Bereich: Sprache (Sprache der Oberfläche, Spielnamen, Sprache der Minispiele), Darstellung (Designfarben, Schriftart, Hintergrundbild), Editor (Play-Yan mit dem Metronom) und Playalong (Timing-Ausgleich). Spuranzahl, Tutorial und „Einen Remix machen“ findest du im Menü (≡).</p>
 <p>Noch nicht verfügbar: Pitch Bend, Maßband (Remixe, die so etwas enthalten, lassen sich öffnen, aber ohne Wirkung), Export als MP3 und andere Formate, MIDI-Import.</p>
 <p><b>Wie eine App nutzen</b>: auf dem iPhone in Safari auf Teilen → „Zum Home-Bildschirm“ tippen. Auf Android in Chrome „App installieren“ wählen oder die Android-App von GitHub nutzen. In der App auf dem Startbildschirm und in der Android-App funktionieren Minispiele, die du einmal benutzt hast, auch offline.</p>
 <p class="note">Diese Seite zählt Besuche mit GoatCounter. Sie verwendet keine Cookies und sammelt nichts, was dich identifiziert.</p>

@@ -560,6 +560,8 @@ export default {
     "Loading the remix.": "Chargement du remix.",
     "Couldn't open": "Impossible d'ouvrir",
     "■ Exit": "■ Quitter",
+    "Font": "Police",
+    "Your language's own characters stay the same; letters and numbers change.": "Les lettres et les chiffres changent de forme.",
     "Background image": "Image de fond",
     "Fit": "Cadrage",
     "Strength": "Intensité",
@@ -738,7 +740,7 @@ export default {
   <li>Ouvrir, ouvrir l'exemple et nouveau (ils remplacent le remix du salon pour tout le monde), choisir la chanson du salon, le nombre de pistes et inverser les pistes : seul l'hôte peut le faire. Si quelqu'un d'autre essaie, il peut demander l'autorisation à l'hôte.</li>
   <li>Un salon disparaît 2 minutes après le départ de tout le monde, ou après 2 heures sans activité.</li>
 </ul>
-<p><b>Paramètres (engrenage)</b> : choisissez une section dans le menu de gauche : Langue (langue de l'interface, noms des jeux, langue des mini-jeux), Apparence (couleurs du thème, image de fond), Éditeur (Play-Yan avec le métronome) et Playalong (décalages). Le nombre de pistes, le tutoriel et « Créer un remix » sont dans le menu (≡).</p>
+<p><b>Paramètres (engrenage)</b> : choisissez une section dans le menu de gauche : Langue (langue de l'interface, noms des jeux, langue des mini-jeux), Apparence (couleurs du thème, police, image de fond), Éditeur (Play-Yan avec le métronome) et Playalong (décalages). Le nombre de pistes, le tutoriel et « Créer un remix » sont dans le menu (≡).</p>
 <p>Pas encore disponible : pitch bend, mètre ruban (les remix qui en contiennent s'ouvrent, mais sans effet), export en MP3 et autres formats, import MIDI.</p>
 <p><b>L'utiliser comme une app</b> : sur iPhone, touchez Partager dans Safari → « Sur l'écran d'accueil ». Sur Android, utilisez « Installer l'application » dans Chrome, ou l'app Android sur GitHub. Dans l'app de l'écran d'accueil et l'app Android, les mini-jeux déjà utilisés une fois fonctionnent aussi hors ligne.</p>
 <p class="note">Ce site compte les visites avec GoatCounter. Il n'utilise pas de cookies et ne collecte rien qui permette de vous identifier.</p>

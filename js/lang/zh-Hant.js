@@ -560,6 +560,8 @@ export default {
     "Loading the remix.": "正在載入混音。",
     "Couldn't open": "無法開啟",
     "■ Exit": "■ 結束",
+    "Font": "字型",
+    "Your language's own characters stay the same; letters and numbers change.": "介面語言本身的文字維持原樣，只有英文字母和數字的字形會改變。",
     "Background image": "背景圖片",
     "Fit": "顯示方式",
     "Strength": "濃度",
@@ -738,7 +740,7 @@ export default {
   <li>開啟、開啟範例、新建（會替所有人替換房間的混音）、決定房間的歌曲、音軌數量、上下翻轉音軌，只有房主能做。其他人按下時，可以向房主請求許可</li>
   <li>所有人都離開 2 分鐘後，或 2 小時沒有任何操作時，房間就會消失</li>
 </ul>
-<p><b>設定（齒輪）</b>：在左邊的選單選擇項目：「語言」（介面語言、遊戲名稱、小遊戲語言）、「外觀」（主題顏色、背景圖片）、「編輯畫面」（節拍器的 Play-Yan）、「Playalong」（時機調整）。音軌數、教學、「動手做混音」在選單（≡）裡。</p>
+<p><b>設定（齒輪）</b>：在左邊的選單選擇項目：「語言」（介面語言、遊戲名稱、小遊戲語言）、「外觀」（主題顏色、字型、背景圖片）、「編輯畫面」（節拍器的 Play-Yan）、「Playalong」（時機調整）。音軌數、教學、「動手做混音」在選單（≡）裡。</p>
 <p>目前還不支援：Pitch Bend、量尺（含有這些的混音可以開啟，但沒有效果）、MP3 等格式的匯出、MIDI 匯入。</p>
 <p><b>像 App 一樣使用</b>：iPhone 請用 Safari 的分享按鈕 →「加入主畫面」。Android 請用 Chrome 的「安裝應用程式」，或在 GitHub 下載 Android App。在加到主畫面的 App 和 Android App 中，用過一次的小遊戲在沒有網路時也能使用。</p>
 <p class="note">本網站使用 GoatCounter 計算造訪次數。不使用 Cookie，也不收集可識別個人的資訊。</p>

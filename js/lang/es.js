@@ -560,6 +560,8 @@ export default {
     "Loading the remix.": "Cargando el remix.",
     "Couldn't open": "No se pudo abrir",
     "■ Exit": "■ Salir",
+    "Font": "Fuente",
+    "Your language's own characters stay the same; letters and numbers change.": "Las letras y los números cambian de forma.",
     "Background image": "Imagen de fondo",
     "Fit": "Encuadre",
     "Strength": "Intensidad",
@@ -738,7 +740,7 @@ export default {
   <li>Abrir, abrir el ejemplo y nuevo (reemplazan el remix de la sala para todos), elegir la canción de la sala, el número de pistas e invertir pistas solo los puede hacer el anfitrión. Si otra persona lo intenta, puede pedirle permiso al anfitrión.</li>
   <li>Una sala desaparece 2 minutos después de que todos salgan, o tras 2 horas sin actividad.</li>
 </ul>
-<p><b>Configuración (engranaje)</b>: elige una sección en el menú de la izquierda: Idioma (idioma de la interfaz, nombres de juegos, idioma de los minijuegos), Apariencia (colores del tema, imagen de fondo), Editor (Play-Yan con el metrónomo) y Playalong (ajustes de tiempo). El número de pistas, el tutorial y "Hacer un remix" están en el menú (≡).</p>
+<p><b>Configuración (engranaje)</b>: elige una sección en el menú de la izquierda: Idioma (idioma de la interfaz, nombres de juegos, idioma de los minijuegos), Apariencia (colores del tema, fuente, imagen de fondo), Editor (Play-Yan con el metrónomo) y Playalong (ajustes de tiempo). El número de pistas, el tutorial y "Hacer un remix" están en el menú (≡).</p>
 <p>Todavía no disponible: pitch bend, cinta métrica (los remixes que los contienen se abren, pero no tienen efecto), exportar a MP3 y otros formatos, importar MIDI.</p>
 <p><b>Usarla como una app</b>: en iPhone, toca Compartir en Safari → "Añadir a pantalla de inicio". En Android, usa "Instalar aplicación" en Chrome, o la app de Android de GitHub. En la app de la pantalla de inicio y en la app de Android, los minijuegos que ya has usado una vez también funcionan sin conexión.</p>
 <p class="note">Este sitio cuenta las visitas con GoatCounter. No usa cookies ni recoge nada que te identifique.</p>

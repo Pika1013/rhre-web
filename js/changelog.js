@@ -4,6 +4,30 @@
 // 使う人に向けた短い言葉で書く。隠し機能は書かない
 export const CHANGELOG = [
   {
+    v: '1.18.0', date: '2026-11-21',
+    ja: [
+      '設定の「見た目」で、画面の文字のフォントを選べるようにしました（標準・BIZ UDPGothic・Noto Sans JP・M PLUS 1p・Zen Kaku Gothic New・IBM Plex Sans JP・M PLUS 2）。それぞれのフォントの見本が並んでいて、押すとすぐに変わります。トラックのブロックの文字や動画の文字も同じフォントになります',
+    ],
+    en: [
+      'You can now choose the font for the app in Settings → Appearance (Standard, BIZ UDPGothic, Noto Sans JP, M PLUS 1p, Zen Kaku Gothic New, IBM Plex Sans JP, M PLUS 2). Each option shows a sample in that font, and tapping it changes the font right away. Block labels on the tracks and text in exported videos use the same font.',
+    ],
+    'zh-Hant': [
+      '現在可以在設定的「外觀」中選擇畫面文字的字型（標準、BIZ UDPGothic、Noto Sans JP、M PLUS 1p、Zen Kaku Gothic New、IBM Plex Sans JP、M PLUS 2）。每個字型都有範例，點一下就會立刻改變。音軌上方塊的文字和影片中的文字也會使用相同的字型。在繁體中文畫面中，漢字維持台灣的字體，只有英文字母和數字會改變。',
+    ],
+    ko: [
+      '설정의 "외관"에서 화면 글자의 글꼴을 고를 수 있게 했어요(기본·BIZ UDPGothic·Noto Sans JP·M PLUS 1p·Zen Kaku Gothic New·IBM Plex Sans JP·M PLUS 2). 글꼴마다 견본이 나와 있고, 누르면 바로 바뀌어요. 트랙의 블록 글자와 동영상의 글자도 같은 글꼴이 돼요. 한글은 지금 그대로이고, 영문자와 숫자의 모양이 바뀌어요.',
+    ],
+    es: [
+      'Ahora puedes elegir la fuente de la aplicación en Configuración → Apariencia (Estándar, BIZ UDPGothic, Noto Sans JP, M PLUS 1p, Zen Kaku Gothic New, IBM Plex Sans JP, M PLUS 2). Cada opción muestra una muestra con esa fuente y, al tocarla, cambia al instante. Los nombres de los bloques en las pistas y el texto de los vídeos exportados usan la misma fuente.',
+    ],
+    fr: [
+      "Vous pouvez maintenant choisir la police de l'application dans Paramètres → Apparence (Standard, BIZ UDPGothic, Noto Sans JP, M PLUS 1p, Zen Kaku Gothic New, IBM Plex Sans JP, M PLUS 2). Chaque choix affiche un exemple dans cette police, et il suffit de le toucher pour changer immédiatement. Les noms des blocs sur les pistes et le texte des vidéos exportées utilisent la même police.",
+    ],
+    de: [
+      'Unter Einstellungen → Darstellung kannst du jetzt die Schriftart der App wählen (Standard, BIZ UDPGothic, Noto Sans JP, M PLUS 1p, Zen Kaku Gothic New, IBM Plex Sans JP, M PLUS 2). Zu jeder Schriftart gibt es ein Beispiel, und ein Tippen ändert sie sofort. Die Namen der Blöcke auf den Spuren und der Text in exportierten Videos verwenden dieselbe Schriftart.',
+    ],
+  },
+  {
     v: '1.17.1', date: '2026-11-18',
     ja: [
       'iPhone などで数字を入れるとき（曲のテンポ・テンポの変更・トラックの数など）、決定のボタンがキーボードに隠れて押せず、キーボードも閉じられなかったのを直しました。キーボードが出ている間は、ウィンドウがキーボードの上に収まります',
